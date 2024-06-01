@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/chu-shen/BangumiKomga/compare/v0.4.0...v0.4.1) (2024-06-01)
+
+
+### Bug Fixes
+
+* 一次性获取 komga 所有系列 ([ee1adc0](https://github.com/chu-shen/BangumiKomga/commit/ee1adc06d410c0c677b177c286e2f2bde5bc9819))
+
+
+### Documentation
+
+* 添加 Docker 镜像示例 ([44e68ac](https://github.com/chu-shen/BangumiKomga/commit/44e68ace5d03540bc1ce5864ad792e9e23cd0891))
+
 ## 0.4.0 (2023-07-07)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/chu-shen/BangumiKomga/compare/v0.6.0...v0.7.0) (2024-10-15)
+
+
+### Features
+
+* support get vol or chap number ([cba4e49](https://github.com/chu-shen/BangumiKomga/commit/cba4e495797f5e82e3f69e108740856d8a71c2e5))
+
+
+### Performance Improvements
+
+* 不再重复读取人名文件 ([f9bc723](https://github.com/chu-shen/BangumiKomga/commit/f9bc72345a3d411307b74be8b5553dfce52fd8a4))
+
+
+### Documentation
+
+* 完善 docker 说明 ([2604a9c](https://github.com/chu-shen/BangumiKomga/commit/2604a9c21b2d9313f808c6b0ada687b00d45f585))
+
 ## [0.6.0](https://github.com/chu-shen/BangumiKomga/compare/v0.5.0...v0.6.0) (2024-07-01)
 
 

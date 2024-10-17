@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.3](https://github.com/chu-shen/BangumiKomga/compare/v0.8.2...v0.8.3) (2024-10-17)
+
+
+### Bug Fixes
+
+* 修复获取序号逻辑 ([dbce1cc](https://github.com/chu-shen/BangumiKomga/commit/dbce1cca8197734b2b8def339bd15f07a3641fd4))
+* 移除中文数字匹配 ([5fbbd6e](https://github.com/chu-shen/BangumiKomga/commit/5fbbd6e6c18faaeb0696463373412db8c09703e2))
+
 ## [0.8.2](https://github.com/chu-shen/BangumiKomga/compare/v0.8.1...v0.8.2) (2024-10-17)
 
 

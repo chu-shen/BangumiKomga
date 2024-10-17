@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/chu-shen/BangumiKomga/compare/v0.8.0...v0.8.1) (2024-10-17)
+
+
+### Documentation
+
+* update installation guide ([0fd61e0](https://github.com/chu-shen/BangumiKomga/commit/0fd61e0b2df6f6fb7cd7f23c18cf0ae07a937997))
+
 ## [0.8.0](https://github.com/chu-shen/BangumiKomga/compare/v0.7.0...v0.8.0) (2024-10-17)
 
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/chu-shen/BangumiKomga/compare/v0.7.0...v0.8.0) (2024-10-17)
+
+
+### Features
+
+* Bangumi 匹配算法切换为 TheFuzz ([f89cd07](https://github.com/chu-shen/BangumiKomga/commit/f89cd07644946b90cab0e403d6086dcba3e69e21))
+* 优化刮削逻辑，移除`FORCE_REFRESH_LIST`配置 ([c497d30](https://github.com/chu-shen/BangumiKomga/commit/c497d3076b0645166e04b7bbfd1e5573e8ed6b18))
+
 ## [0.7.0](https://github.com/chu-shen/BangumiKomga/compare/v0.6.0...v0.7.0) (2024-10-15)
 
 

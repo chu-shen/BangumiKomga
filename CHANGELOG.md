@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/chu-shen/BangumiKomga/compare/v0.8.1...v0.8.2) (2024-10-17)
+
+
+### Bug Fixes
+
+* 不刮削无序号单行本 ([08d47fe](https://github.com/chu-shen/BangumiKomga/commit/08d47fe42a79b2597b8f822450490d92b169a138))
+
 ## [0.8.1](https://github.com/chu-shen/BangumiKomga/compare/v0.8.0...v0.8.1) (2024-10-17)
 
 

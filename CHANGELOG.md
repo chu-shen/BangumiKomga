@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.4](https://github.com/chu-shen/BangumiKomga/compare/v0.8.3...v0.8.4) (2024-10-20)
+
+
+### Bug Fixes
+
+* 移除同步阅读进度中的`FORCE_REFRESH_LIST`配置 ([69ff03a](https://github.com/chu-shen/BangumiKomga/commit/69ff03ae76bc39a006844e829a2a58a15cd96c88))
+
 ## [0.8.3](https://github.com/chu-shen/BangumiKomga/compare/v0.8.2...v0.8.3) (2024-10-17)
 
 

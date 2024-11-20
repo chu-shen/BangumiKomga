@@ -63,11 +63,9 @@ This metadata then gets converted to be compatible to Komga and then gets sent t
 
 ## 快速开始
 
-**Warning:**
-
-Executing this program will result in the loss of old metadata for series and books
-
-执行此程序将导致书籍系列及单册的旧元数据丢失
+> [!WARNING] 
+> Executing this program will result in the loss of old metadata for series and books\
+> 执行此程序将导致书籍系列及单册的旧元数据丢失
 
 
 1. Install the requirements using

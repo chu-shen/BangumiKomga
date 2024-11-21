@@ -97,10 +97,9 @@ This metadata then gets converted to be compatible to Komga and then gets sent t
 
 3. Run the script using `python refreshMetadata.py`, or `docker start bangumikomga`
 
-**Tips:**
-
-- 如果漫画系列数量上千，请考虑使用[bangumi/Archive](https://github.com/bangumi/Archive)离线数据代替联网查询
-- 可以搭配工具定时执行，比如[ofelia](https://github.com/mcuadros/ofelia)
+> [!TIP]
+> - 如果漫画系列数量上千，请考虑使用[bangumi/Archive](https://github.com/bangumi/Archive)离线数据代替联网查询
+> - 可以搭配工具定时执行，比如[ofelia](https://github.com/mcuadros/ofelia)
 
 ## 消息通知（可选）
 
@@ -125,11 +124,9 @@ This metadata then gets converted to be compatible to Komga and then gets sent t
 
 每次运行都会根据**本次**运行数据重新创建此收藏（无失败则跳过）。
 
-**Tips:**
-
-- 在此收藏中按照[如何修正错误元数据](#如何修正错误元数据)操作，启用`RECHECK_FAILED_SERIES`，然后填入`cbl`~~治疗强迫症~~
-
-- 如果要将所有失败的系列都添加至收藏，则需要将`RECHECK_FAILED_SERIES`配置为`True`
+> [!TIP]
+> - 在此收藏中按照[如何修正错误元数据](#如何修正错误元数据)操作，启用`RECHECK_FAILED_SERIES`，然后填入`cbl`~~治疗强迫症~~
+> - 如果要将所有失败的系列都添加至收藏，则需要将`RECHECK_FAILED_SERIES`配置为`True`
 
 ## 其他配置说明
 
@@ -176,11 +173,11 @@ Komga 并没有区分漫画与小说。
 
 ## 同步阅读进度
 
-_注意：当前仅为komga至bangumi单向同步，此功能未维护_
+> [!WARNING]
+> _注意：当前仅为komga至bangumi单向同步，此功能未维护_
 
-**Tips:**
-
-推荐使用Tachiyomi更新阅读进度👉[Tracking | Tachiyomi](https://tachiyomi.org/help/guides/tracking/#what-is-tracking)
+> [!TIP]
+> 推荐使用Tachiyomi更新阅读进度👉[Tracking | Tachiyomi](https://tachiyomi.org/help/guides/tracking/#what-is-tracking)
 
 **同步内容：**
 - 仅同步卷数，不同步话数

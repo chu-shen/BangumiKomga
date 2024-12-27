@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.0](https://github.com/chu-shen/BangumiKomga/compare/v0.8.3...v0.9.0) (2024-12-27)
+
+
+### Features
+
+* 单册匹配时支持罗马数字 ([2c2651b](https://github.com/chu-shen/BangumiKomga/commit/2c2651b9de220b271c5c3993bd094cf1b62d0351)), closes [#26](https://github.com/chu-shen/BangumiKomga/issues/26)
+* 单册支持 cbl ([96875a2](https://github.com/chu-shen/BangumiKomga/commit/96875a2b19c3203df4e5239fb2317e3222f589d6))
+
+
+### Bug Fixes
+
+* 移除同步阅读进度中的`FORCE_REFRESH_LIST`配置 ([69ff03a](https://github.com/chu-shen/BangumiKomga/commit/69ff03ae76bc39a006844e829a2a58a15cd96c88))
+
 ## [0.8.3](https://github.com/chu-shen/BangumiKomga/compare/v0.8.2...v0.8.3) (2024-10-17)
 
 

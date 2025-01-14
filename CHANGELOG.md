@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/chu-shen/BangumiKomga/compare/v0.9.0...v0.9.1) (2025-01-14)
+
+
+### Bug Fixes
+
+* 修正罗马数字匹配问题 ([35c8ef3](https://github.com/chu-shen/BangumiKomga/commit/35c8ef370ec2ad7aa8b0bb8fe974face95a293e8))
+
 ## [0.9.0](https://github.com/chu-shen/BangumiKomga/compare/v0.8.3...v0.9.0) (2024-12-27)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.2](https://github.com/chu-shen/BangumiKomga/compare/v0.9.1...v0.9.2) (2025-01-16)
+
+
+### Documentation
+
+* 完善 docker 执行说明 ([602dc5d](https://github.com/chu-shen/BangumiKomga/commit/602dc5d74d5340a62003aa30bc9f5074431cf9dd))
+
 ## [0.9.1](https://github.com/chu-shen/BangumiKomga/compare/v0.9.0...v0.9.1) (2025-01-14)
 
 

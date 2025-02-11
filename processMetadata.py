@@ -25,7 +25,10 @@ def __setGenres(komga_metadata, bangumi_metadata):
     '''
     genrelist = []
     # TODO bangumi并没有将漫画划分流派，后续可以考虑从tags中提取匹配
-    genrelist.append(bangumi_metadata["platform"])
+    if bangumi_metadata["platform"] is None:
+        genrelist.append("其他")
+    else:
+        genrelist.append(bangumi_metadata["platform"])
     for info in bangumi_metadata["infobox"]:
         if info["key"] == "连载杂志":
             if type(info["value"]) == list:

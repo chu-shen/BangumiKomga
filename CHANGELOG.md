@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/chu-shen/BangumiKomga/compare/v0.9.1...v0.10.0) (2025-03-05)
+
+
+### Features
+
+* 为存在`Bangumi`链接的系列在排序标题中添加首字母 ([9bee000](https://github.com/chu-shen/BangumiKomga/commit/9bee000666e52f6858ce3023035493666efe643d))
+* 支持系列在英文字母导航中分类显示 ([7c6996d](https://github.com/chu-shen/BangumiKomga/commit/7c6996db55be10f7d3fb0d1acbaa146cf8655b74))
+
+
+### Documentation
+
+* 完善 docker 执行说明 ([602dc5d](https://github.com/chu-shen/BangumiKomga/commit/602dc5d74d5340a62003aa30bc9f5074431cf9dd))
+
 ## [0.9.1](https://github.com/chu-shen/BangumiKomga/compare/v0.9.0...v0.9.1) (2025-01-14)
 
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.1](https://github.com/chu-shen/BangumiKomga/compare/v0.10.0...v0.10.1) (2025-03-14)
+
+
+### Bug Fixes
+
+* 检查 cbl 获取的元数据是否为空&添加日志 ([c9ecc45](https://github.com/chu-shen/BangumiKomga/commit/c9ecc4528410064e3de1d2a998d48404a26728b9))
+
+
+### Documentation
+
+* 添加 cbl 修改图例 ([c0169ed](https://github.com/chu-shen/BangumiKomga/commit/c0169edab8f022033375d32b3b01116e6bb12700))
+
 ## [0.10.0](https://github.com/chu-shen/BangumiKomga/compare/v0.9.1...v0.10.0) (2025-03-05)
 
 

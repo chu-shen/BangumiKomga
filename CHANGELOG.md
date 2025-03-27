@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.11.0](https://github.com/chu-shen/BangumiKomga/compare/v0.10.0...v0.11.0) (2025-03-27)
+
+
+### Features
+
+* 日志支持同时输出到文件和显示在 docker 日志窗口 ([84ac359](https://github.com/chu-shen/BangumiKomga/commit/84ac359f472b2648d13d3470e48afca784c65411)), closes [#23](https://github.com/chu-shen/BangumiKomga/issues/23)
+
+
+### Bug Fixes
+
+* 检查 cbl 获取的元数据是否为空&添加日志 ([c9ecc45](https://github.com/chu-shen/BangumiKomga/commit/c9ecc4528410064e3de1d2a998d48404a26728b9))
+
+
+### Documentation
+
+* 添加 cbl 修改图例 ([c0169ed](https://github.com/chu-shen/BangumiKomga/commit/c0169edab8f022033375d32b3b01116e6bb12700))
+
 ## [0.10.0](https://github.com/chu-shen/BangumiKomga/compare/v0.9.1...v0.10.0) (2025-03-05)
 
 

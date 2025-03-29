@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/chu-shen/BangumiKomga/compare/v0.12.0...v0.12.1) (2025-03-29)
+
+
+### Documentation
+
+* 修正 cbl 和 RECHECK_FAILED_SERIES 说明 ([38a5b87](https://github.com/chu-shen/BangumiKomga/commit/38a5b87accc3895abbc6a839f34e8da337ec84fe))
+
 ## [0.12.0](https://github.com/chu-shen/BangumiKomga/compare/v0.11.0...v0.12.0) (2025-03-29)
 
 

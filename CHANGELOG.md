@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/chu-shen/BangumiKomga/compare/v0.11.0...v0.12.0) (2025-03-29)
+
+
+### Features
+
+* 使用 FUZZ 对 bgm 搜索结果进行过滤和排序 ([b2d1962](https://github.com/chu-shen/BangumiKomga/commit/b2d19622cfb29534a26539840ad9afe3e05561df))
+
 ## [0.11.0](https://github.com/chu-shen/BangumiKomga/compare/v0.10.0...v0.11.0) (2025-03-27)
 
 

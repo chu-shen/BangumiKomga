@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0](https://github.com/chu-shen/BangumiKomga/compare/v0.12.0...v0.13.0) (2025-04-03)
+
+
+### Features
+
+* 完善年龄限制逻辑 ([5e9af4f](https://github.com/chu-shen/BangumiKomga/commit/5e9af4f9dce50a3fc1e27804a91ceeee42463f05))
+
+
+### Documentation
+
+* 修正 cbl 和 RECHECK_FAILED_SERIES 说明 ([38a5b87](https://github.com/chu-shen/BangumiKomga/commit/38a5b87accc3895abbc6a839f34e8da337ec84fe))
+
 ## [0.12.0](https://github.com/chu-shen/BangumiKomga/compare/v0.11.0...v0.12.0) (2025-03-29)
 
 

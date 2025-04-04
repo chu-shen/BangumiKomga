@@ -1,11 +1,67 @@
 import re
 import json
 from tools.archiveAutoupdater import ArchiveFilesPath
+from requests.models import Response
+from io import BytesIO
+from tools.log import logger
 
-DATA_PATH = ArchiveFilesPath + "subject.jsonlines"
+META_DATA_PATH = ArchiveFilesPath + "subject.jsonlines"
+SUBJECT_RELATION_PATH = ArchiveFilesPath + "subject-relations.jsonlines"
+
+# FUCK: 本地搜索竟然比在线慢很多你敢信
+# TODO: 一次读一条jsonline性能太差了, 需要优化
+
 
 # 匹配方括号列表的正则表达式
 RE_ARRAY_ENTRY = re.compile(r'\[(.*?)\]')
+
+# 条目类型
+# https://bangumi.github.io/api/#/%E6%9D%A1%E7%9B%AE/getRelatedSubjectsBySubjectId
+# 1 = book
+# 2 = anime
+# 3 = music
+# 4 = game
+# 6 = real
+WHAT_IS_THE_TYPE = {
+    1: "书籍",
+    2: "动画",
+    3: "音乐",
+    4: "游戏",
+    6: "三次元"
+}
+
+
+# TODO: 也许分块读入然后在内存里遍历?
+def iterate_archive_lines(file_path: str):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line_number, line in enumerate(f, 1):
+                if not line:
+                    continue  # 跳过空行
+                try:
+                    yield json.loads(line.strip())
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Archive文件第 {line_number} 行解析失败: {str(e)}")
+                    continue
+    except FileNotFoundError:
+        logger.error(f"Archive文件未找到: {file_path}")
+    except Exception as e:
+        logger.error(f"读取Archive发生错误: {str(e)}")
+
+
+def pretend_it_is_response(data, status_code: int = 200) -> Response:
+
+    response = Response()
+    response.status_code = status_code
+    response._content = json.dumps(data).encode('utf-8')
+    response.raw = BytesIO(response._content)
+
+    # 设置Content-Type头以便正确解析JSON
+    response.headers['Content-Type'] = 'application/json'
+    # 设置编码
+    response.encoding = 'utf-8'
+
+    return response
 
 
 def parse_infobox(infobox_str):
@@ -61,7 +117,7 @@ def process_value(key, value_str):
 
 def search_subject(keywords, item_type=1):
     results = []
-    with open(DATA_PATH, "r", encoding="utf-8") as f:
+    with open(META_DATA_PATH, "r", encoding="utf-8") as f:
         for line in f:
             try:
                 item = json.loads(line.strip())
@@ -95,8 +151,8 @@ def search_subject(keywords, item_type=1):
     return results
 
 
-def get_metadata_by_ID(subject_ID):
-    with open(DATA_PATH, "r", encoding="utf-8") as f:
+def get_metadata(subject_ID):
+    with open(META_DATA_PATH, "r", encoding="utf-8") as f:
         for line in f:
             try:
                 item = json.loads(line.strip())
@@ -106,6 +162,30 @@ def get_metadata_by_ID(subject_ID):
             if subject_ID == item.get("id", 0):
                 return item
         return None
+
+
+def get_related_subject_list(subject_ID):
+    related_subjects = []
+    with open(SUBJECT_RELATION_PATH, "r", encoding="utf-8") as f:
+        for line in f:
+            try:
+                item = json.loads(line.strip())
+            except json.JSONDecodeError:
+                continue
+             # 过滤ID
+            if subject_ID == item.get("subject_id", 0):
+                data = get_metadata(item.get("related_subject_id", 0))
+                transformed = {
+                    "name": data.get('name'),
+                    "name_cn": data.get('name_cn'),
+                    # 这里返回的类型的中文名, 但 subject-relations.jsonlines 里的 relation_type 字段我不明白代表什么含义, 所以就用 related_subject 里面的 type 来代替了
+                    "relation": WHAT_IS_THE_TYPE[data.get('type')],
+                    "id": data.get('id'),
+                    "images": get_images(data.get('id'))
+                }
+                related_subjects.append(transformed)
+
+        return related_subjects
 
 
 # 如何使用本地数据获得封面仍然没有思路
@@ -129,9 +209,9 @@ def get_images(subject_ID):
 
 # 等价于 /v0/subjects/{subject_id}
 def get_subject_metadata_in_archive(subject_ID):
-    data = get_metadata_by_ID(subject_ID)
+    data = get_metadata(subject_ID)
     if not data:
-        return json.dumps({"error": "Subject not found"}).encode("utf-8")
+        return json.dumps({"error": "Subject not found in archive."}).encode("utf-8")
 
     try:
         transformed = {
@@ -166,9 +246,9 @@ def get_subject_metadata_in_archive(subject_ID):
             "nsfw": data.get('nsfw', False),
             "type": data.get('type', 0)
         }
-        return json.dumps(transformed).encode("utf-8")
+        return pretend_it_is_response(transformed, 200)
     except Exception as e:
-        return json.dumps({"error": str(e)}).encode("utf-8")
+        return pretend_it_is_response({"error": str(e)}, 500)
 
 
 # 等价于 /search/subject/{quote_plus(query)}?type=1
@@ -192,4 +272,9 @@ def search_subjects_in_archive(keywords):
         "list": search_results
     }
 
-    return json.dumps(response).encode("utf-8")
+    return pretend_it_is_response(response)
+
+
+# 等价于 /v0/subjects/{subject_id}/subjects
+def get_related_subjects_in_archive(subject_ID):
+    return pretend_it_is_response(get_related_subject_list(subject_ID))

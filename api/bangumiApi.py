@@ -10,18 +10,22 @@ from thefuzz import fuzz
 from tools.log import logger
 from zhconv import convert
 from urllib.parse import quote_plus
+from tools.archiveAutoupdater import update_archive
+from tools.getMetadataFromArchive import search_subjects_in_archive, get_subject_metadata_in_archive
 
 
 class BangumiApi:
     BASE_URL = "https://api.bgm.tv"
 
-    def __init__(self, access_token=None):
+    def __init__(self, access_token=None, use_local_archive=False):
         self.r = requests.Session()
         self.r.mount('http://', HTTPAdapter(max_retries=3))
         self.r.mount('https://', HTTPAdapter(max_retries=3))
         self.access_token = access_token
         if self.access_token:
             self.refresh_token()
+        self.use_local_archive = use_local_archive
+        update_archive()
 
     def _get_headers(self):
         headers = {
@@ -52,7 +56,7 @@ class BangumiApi:
                     score = max(
                         score, fuzz.ratio(item["value"], target))
         return score
-        
+
     def search_subjects(self, query, threshold=80):
         '''
         获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
@@ -60,14 +64,18 @@ class BangumiApi:
         # 正面例子：魔女與使魔 -> 魔女与使魔，325236
         # 反面例子：君は淫らな僕の女王 -> 君は淫らな仆の女王，47331
         query = convert(query, 'zh-cn')
-        url = f"{self.BASE_URL}/search/subject/{quote_plus(query)}?responseGroup=small&type=1&max_results=25"
-        # TODO 处理'citrus+ ~柑橘味香气plus~'
-        try:
-            response = self.r.get(url, headers=self._get_headers())
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
-            return []
+
+        if self.use_local_archive:
+            response = search_subjects_in_archive(quote_plus(query))
+        else:
+            url = f"{self.BASE_URL}/search/subject/{quote_plus(query)}?responseGroup=small&type=1&max_results=25"
+            # TODO 处理'citrus+ ~柑橘味香气plus~'
+            try:
+                response = self.r.get(url, headers=self._get_headers())
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                logger.error(f"An error occurred: {e}")
+                return []
 
         # e.g. Artbooks.VOL.14 -> {"request":"\/search\/subject\/Artbooks.VOL.14?responseGroup=large&type=1","code":404,"error":"Not Found"}
         try:
@@ -117,14 +125,18 @@ class BangumiApi:
         '''
         获取漫画元数据
         '''
-        url = f"{self.BASE_URL}/v0/subjects/{subject_id}"
-        try:
-            response = self.r.get(url, headers=self._get_headers())
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
-            logger.error(f"请检查 {subject_id} 是否填写正确；或属于 NSFW，但并未配置 BANGUMI_ACCESS_TOKEN")
-            return []
+        if self.use_local_archive:
+            response = get_subject_metadata_in_archive(subject_id)
+        else:
+            url = f"{self.BASE_URL}/v0/subjects/{subject_id}"
+            try:
+                response = self.r.get(url, headers=self._get_headers())
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                logger.error(f"An error occurred: {e}")
+                logger.error(
+                    f"请检查 {subject_id} 是否填写正确；或属于 NSFW，但并未配置 BANGUMI_ACCESS_TOKEN")
+                return []
         return response.json()
 
     def get_related_subjects(self, subject_id):
@@ -156,13 +168,13 @@ class BangumiApi:
             logger.error(f"An error occurred: {e}")
         return response.status_code == 204
 
-
     def get_subject_thumbnail(self, subject_metadata):
         '''
         获取漫画封面
         '''
         try:
-            thumbnail=requests.get(subject_metadata['images']['large']).content
+            thumbnail = requests.get(
+                subject_metadata['images']['large']).content
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
             return []

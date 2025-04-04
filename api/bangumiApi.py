@@ -11,7 +11,7 @@ from tools.log import logger
 from zhconv import convert
 from urllib.parse import quote_plus
 from tools.archiveAutoupdater import update_archive
-from tools.getMetadataFromArchive import search_subjects_in_archive, get_subject_metadata_in_archive
+from tools.getMetadataFromArchive import search_subjects_in_archive, get_subject_metadata_in_archive, get_related_subjects_in_archive
 
 
 class BangumiApi:
@@ -65,9 +65,11 @@ class BangumiApi:
         # 反面例子：君は淫らな僕の女王 -> 君は淫らな仆の女王，47331
         query = convert(query, 'zh-cn')
 
+        # 看看Archive里面有没有数据
         if self.use_local_archive:
-            response = search_subjects_in_archive(quote_plus(query))
-        else:
+            response = search_subjects_in_archive(query)
+        # Archive里面没有数据, 试试在线API
+        if response["results"] == 0 or 'title' in response.json():
             url = f"{self.BASE_URL}/search/subject/{quote_plus(query)}?responseGroup=small&type=1&max_results=25"
             # TODO 处理'citrus+ ~柑橘味香气plus~'
             try:
@@ -125,9 +127,11 @@ class BangumiApi:
         '''
         获取漫画元数据
         '''
+        # 看看Archive里面有没有数据
         if self.use_local_archive:
             response = get_subject_metadata_in_archive(subject_id)
-        else:
+        # Archive里面没有数据, 试试在线API
+        if 'title' in response.json():
             url = f"{self.BASE_URL}/v0/subjects/{subject_id}"
             try:
                 response = self.r.get(url, headers=self._get_headers())
@@ -143,13 +147,18 @@ class BangumiApi:
         '''
         获取漫画的关联条目
         '''
-        url = f"{self.BASE_URL}/v0/subjects/{subject_id}/subjects"
-        try:
-            response = self.r.get(url, headers=self._get_headers())
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
-            return []
+        # 看看Archive里面有没有数据
+        if self.use_local_archive:
+            response = get_related_subjects_in_archive(subject_id)
+        # Archive里面没有数据, 试试在线API
+        if 'title' in response.json():
+            url = f"{self.BASE_URL}/v0/subjects/{subject_id}/subjects"
+            try:
+                response = self.r.get(url, headers=self._get_headers())
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                logger.error(f"An error occurred: {e}")
+                return []
         return response.json()
 
     def update_reading_progress(self, subject_id, progress):

@@ -9,7 +9,7 @@ from datetime import datetime
 # TODO: 换成logger
 
 ArchiveUpdateTime = None
-ArchiveFilesPath = "../archivedata/"
+ArchiveFilesPath = "./archivedata/"
 
 
 def read_cache():

@@ -59,7 +59,7 @@ def process_value(key, value_str):
     return value_str.strip()
 
 
-def search_subject_in_archive(keywords, item_type=1):
+def search_subject(keywords, item_type=1):
     results = []
     with open(DATA_PATH, "r", encoding="utf-8") as f:
         for line in f:
@@ -183,7 +183,7 @@ def search_subjects_in_archive(keywords):
     item_type = 1
 
     # 执行搜索
-    search_results = search_subject_in_archive(
+    search_results = search_subject(
         keywords=keywords, item_type=item_type)
 
     # 构造返回值

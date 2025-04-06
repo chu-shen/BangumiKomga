@@ -57,6 +57,17 @@ class BangumiApi:
                         score, fuzz.ratio(item["value"], target))
         return score
 
+    def search_subjects_in_api(self, query):
+        url = f"{self.BASE_URL}/search/subject/{quote_plus(query)}?responseGroup=small&type=1&max_results=25"
+        # TODO 处理'citrus+ ~柑橘味香气plus~'
+        try:
+            response = self.r.get(url, headers=self._get_headers())
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"An error occurred: {e}")
+            return []
+        return response
+
     def search_subjects(self, query, threshold=80):
         '''
         获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
@@ -68,17 +79,12 @@ class BangumiApi:
         # 看看Archive里面有没有数据
         if self.use_local_archive:
             response = search_subjects_in_archive(query)
-        # Archive里面没有数据, 试试在线API
-        if response["results"] == 0 or 'title' in response.json():
-            url = f"{self.BASE_URL}/search/subject/{quote_plus(query)}?responseGroup=small&type=1&max_results=25"
-            # TODO 处理'citrus+ ~柑橘味香气plus~'
-            try:
-                response = self.r.get(url, headers=self._get_headers())
-                response.raise_for_status()
-            except requests.exceptions.RequestException as e:
-                logger.error(f"An error occurred: {e}")
-                return []
-
+            # 当Archive里面没有数据, 就试试在线API
+            if response["results"] == 0 or 'title' in response.json():
+                response = self.search_subjects_in_api(query)
+        # 当不使用Archive时使用在线API
+        else:
+            response = self.search_subjects_in_api(query)
         # e.g. Artbooks.VOL.14 -> {"request":"\/search\/subject\/Artbooks.VOL.14?responseGroup=large&type=1","code":404,"error":"Not Found"}
         try:
             response_json = response.json()
@@ -123,6 +129,18 @@ class BangumiApi:
 
         return sort_results
 
+    def get_subject_metadata_in_api(self, subject_id):
+        url = f"{self.BASE_URL}/v0/subjects/{subject_id}"
+        try:
+            response = self.r.get(url, headers=self._get_headers())
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"An error occurred: {e}")
+            logger.error(
+                f"请检查 {subject_id} 是否填写正确；或属于 NSFW，但并未配置 BANGUMI_ACCESS_TOKEN")
+            return []
+        return response
+
     def get_subject_metadata(self, subject_id):
         '''
         获取漫画元数据
@@ -130,18 +148,26 @@ class BangumiApi:
         # 看看Archive里面有没有数据
         if self.use_local_archive:
             response = get_subject_metadata_in_archive(subject_id)
-        # Archive里面没有数据, 试试在线API
-        if 'title' in response.json():
-            url = f"{self.BASE_URL}/v0/subjects/{subject_id}"
-            try:
-                response = self.r.get(url, headers=self._get_headers())
-                response.raise_for_status()
-            except requests.exceptions.RequestException as e:
-                logger.error(f"An error occurred: {e}")
-                logger.error(
-                    f"请检查 {subject_id} 是否填写正确；或属于 NSFW，但并未配置 BANGUMI_ACCESS_TOKEN")
-                return []
-        return response.json()
+            # Archive里面没有数据, 试试在线API
+            if 'title' in response.json():
+                response = self.get_subject_metadata_in_api(self, subject_id)
+        # 当不使用Archive时使用在线API
+        else:
+            response = self.get_subject_metadata_in_api(self, subject_id)
+        if response != []:
+            return response.json()
+        else:
+            return response
+
+    def get_related_subjects_in_api(self, subject_id):
+        url = f"{self.BASE_URL}/v0/subjects/{subject_id}/subjects"
+        try:
+            response = self.r.get(url, headers=self._get_headers())
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"An error occurred: {e}")
+            return []
+        return response
 
     def get_related_subjects(self, subject_id):
         '''
@@ -151,15 +177,15 @@ class BangumiApi:
         if self.use_local_archive:
             response = get_related_subjects_in_archive(subject_id)
         # Archive里面没有数据, 试试在线API
-        if 'title' in response.json():
-            url = f"{self.BASE_URL}/v0/subjects/{subject_id}/subjects"
-            try:
-                response = self.r.get(url, headers=self._get_headers())
-                response.raise_for_status()
-            except requests.exceptions.RequestException as e:
-                logger.error(f"An error occurred: {e}")
-                return []
-        return response.json()
+            if 'title' in response.json():
+                response = self.get_related_subjects_in_api(self, subject_id)
+        # 当不使用Archive时使用在线API
+        else:
+            response = self.get_related_subjects_in_api(self, subject_id)
+        if response != []:
+            return response.json()
+        else:
+            return response
 
     def update_reading_progress(self, subject_id, progress):
         '''

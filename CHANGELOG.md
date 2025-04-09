@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.13.0](https://github.com/chu-shen/BangumiKomga/compare/v0.12.0...v0.13.0) (2025-04-09)
+
+
+### Features
+
+* 完善年龄限制逻辑 ([5e9af4f](https://github.com/chu-shen/BangumiKomga/commit/5e9af4f9dce50a3fc1e27804a91ceeee42463f05))
+* 新增 bgm 数据源工厂 ([3a6f4c8](https://github.com/chu-shen/BangumiKomga/commit/3a6f4c8cdd9943d810510398fb8aaccac23cb1dd))
+* 添加 bgm 条目平台及关联的枚举类 ([4a61017](https://github.com/chu-shen/BangumiKomga/commit/4a61017fb2afc07c73896c45197a540df6ab557b))
+
+
+### Documentation
+
+* 修正 cbl 和 RECHECK_FAILED_SERIES 说明 ([38a5b87](https://github.com/chu-shen/BangumiKomga/commit/38a5b87accc3895abbc6a839f34e8da337ec84fe))
+
 ## [0.12.0](https://github.com/chu-shen/BangumiKomga/compare/v0.11.0...v0.12.0) (2025-03-29)
 
 

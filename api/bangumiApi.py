@@ -166,7 +166,7 @@ class BangumiArchiveDataSource(DataSource):
     """
 
     # FUCK: 本地搜索竟然比在线慢很多你敢信
-    # TODO: 一次读一条jsonline性能太差了, 需要优化
+    # TODO: 一次读一条jsonline性能太差了, 需要后续优化
 
     def __init__(self, local_archive_folder):
         self.subject_relation_file = local_archive_folder + "subject-relations.jsonlines"

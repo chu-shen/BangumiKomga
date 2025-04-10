@@ -9,7 +9,6 @@ from tools.log import logger
 # TODO: 加个下载/解压进度条
 
 ArchiveUpdateTime = None
-ArchiveFilesPath = "./archivedata/"
 
 
 def read_cache():
@@ -74,8 +73,8 @@ def download_and_unzip(url, target_dir):
     return True
 
 
-def update_archive():
-    target_dir = ArchiveFilesPath
+def update_archive(local_archive_folder):
+    target_dir = local_archive_folder
     os.makedirs(target_dir, exist_ok=True)
 
     download_url = get_latest_url()

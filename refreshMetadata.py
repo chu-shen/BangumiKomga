@@ -1,3 +1,4 @@
+from api.bangumiModel import SubjectRelation
 from tools.getTitle import ParseTitle
 import processMetadata
 from time import strftime, localtime
@@ -248,7 +249,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
         if related_subjects is None:
             # Get the related subjects for the series from bangumi
             related_subjects = [subject for subject in bgm.get_related_subjects(
-                subject_id) if subject['relation'] == "单行本"]
+                subject_id) if SubjectRelation.parse(subject['relation']) == SubjectRelation.OFFPRINT]
 
             # Get the number for each related subject by finding the last number in the name or name_cn field
             subjects_numbers = []

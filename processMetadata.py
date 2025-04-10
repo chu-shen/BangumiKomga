@@ -4,6 +4,7 @@
 # ------------------------------------------------------------------
 
 
+from api.bangumiModel import SubjectRelation
 from api.komgaApi import *
 from pypinyin import slug, Style
 
@@ -76,7 +77,7 @@ def __setTotalBookCount(komga_metadata, subjectRelations):
     totalBookCount = 0
     for relation in subjectRelations:
         # TODO 冷门漫画可能无关联条目，需要完善总册数判断逻辑
-        if relation["relation"] == "单行本":
+        if SubjectRelation.parse(relation["relation"]) == SubjectRelation.OFFPRINT:
             totalBookCount = totalBookCount+1
     komga_metadata.totalBookCount = totalBookCount if totalBookCount != 0 else 1
 
@@ -196,13 +197,9 @@ def __setLinks(komga_metadata, bangumi_metadata, subjectRelations):
     '''
     链接
     '''
-    # TODO 可以考虑替换komga漫画系列封面图。目前默认为第一本的封面
     links = [
         {
             "label": "Bangumi", "url": "https://bgm.tv/subject/"+str(bangumi_metadata["id"])
-        },
-        {
-            "label": "Bangumi Image", "url": bangumi_metadata["images"]["large"]
         }
     ]
     for relation in subjectRelations:

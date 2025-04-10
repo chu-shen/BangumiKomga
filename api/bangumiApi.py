@@ -10,11 +10,39 @@ from thefuzz import fuzz
 from tools.log import logger
 from zhconv import convert
 from urllib.parse import quote_plus
-from tools.archiveAutoupdater import update_archive
-from tools.getMetadataFromArchive import search_subjects_in_archive, get_subject_metadata_in_archive, get_related_subjects_in_archive
+from abc import ABC, abstractmethod
+from api.bangumiModel import SubjectPlatform, SubjectRelation
 
 
-class BangumiApi:
+class DataSource(ABC):
+    """
+    数据源基类
+    """
+    @abstractmethod
+    def search_subjects(self, query, threshold=80):
+        pass
+
+    @abstractmethod
+    def get_subject_metadata(self, subject_id):
+        pass
+
+    @abstractmethod
+    def get_related_subjects(self, subject_id):
+        pass
+
+    @abstractmethod
+    def update_reading_progress(self, subject_id, progress):
+        pass
+
+    @abstractmethod
+    def get_subject_thumbnail(self, subject_metadata):
+        pass
+
+
+class BangumiApiDataSource(DataSource):
+    """
+    Bangumi API 数据源类
+    """
     BASE_URL = "https://api.bgm.tv"
 
     def __init__(self, access_token=None, use_local_archive=False):
@@ -111,7 +139,7 @@ class BangumiApi:
             # bangumi书籍系列包括：系列、单行本
             # 此处需去除漫画系列的单行本，避免干扰，官方 API 已添加 series 字段（是否系列，仅对书籍类型的条目有效）
             # bangumi数据中存在单行本与系列未建立联系的情况
-            if manga_metadata["platform"] != "小说" and manga_metadata["series"]:
+            if SubjectPlatform.parse(manga_metadata["platform"]) != SubjectPlatform.Novel and manga_metadata["series"]:
                 # 计算得分
                 score = self.compute_name_score_by_fuzzy(
                     manga_metadata["name"],
@@ -196,7 +224,7 @@ class BangumiApi:
             "vol_status": progress
         }
         try:
-            response = requests.patch(
+            response = self.r.patch(
                 url, headers=self._get_headers(), json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
@@ -208,8 +236,7 @@ class BangumiApi:
         获取漫画封面
         '''
         try:
-            thumbnail = requests.get(
-                subject_metadata['images']['large']).content
+            thumbnail = self.r.get(subject_metadata['images']['large']).content
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
             return []
@@ -217,3 +244,93 @@ class BangumiApi:
             'file': (subject_metadata['name'], thumbnail)
         }
         return files
+
+
+class BangumiArchiveDataSource(DataSource):
+    """
+    离线数据源类
+    """
+
+    def __init__(self):
+        pass
+
+    def search_subjects(self, query, threshold=80):
+        """
+        离线数据源搜索条目
+        """
+        return []
+
+    def get_subject_metadata(self, subject_id):
+        """
+        离线数据源获取条目元数据
+        """
+        return {}
+
+    def get_related_subjects(self, subject_id):
+        """
+        离线数据源获取关联条目
+        """
+        return []
+
+    def update_reading_progress(self, subject_id, progress):
+        """
+        离线数据源更新阅读进度
+        """
+        NotImplementedError("离线数据源不支持更新阅读进度")
+        return False
+
+    def get_subject_thumbnail(self, subject_metadata):
+        """
+        离线数据源获取封面
+        """
+        NotImplementedError("离线数据源不支持获取封面")
+        return {}
+
+
+class BangumiDataSourceFactory:
+    """
+    数据源工厂类
+    """
+    @staticmethod
+    def create(config):
+        online = BangumiApiDataSource(config.get('access_token'))
+
+        if config.get('use_local_archive', False):
+            offline = BangumiArchiveDataSource()
+            return FallbackDataSource(offline, online)
+
+        return online
+
+
+class FallbackDataSource(DataSource):
+    """
+    备用数据源类，用于在主数据源失败时使用备用数据源
+    """
+
+    def __init__(self, primary, secondary):
+        self.primary = primary
+        self.secondary = secondary
+
+    def _fallback_call(self, method_name, *args, **kwargs):
+        # 优先调用 primary 数据源的方法
+        result = getattr(self.primary, method_name)(*args, **kwargs)
+
+        # 如果结果为空/False（根据业务逻辑判断），则尝试 secondary 数据源
+        if not result:
+            result = getattr(self.secondary, method_name)(*args, **kwargs)
+        return result
+
+    def search_subjects(self, query, threshold=80):
+        return self._fallback_call('search_subjects', query, threshold=threshold)
+
+    def get_subject_metadata(self, subject_id):
+        return self._fallback_call('get_subject_metadata', subject_id)
+
+    def get_related_subjects(self, subject_id):
+        return self._fallback_call('get_related_subjects', subject_id)
+
+    def update_reading_progress(self, subject_id, progress):
+        self._fallback_call('update_reading_progress', subject_id, progress)
+
+    def get_subject_thumbnail(self, subject_metadata):
+        return self._fallback_call('get_subject_thumbnail', subject_metadata)

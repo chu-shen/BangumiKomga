@@ -36,5 +36,4 @@ SORT_TITLE = False
 
 FUZZ_SCORE_THRESHOLD = 80
 
-# Use bangumi/Archive or not, See https://github.com/bangumi/Archive
 USE_BANGUMI_ARCHIVE = False

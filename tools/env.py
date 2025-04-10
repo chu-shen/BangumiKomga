@@ -1,13 +1,16 @@
+from api.bangumiApi import BangumiDataSourceFactory
 import api.komgaApi as komgaApi
-import api.bangumiApi as bangumiApi
 from config.config import *
 from tools.log import logger
 
 
 class InitEnv:
     def __init__(self):
-        self.bgm = bangumiApi.BangumiApi(
-            BANGUMI_ACCESS_TOKEN, USE_BANGUMI_ARCHIVE)
+        BANGUMI_DATA_SOURCE_CONFIG = {
+            'access_token': BANGUMI_ACCESS_TOKEN,
+            'use_local_archive': USE_BANGUMI_ARCHIVE,
+        }
+        self.bgm = BangumiDataSourceFactory.create(BANGUMI_DATA_SOURCE_CONFIG)
         # Initialize the komga API
         self.komga = komgaApi.KomgaApi(
             KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD)

@@ -5,9 +5,13 @@
 
 
 import requests
+import json
 from requests.adapters import HTTPAdapter
-from thefuzz import fuzz
+
 from tools.log import logger
+from tools.archiveAutoupdater import update_archive
+from tools.localArchiveHelper import parse_infobox, process_value
+from tools.resortSearchResultsList import compute_name_score_by_fuzzy, resort_search_list
 from zhconv import convert
 from urllib.parse import quote_plus
 from abc import ABC, abstractmethod
@@ -45,15 +49,13 @@ class BangumiApiDataSource(DataSource):
     """
     BASE_URL = "https://api.bgm.tv"
 
-    def __init__(self, access_token=None, use_local_archive=False):
+    def __init__(self, access_token=None):
         self.r = requests.Session()
         self.r.mount('http://', HTTPAdapter(max_retries=3))
         self.r.mount('https://', HTTPAdapter(max_retries=3))
         self.access_token = access_token
         if self.access_token:
             self.refresh_token()
-        self.use_local_archive = use_local_archive
-        update_archive()
 
     def _get_headers(self):
         headers = {
@@ -67,25 +69,13 @@ class BangumiApiDataSource(DataSource):
         # https://next.bgm.tv/demo/access-token
         return
 
-    def compute_name_score_by_fuzzy(self, name, name_cn, infobox, target):
-        """
-        Use fuzzy to computes the Levenshtein distance between name, name_cn, and infobox "别名" (if exists) and the target string.
-        """
-        score = fuzz.ratio(name, target)
-        if name_cn:
-            score = max(score, fuzz.ratio(name_cn, target))
-        for item in infobox:
-            if item["key"] == "别名":
-                if isinstance(item["value"], (list,)):  # 判断传入值是否为列表
-                    for alias in item["value"]:
-                        score = max(
-                            score, fuzz.ratio(alias["v"], target))
-                else:
-                    score = max(
-                        score, fuzz.ratio(item["value"], target))
-        return score
-
-    def search_subjects_in_api(self, query):
+    def search_subjects(self, query, threshold=80):
+        '''
+        获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
+        '''
+        # 正面例子：魔女與使魔 -> 魔女与使魔，325236
+        # 反面例子：君は淫らな僕の女王 -> 君は淫らな仆の女王，47331
+        query = convert(query, 'zh-cn')
         url = f"{self.BASE_URL}/search/subject/{quote_plus(query)}?responseGroup=small&type=1&max_results=25"
         # TODO 处理'citrus+ ~柑橘味香气plus~'
         try:
@@ -94,25 +84,7 @@ class BangumiApiDataSource(DataSource):
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
             return []
-        return response
 
-    def search_subjects(self, query, threshold=80):
-        '''
-        获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
-        '''
-        # 正面例子：魔女與使魔 -> 魔女与使魔，325236
-        # 反面例子：君は淫らな僕の女王 -> 君は淫らな仆の女王，47331
-        query = convert(query, 'zh-cn')
-
-        # 看看Archive里面有没有数据
-        if self.use_local_archive:
-            response = search_subjects_in_archive(query)
-            # 当Archive里面没有数据, 就试试在线API
-            if response["results"] == 0 or 'title' in response.json():
-                response = self.search_subjects_in_api(query)
-        # 当不使用Archive时使用在线API
-        else:
-            response = self.search_subjects_in_api(query)
         # e.g. Artbooks.VOL.14 -> {"request":"\/search\/subject\/Artbooks.VOL.14?responseGroup=large&type=1","code":404,"error":"Not Found"}
         try:
             response_json = response.json()
@@ -127,37 +99,12 @@ class BangumiApiDataSource(DataSource):
             else:
                 return []
 
-        # 具有完整元数据的排序条目，可提升结果准确性，但增加请求次数
-        sort_results = []
-        for result in results:
-            manga_id = result['id']
-            manga_metadata = self.get_subject_metadata(manga_id)
-            if not manga_metadata:
-                continue
-            # bangumi书籍类型包括：漫画、小说、画集、其他
-            # 由于komga不支持小说文字的读取，这里直接忽略`小说`类型，避免返回错误结果
-            # bangumi书籍系列包括：系列、单行本
-            # 此处需去除漫画系列的单行本，避免干扰，官方 API 已添加 series 字段（是否系列，仅对书籍类型的条目有效）
-            # bangumi数据中存在单行本与系列未建立联系的情况
-            if SubjectPlatform.parse(manga_metadata["platform"]) != SubjectPlatform.Novel and manga_metadata["series"]:
-                # 计算得分
-                score = self.compute_name_score_by_fuzzy(
-                    manga_metadata["name"],
-                    manga_metadata.get("name_cn", ""),
-                    manga_metadata['infobox'],
-                    query
-                )
-                # 仅添加得分超过阈值的条目
-                if score >= threshold:
-                    manga_metadata['fuzzScore'] = score
-                    sort_results.append(manga_metadata)
+        return resort_search_list(query=query, results=results, threshold=threshold, DataSource=self)
 
-        # 按得分降序排序
-        sort_results.sort(key=lambda x: x['fuzzScore'], reverse=True)
-
-        return sort_results
-
-    def get_subject_metadata_in_api(self, subject_id):
+    def get_subject_metadata(self, subject_id):
+        '''
+        获取漫画元数据
+        '''
         url = f"{self.BASE_URL}/v0/subjects/{subject_id}"
         try:
             response = self.r.get(url, headers=self._get_headers())
@@ -167,27 +114,12 @@ class BangumiApiDataSource(DataSource):
             logger.error(
                 f"请检查 {subject_id} 是否填写正确；或属于 NSFW，但并未配置 BANGUMI_ACCESS_TOKEN")
             return []
-        return response
+        return response.json()
 
-    def get_subject_metadata(self, subject_id):
+    def get_related_subjects(self, subject_id):
         '''
-        获取漫画元数据
+        获取漫画的关联条目
         '''
-        # 看看Archive里面有没有数据
-        if self.use_local_archive:
-            response = get_subject_metadata_in_archive(subject_id)
-            # Archive里面没有数据, 试试在线API
-            if 'title' in response.json():
-                response = self.get_subject_metadata_in_api(self, subject_id)
-        # 当不使用Archive时使用在线API
-        else:
-            response = self.get_subject_metadata_in_api(self, subject_id)
-        if response != []:
-            return response.json()
-        else:
-            return response
-
-    def get_related_subjects_in_api(self, subject_id):
         url = f"{self.BASE_URL}/v0/subjects/{subject_id}/subjects"
         try:
             response = self.r.get(url, headers=self._get_headers())
@@ -195,25 +127,7 @@ class BangumiApiDataSource(DataSource):
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
             return []
-        return response
-
-    def get_related_subjects(self, subject_id):
-        '''
-        获取漫画的关联条目
-        '''
-        # 看看Archive里面有没有数据
-        if self.use_local_archive:
-            response = get_related_subjects_in_archive(subject_id)
-        # Archive里面没有数据, 试试在线API
-            if 'title' in response.json():
-                response = self.get_related_subjects_in_api(self, subject_id)
-        # 当不使用Archive时使用在线API
-        else:
-            response = self.get_related_subjects_in_api(self, subject_id)
-        if response != []:
-            return response.json()
-        else:
-            return response
+        return response.json()
 
     def update_reading_progress(self, subject_id, progress):
         '''
@@ -251,26 +165,142 @@ class BangumiArchiveDataSource(DataSource):
     离线数据源类
     """
 
-    def __init__(self):
-        pass
+    # FUCK: 本地搜索竟然比在线慢很多你敢信
+    # TODO: 一次读一条jsonline性能太差了, 需要优化
+
+    def __init__(self, local_archive_folder):
+        self.subject_relation_file = local_archive_folder + "subject-relations.jsonlines"
+        self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
+        update_archive(local_archive_folder)
+
+    def get_metadata_from_archive(self, subject_id):
+        with open(self.subject_metadata_file, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    item = json.loads(line.strip())
+                except json.JSONDecodeError:
+                    continue
+                # 过滤ID
+                if subject_id == item.get("id", 0):
+                    return item
+        logger.error(f"Archive中不包含Subject_ID: {subject_id} 的元数据.")
+        return None
 
     def search_subjects(self, query, threshold=80):
         """
         离线数据源搜索条目
         """
-        return []
+        # TODO: 当前未限制返回列表的长度
+        results = []
+        with open(self.subject_metadata_file, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    item = json.loads(line.strip())
+                except json.JSONDecodeError:
+                    continue
+
+                # 优先进行类型过滤
+                if str(item.get("type", 0)) != str(1):
+                    continue
+
+                # 多字段模糊匹配
+                if (query.lower() in str(item["name"]).lower() or
+                    query.lower() in str(item.get("name_cn", "")).lower() or
+                    query in str(item.get("summary", "")) or
+                        any(query in tag["name"] for tag in item.get("tags", []))):
+
+                    result = {
+                        "id": item["id"],
+                        "url": r"http://bgm.tv/subject/" + str(item["id"]),
+                        "type": item.get("type", 0),
+                        "name": item.get("name", ""),
+                        "name_cn": item.get("name_cn", ""),
+                        "summary": item.get("summary", ""),
+                        "air_date": item.get("air_date", ""),
+                        "air_weekday": item.get("air_weekday", 0),
+                        # 忽略 images 字段
+                        "images": ""
+                    }
+                    results.append(result)
+
+        return resort_search_list(query=query, results=results, threshold=threshold, DataSource=self)
 
     def get_subject_metadata(self, subject_id):
         """
         离线数据源获取条目元数据
         """
-        return {}
+        data = self.get_metadata_from_archive(subject_id)
+        try:
+            result = {
+                "date": data.get('date'),
+                "platform": SubjectPlatform.parse(data["platform"]),
+                # 忽略 images 字段
+                # "images": get_images(subject_ID),
+                "images": "",
+                "summary": data.get('summary'),
+                "name": data.get('name'),
+                "name_cn": data.get('name_cn'),
+                "tags": [{'name': t['name'], 'count': t['count'], 'total_cont': 0} for t in data.get('tags', [])],
+                "infobox": parse_infobox(data['infobox']),
+                "rating": {
+                    "rank": data.get('rank', 0),
+                    "total": data.get('total', 0),
+                    "count": data.get('score_details', {}),
+                    "score": data.get('score', 0.0)
+                },
+                "total_episodes": data.get('eps', 0),
+                "collection": {
+                    "on_hold": data['favorite'].get('on_hold', 0),
+                    "dropped": data['favorite'].get('dropped', 0),
+                    "wish": data['favorite'].get('wish', 0),
+                    # 假设done对应collect
+                    "collect": data['favorite'].get('done', 0),
+                    "doing": data['favorite'].get('doing', 0)
+                },
+                "id": data.get('id'),
+                "eps": data.get('eps', 0),
+                "meta_tags": [tag['name'] for tag in data.get('tags', [])],
+                "volumes": data.get('volumes', 0),
+                "series": data.get('series', False),
+                "locked": data.get('locked', False),
+                "nsfw": data.get('nsfw', False),
+                "type": data.get('type', 0)
+            }
+            return result
+        except Exception as e:
+            logger.error(f"构建Archive元数据出错: {e}")
+            return {}
 
     def get_related_subjects(self, subject_id):
         """
-        离线数据源获取关联条目
+        离线数据源获取关联条目列表
         """
-        return []
+        related_subjects = []
+        with open(self.subject_relation_file, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    item = json.loads(line.strip())
+                except json.JSONDecodeError:
+                    continue
+                # 过滤ID
+                if subject_id == item.get("subject_id", 0):
+                    try:
+                        data = self.get_metadata_from_archive(
+                            item.get("related_subject_id", 0))
+                        result = {
+                            "name": data.get('name'),
+                            "name_cn": data.get('name_cn'),
+                            "relation": SubjectRelation.parse(item.get('relation_type')),
+                            "id": data.get('id'),
+                            # 忽略 images 字段
+                            # "images": get_images(data.get('id'))
+                            "images": ""
+                        }
+                        related_subjects.append(result)
+                    except Exception as e:
+                        logger.error(f"构建Archive关联条目 {subject_id} 出错: {e}")
+                        continue
+            return related_subjects
 
     def update_reading_progress(self, subject_id, progress):
         """

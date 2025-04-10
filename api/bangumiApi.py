@@ -173,7 +173,7 @@ class BangumiArchiveDataSource(DataSource):
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
         update_archive(local_archive_folder)
 
-    def get_metadata_from_archive(self, subject_id):
+    def _get_metadata_from_archive(self, subject_id):
         with open(self.subject_metadata_file, "r", encoding="utf-8") as f:
             for line in f:
                 try:
@@ -229,7 +229,7 @@ class BangumiArchiveDataSource(DataSource):
         """
         离线数据源获取条目元数据
         """
-        data = self.get_metadata_from_archive(subject_id)
+        data = self._get_metadata_from_archive(subject_id)
         try:
             result = {
                 "date": data.get('date'),
@@ -285,7 +285,7 @@ class BangumiArchiveDataSource(DataSource):
                 # 过滤ID
                 if subject_id == item.get("subject_id", 0):
                     try:
-                        data = self.get_metadata_from_archive(
+                        data = self._get_metadata_from_archive(
                             item.get("related_subject_id", 0))
                         result = {
                             "name": data.get('name'),

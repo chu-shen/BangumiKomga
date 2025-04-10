@@ -1,8 +1,5 @@
 import re
 import json
-from tools.archiveAutoupdater import ArchiveFilesPath
-from requests.models import Response
-from io import BytesIO
 from tools.log import logger
 
 

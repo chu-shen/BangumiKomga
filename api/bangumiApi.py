@@ -10,8 +10,8 @@ from requests.adapters import HTTPAdapter
 
 from tools.log import logger
 from tools.archiveAutoupdater import update_archive
-from tools.localArchiveHelper import parse_infobox, process_value
-from tools.resortSearchResultsList import compute_name_score_by_fuzzy, resort_search_list
+from tools.localArchiveHelper import parse_infobox
+from tools.resortSearchResultsList import resort_search_list
 from zhconv import convert
 from urllib.parse import quote_plus
 from abc import ABC, abstractmethod

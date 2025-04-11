@@ -9,7 +9,7 @@ import json
 from requests.adapters import HTTPAdapter
 
 from tools.log import logger
-from tools.archiveAutoupdater import update_archive
+# from tools.archiveAutoupdater import update_archive
 from tools.localArchiveHelper import parse_infobox
 from tools.resortSearchResultsList import resort_search_list
 from zhconv import convert
@@ -171,7 +171,7 @@ class BangumiArchiveDataSource(DataSource):
     def __init__(self, local_archive_folder):
         self.subject_relation_file = local_archive_folder + "subject-relations.jsonlines"
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
-        update_archive(local_archive_folder)
+        # update_archive(local_archive_folder)
 
     def _get_metadata_from_archive(self, subject_id):
         with open(self.subject_metadata_file, "r", encoding="utf-8") as f:

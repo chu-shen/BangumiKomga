@@ -1,4 +1,4 @@
-# get access token from: https://next.bgm.tv/demo/access-token
+# Get access token from: https://next.bgm.tv/demo/access-token
 BANGUMI_ACCESS_TOKEN = 'gruUsn***************************SUSSn'
 KOMGA_BASE_URL = "http://IP:PORT"
 KOMGA_EMAIL = "email"
@@ -11,7 +11,7 @@ RECHECK_FAILED_BOOKS = False
 
 CREATE_FAILED_COLLECTION = False
 
-# support 'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'
+# Support 'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'
 NOTIF_TYPE_ENABLE = []
 
 NOTIF_GOTIFY_ENDPOINT = "http://IP:PORT"
@@ -29,11 +29,13 @@ NOTIF_HEALTHCHECKS_TIMEOUT = 10
 
 
 # Poster
-USE_BANGUMI_THUMBNAIL=False
-USE_BANGUMI_THUMBNAIL_FOR_BOOK=False
+USE_BANGUMI_THUMBNAIL = False
+USE_BANGUMI_THUMBNAIL_FOR_BOOK = False
 
 SORT_TITLE = False
 
 FUZZ_SCORE_THRESHOLD = 80
 
 USE_BANGUMI_ARCHIVE = False
+
+ARCHIVE_FILES_DIR = "./archivedata/"

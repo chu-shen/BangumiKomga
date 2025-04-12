@@ -8,21 +8,21 @@ from tools.log import logger
 # TODO: 加入Archive更新定时检查功能
 # TODO: 加个下载/解压进度条
 
-ArchiveUpdateTime = None
+LastArchiveUpdateTime = None
 
 
-def read_cache():
+def read_cache_time():
     """读取本地缓存时间"""
     try:
-        with open("cache.json", "r") as f:
+        with open("archive_cache_time.json", "r") as f:
             return json.load(f).get("last_updated", "1970-01-01T00:00:00Z")
     except (FileNotFoundError, json.JSONDecodeError):
         return "1970-01-01T00:00:00Z"
 
 
-def save_cache(last_updated):
+def save_cache_time(last_updated):
     """保存最新成功时间"""
-    with open("cache.json", "w") as f:
+    with open("archive_cache_time.json", "w") as f:
         json.dump({"last_updated": last_updated}, f)
 
 
@@ -35,20 +35,20 @@ def get_latest_url():
         )
         response.raise_for_status()
         data = response.json()
-        global ArchiveUpdateTime
-        ArchiveUpdateTime = data.get('updated_at')
+        global LastArchiveUpdateTime
+        LastArchiveUpdateTime = data.get('updated_at')
         return data.get('browser_download_url')
     except requests.exceptions.RequestException as e:
         logger.warning(f"获取Bangumi Archive JSON失败: {str(e)}")
-        return None
+        return ""
     except json.JSONDecodeError as e:
         logger.warning(f"Bangumi Archive JSON解析失败: {str(e)}")
-        return None
+        return ""
 
 
 def download_and_unzip(url, target_dir):
     """下载并解压文件"""
-    temp_zip = 'temp_update.zip'
+    temp_zip = 'temp_archive.zip'
     print("正在下载 Bangumi Archive 数据......")
     try:
         # 下载文件
@@ -78,20 +78,20 @@ def update_archive(local_archive_folder):
     os.makedirs(target_dir, exist_ok=True)
 
     download_url = get_latest_url()
-    if not download_url:
-        logger.warning("无法获取 Bangumi Archive 下载链接")
+    if download_url == "":
+        logger.warning("无法获取 Bangumi Archive 下载链接, 跳过Archive更新")
         return
 
-    global ArchiveUpdateTime
+    global LastArchiveUpdateTime
     # 读取本地缓存时间
     local_update_time = datetime.fromisoformat(
-        read_cache().replace("Z", "+00:00"))
+        read_cache_time().replace("Z", "+00:00"))
     remote_update_time = datetime.fromisoformat(
-        ArchiveUpdateTime.replace("Z", "+00:00"))
+        LastArchiveUpdateTime.replace("Z", "+00:00"))
     if remote_update_time > local_update_time:
         logger.info("检测到新版本 Bangumi Archive, 开始更新...")
         if download_and_unzip(download_url, target_dir):
-            save_cache(ArchiveUpdateTime)
+            save_cache_time(LastArchiveUpdateTime)
             logger.info("Bangumi Archive 更新完成")
         else:
             logger.warning("Bangumi Archive 更新失败")

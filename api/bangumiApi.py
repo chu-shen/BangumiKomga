@@ -10,7 +10,7 @@ from requests.adapters import HTTPAdapter
 
 from tools.log import logger
 # from tools.archiveAutoupdater import update_archive
-from tools.localArchiveHelper import parse_infobox
+from tools.localArchiveHelper import parse_infobox, search_line_batch_optimized, search_list_batch_optimized, search_all_data_batch_optimized
 from tools.resortSearchResultsList import resort_search_list
 from zhconv import convert
 from urllib.parse import quote_plus
@@ -165,65 +165,50 @@ class BangumiArchiveDataSource(DataSource):
     离线数据源类
     """
 
-    # FUCK: 本地搜索竟然比在线慢很多你敢信
-    # TODO: 一次读一条jsonline性能太差了, 需要后续优化
-
     def __init__(self, local_archive_folder):
         self.subject_relation_file = local_archive_folder + "subject-relations.jsonlines"
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
         # update_archive(local_archive_folder)
 
+    # 将10s+的全文件扫描性能提升到1s左右
     def _get_metadata_from_archive(self, subject_id):
-        with open(self.subject_metadata_file, "r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    item = json.loads(line.strip())
-                except json.JSONDecodeError:
-                    continue
-                # 过滤ID
-                if subject_id == item.get("id", 0):
-                    return item
-        logger.error(f"Archive中不包含Subject_ID: {subject_id} 的元数据.")
-        return None
+        return search_line_batch_optimized(file_path=self.subject_metadata_file, subject_id=subject_id, target_field="id")
+
+    # 将10s+的全文件扫描性能提升到1s左右
+    def _get_relations_from_archive(self, subject_id):
+        return search_list_batch_optimized(file_path=self.subject_relation_file, subject_id=subject_id, target_field="subject_id")
+
+    # 将10s+的全文件扫描性能提升到1s左右
+    def _get_search_results_from_archive(self, query):
+        return search_all_data_batch_optimized(file_path=self.subject_metadata_file, query=query)
 
     def search_subjects(self, query, threshold=80):
         """
         离线数据源搜索条目
         """
         # TODO: 当前未限制返回列表的长度
-        results = []
-        with open(self.subject_metadata_file, "r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    item = json.loads(line.strip())
-                except json.JSONDecodeError:
-                    continue
-
-                # 优先进行类型过滤
-                if str(item.get("type", 0)) != str(1):
-                    continue
-
-                # 多字段模糊匹配
-                if (query.lower() in str(item["name"]).lower() or
+        # 长度限制应该和threshold搭配使用, 在resort_search_list()中实现
+        search_results = []
+        results = self._get_search_results_from_archive(query)
+        for item in results:
+            if (query.lower() in str(item["name"]).lower() or
                     query.lower() in str(item.get("name_cn", "")).lower() or
                     query in str(item.get("summary", "")) or
-                        any(query in tag["name"] for tag in item.get("tags", []))):
-
-                    result = {
-                        "id": item["id"],
-                        "url": r"http://bgm.tv/subject/" + str(item["id"]),
-                        "type": item.get("type", 0),
-                        "name": item.get("name", ""),
-                        "name_cn": item.get("name_cn", ""),
-                        "summary": item.get("summary", ""),
-                        "air_date": item.get("air_date", ""),
-                        "air_weekday": item.get("air_weekday", 0),
-                        # 忽略 images 字段
-                        "images": ""
-                    }
-                    results.append(result)
-
-        return resort_search_list(query=query, results=results, threshold=threshold, DataSource=self)
+                    any(query in tag["name"] for tag in item.get("tags", []))):
+                result = {
+                    "id": item["id"],
+                    "url": r"http://bgm.tv/subject/" + str(item["id"]),
+                    "type": item.get("type", 0),
+                    "name": item.get("name", ""),
+                    "name_cn": item.get("name_cn", ""),
+                    "summary": item.get("summary", ""),
+                    "air_date": item.get("air_date", ""),
+                    "air_weekday": item.get("air_weekday", 0),
+                    # 忽略 images 字段
+                    "images": ""
+                }
+                search_results.append(result)
+        return resort_search_list(query=query, results=search_results, threshold=threshold, DataSource=self)
 
     def get_subject_metadata(self, subject_id):
         """
@@ -275,32 +260,29 @@ class BangumiArchiveDataSource(DataSource):
         """
         离线数据源获取关联条目列表
         """
-        related_subjects = []
-        with open(self.subject_relation_file, "r", encoding="utf-8") as f:
-            for line in f:
+        relation_list = self._get_relations_from_archive(subject_id)
+        if len(relation_list) < 1:
+            return []
+        result_list = []
+        for item in relation_list:
+            # 过滤ID
+            if subject_id == item.get("subject_id", 0):
                 try:
-                    item = json.loads(line.strip())
-                except json.JSONDecodeError:
+                    metadata = self._get_metadata_from_archive(
+                        item.get("related_subject_id", 0))
+                    result = {
+                        "name": metadata.get('name'),
+                        "name_cn": metadata.get('name_cn'),
+                        "relation": SubjectRelation.parse(item.get('relation_type')),
+                        "id": metadata.get('id'),
+                        # 忽略 images 字段
+                        "images": ""
+                    }
+                    result_list.append(result)
+                except Exception as e:
+                    logger.error(f"构建Archive关联条目 {subject_id} 出错: {e}")
                     continue
-                # 过滤ID
-                if subject_id == item.get("subject_id", 0):
-                    try:
-                        data = self._get_metadata_from_archive(
-                            item.get("related_subject_id", 0))
-                        result = {
-                            "name": data.get('name'),
-                            "name_cn": data.get('name_cn'),
-                            "relation": SubjectRelation.parse(item.get('relation_type')),
-                            "id": data.get('id'),
-                            # 忽略 images 字段
-                            # "images": get_images(data.get('id'))
-                            "images": ""
-                        }
-                        related_subjects.append(result)
-                    except Exception as e:
-                        logger.error(f"构建Archive关联条目 {subject_id} 出错: {e}")
-                        continue
-            return related_subjects
+        return result_list
 
     def update_reading_progress(self, subject_id, progress):
         """

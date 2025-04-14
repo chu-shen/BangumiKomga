@@ -3,7 +3,7 @@ from api.bangumiModel import SubjectPlatform
 from api.bangumiApi import DataSource
 
 
-def compute_name_score_by_fuzzy(self, name, name_cn, infobox, target):
+def compute_name_score_by_fuzzy(name, name_cn, infobox, target):
     """
     Use fuzzy to computes the Levenshtein distance between name, name_cn, and infobox "别名" (if exists) and the target string.
     """
@@ -23,6 +23,8 @@ def compute_name_score_by_fuzzy(self, name, name_cn, infobox, target):
 
 
 def resort_search_list(query, results, threshold, DataSource):
+    if len(results) < 1:
+        return []
     # 构建具有完整元数据的排序条目
     sort_results = []
     for result in results:

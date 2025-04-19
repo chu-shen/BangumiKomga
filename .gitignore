@@ -3,3 +3,4 @@ recordsRefreshed.db
 refreshMetadata.log
 __pycache__/
 .vscode
+*.jsonlines

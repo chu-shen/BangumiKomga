@@ -104,6 +104,12 @@
 > - 如果漫画系列数量上千，请考虑使用[bangumi/Archive](https://github.com/bangumi/Archive)离线数据代替联网查询
 > - 可以搭配工具定时执行，比如[ofelia](https://github.com/mcuadros/ofelia)
 
+> [!TIP]
+>
+> 配置 `BANGUMI_ACCESS_TOKEN` 不能确保 NSFW条目正常获取元数据。
+> 若日志中出现报错信息, 应检查访问令牌所属账号是否拥有 [bangumi.tv](https://bangumi.tv/) 的NSFW信息访问权限。正常情况下, [bangumi.tv](https://bangumi.tv/) 账号在注册数月后将自动解锁 NSFW 条目访问权限。
+
+
 ## 消息通知（可选）
 
 消息通知支持[Gotify](https://github.com/gotify/server)、Webhook（如：[飞书](https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot)）、[Healthchecks](https://github.com/healthchecks/healthchecks)（定时任务监控）

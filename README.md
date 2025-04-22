@@ -19,8 +19,8 @@
 
 ## 简介
 
-该脚本获取您 Komga 实例上可用的漫画列表, 挨个在 [Bangumi](https://bgm.tv/) 上查询, 并按配置获取指定系列的元数据.
-然后将这些元数据转换为与 Komga 兼容的格式, 并更新到到Komga服务器的具体漫画条目中.
+该脚本获取您 Komga 实例上可用的漫画列表, 挨个在 [Bangumi](https://bgm.tv/) 上查询, 并按配置获取指定系列的元数据。
+然后将这些元数据转换为与 Komga 兼容的格式, 并更新到 Komga 服务器的具体漫画条目中。
 
 ![sample](img/sample.jpg)
 ![detail](img/detail.jpg)
@@ -56,7 +56,7 @@
 
 ## 先决条件
 
-- 一个有admin权限的Komga实例
+- 一个有 admin 权限的 Komga 实例
 - 使用 Windows/Linux/MAc 等主流操作系统, 也可在其上使用 Docker
 - 如需在 Windows, Linux 或 Mac 上直接执行脚本, 应安装有Python
 
@@ -85,9 +85,9 @@
         - /path/BangumiKomga/logs:/app/logs
     ```
 
-2. 将 `config/config.template.py` 重命名为 `config/config.py`, 并修改 `KOMGA_BASE_URL`, `KOMGA_EMAIL` 和 `KOMGA_EMAIL_PASSWORD` 以便程序访问你的komga实例(用户凭据需要有komga元数据修改权限).
+2. 将 `config/config.template.py` 重命名为 `config/config.py`, 并修改 `KOMGA_BASE_URL`, `KOMGA_EMAIL` 和 `KOMGA_EMAIL_PASSWORD` 以便程序访问你的 Komga 实例(此用户需要有 Komga 元数据修改权限)。
 
-    `BANGUMI_ACCESS_TOKEN` （可选）用于读取NSFW条目，在 <https://next.bgm.tv/demo/access-token> 创建个人令牌
+    `BANGUMI_ACCESS_TOKEN` （可选）用于读取 NSFW 条目，在 <https://next.bgm.tv/demo/access-token> 创建个人令牌。请**自行**确认账号能否正常访问 NSFW 条目
 
     `KOMGA_LIBRARY_LIST` 处理指定库中的书籍系列。komga界面点击库（对应链接）即可获得，形如：`'0B79XX3NP97K9'`，对应地址：`http://IP:PORT/libraries/0B79XX3NP97K9/series`。填写时以英文引号`''`包裹，英文逗号`,`分割。与`KOMGA_COLLECTION_LIST`不能同时使用
 
@@ -97,18 +97,12 @@
 
     `ARCHIVE_FILES_DIR` 指定储存[bangumi/Archive](https://github.com/bangumi/Archive)的本地目录。形如：`./bgmArchiveData/`。离线元数据可提前手动解压至该目录中, 亦可在启用`USE_BANGUMI_ARCHIVE`后等待程序自动从Github下载解压(可能较慢)
 
-3. 用 `python refreshMetadata.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(执行后容器将自动关闭.)
+3. 用 `python refreshMetadata.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(执行后容器将自动关闭)
 
 > [!TIP]
 >
 > - 如果漫画系列数量上千，请考虑使用[bangumi/Archive](https://github.com/bangumi/Archive)离线数据代替联网查询
 > - 可以搭配工具定时执行，比如[ofelia](https://github.com/mcuadros/ofelia)
-
-> [!TIP]
->
-> 配置 `BANGUMI_ACCESS_TOKEN` 不能确保 NSFW条目正常获取元数据。
-> 若日志中出现报错信息, 应检查访问令牌所属账号是否拥有 [bangumi.tv](https://bangumi.tv/) 的NSFW信息访问权限。正常情况下, [bangumi.tv](https://bangumi.tv/) 账号在注册数月后将自动解锁 NSFW 条目访问权限。
-
 
 ## 消息通知（可选）
 

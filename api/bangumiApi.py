@@ -218,7 +218,7 @@ class BangumiArchiveDataSource(DataSource):
         try:
             result = {
                 "date": data.get('date'),
-                "platform": SubjectPlatform.parse(data["platform"]),
+                "platform": data["platform"],
                 # 忽略 images 字段
                 # "images": get_images(subject_ID),
                 "images": "",
@@ -273,7 +273,7 @@ class BangumiArchiveDataSource(DataSource):
                     result = {
                         "name": metadata.get('name'),
                         "name_cn": metadata.get('name_cn'),
-                        "relation": SubjectRelation.parse(item.get('relation_type')),
+                        "relation": item.get('relation_type'),
                         "id": metadata.get('id'),
                         # 忽略 images 字段
                         "images": ""
@@ -308,7 +308,7 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get('access_token'))
 
         if config.get('use_local_archive', False):
-            offline = BangumiArchiveDataSource()
+            offline = BangumiArchiveDataSource(config.get('local_archive_folder'))
             return FallbackDataSource(offline, online)
 
         return online

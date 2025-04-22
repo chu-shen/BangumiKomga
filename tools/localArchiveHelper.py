@@ -116,7 +116,7 @@ def search_all_data_batch_optimized(file_path: str, query: str, batch_size: int 
                 for line in filtered_lines:
                     try:
                         item = json.loads(line.decode('utf-8'))
-                        if item.get("type", 0) == str(1):
+                        if item.get("type", 0) == 1:
                             results.append(item)
                     except json.JSONDecodeError:
                         pass

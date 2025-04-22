@@ -1,6 +1,5 @@
 from thefuzz import fuzz
 from api.bangumiModel import SubjectPlatform
-from api.bangumiApi import DataSource
 
 
 def compute_name_score_by_fuzzy(name, name_cn, infobox, target):

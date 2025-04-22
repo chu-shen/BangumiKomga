@@ -1,33 +1,33 @@
-# Connect Komga
-# Get access token from: https://next.bgm.tv/demo/access-token
+# BGM，获取 token : https://next.bgm.tv/demo/access-token
 BANGUMI_ACCESS_TOKEN = 'gruUsn***************************SUSSn'
+
+# Komga
 KOMGA_BASE_URL = "http://IP:PORT"
 KOMGA_EMAIL = "email"
 KOMGA_EMAIL_PASSWORD = "password"
 KOMGA_LIBRARY_LIST = []
 KOMGA_COLLECTION_LIST = []
 
-# Poster Refresh
-USE_BANGUMI_THUMBNAIL = False
-USE_BANGUMI_THUMBNAIL_FOR_BOOK = False
-
-# bangumi/Archive
-# https://github.com/bangumi/Archive
+# bangumi/Archive 离线元数据
 USE_BANGUMI_ARCHIVE = False
 ARCHIVE_FILES_DIR = "./archivedata/"
 
 # Misc
-# Title Sort Switch
+# 海报
+USE_BANGUMI_THUMBNAIL = False
+USE_BANGUMI_THUMBNAIL_FOR_BOOK = False
+# 字母导航
 SORT_TITLE = False
-# Search Result Filter
+# 搜索结果过滤
 FUZZ_SCORE_THRESHOLD = 80
-# Recheck Behaviour
+# 重新刷新
 RECHECK_FAILED_SERIES = False
 RECHECK_FAILED_BOOKS = False
+# 创建收藏
 CREATE_FAILED_COLLECTION = False
 
-# External Notify Settings
-# Support 'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'
+# 消息通知
+# 支持： 'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'
 NOTIF_TYPE_ENABLE = []
 
 NOTIF_GOTIFY_ENDPOINT = "http://IP:PORT"

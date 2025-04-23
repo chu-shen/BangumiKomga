@@ -1,11 +1,11 @@
 # Bangumi metadata scraper for Komga
 
 - [Bangumi metadata scraper for Komga](#bangumi-metadata-scraper-for-komga)
-  - [Introduction](#introduction)
-  - [Features](#features)
+  - [简介](#简介)
+  - [功能](#功能)
     - [已完成](#已完成)
     - [TODO](#todo)
-  - [Requirements](#requirements)
+  - [先决条件](#先决条件)
   - [快速开始](#快速开始)
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
@@ -17,16 +17,15 @@
   - [Issues \& Pull Requests](#issues--pull-requests)
   - [致谢](#致谢)
 
-## Introduction
+## 简介
 
-This Script gets a list of every manga available on your Komga instance,
-looks it up one after another on [Bangumi](https://bgm.tv/) and gets the metadata for the specific series.
-This metadata then gets converted to be compatible to Komga and then gets sent to the server instance and added to the manga entry.
+该脚本获取您 Komga 实例上可用的漫画列表, 挨个在 [Bangumi](https://bgm.tv/) 上查询, 并按配置获取指定系列的元数据。
+然后将这些元数据转换为与 Komga 兼容的格式, 并更新到 Komga 服务器的具体漫画条目中。
 
 ![sample](img/sample.jpg)
 ![detail](img/detail.jpg)
 
-## Features
+## 功能
 
 ### 已完成
 
@@ -44,22 +43,22 @@ This metadata then gets converted to be compatible to Komga and then gets sent t
 - [x] 可使用 Bangumi 图片替换系列、单册封面
 - [x] 排序标题，支持字母导航
 - [x] 提高匹配准确率：使用 FUZZ 对 bgm 搜索结果进行过滤和排序
+- [x] 使用[bangumi/Archive](https://github.com/bangumi/Archive)离线数据代替联网查询
 
 处理逻辑见[DESIGN](docs/DESIGN.md)
 
 ### TODO
 
-- [ ] 使用[bangumi/Archive](https://github.com/bangumi/Archive)离线数据代替联网查询
 - [ ] 限制联网查询频率
 - [ ] 更新 Komga 封面时，判断：类型（'GENERATED'）、大小
 - [ ] 重构元数据更新范围及覆盖逻辑
 - [ ] 增强文件名解析
 
-## Requirements
+## 先决条件
 
-- A Komga instance with access to the admin account
-- Either Windows/Linux/MAc or alternatively Docker
-- Python installed if using Windows, Linux or Mac natively
+- 一个有 admin 权限的 Komga 实例
+- 使用 Windows/Linux/MAc 等主流操作系统, 也可在其上使用 Docker
+- 如需在 Windows, Linux 或 Mac 上直接执行脚本, 应安装有Python
 
 ## 快速开始
 
@@ -68,13 +67,13 @@ This metadata then gets converted to be compatible to Komga and then gets sent t
 > Executing this program will result in the loss of old metadata for series and books\
 > 执行此程序将导致书籍系列及单册的旧元数据丢失
 
-1. Install the requirements using
+1. 安装依赖包
 
     ```shell
-    # prepare the environment on your own
+    # 准备环境
     pip3 install -r install/requirements.txt
 
-    # or use docker compose
+    # 亦可使用 docker compose
     version: '3'
     services:
     bangumikomga:
@@ -86,15 +85,19 @@ This metadata then gets converted to be compatible to Komga and then gets sent t
         - /path/BangumiKomga/logs:/app/logs
     ```
 
-2. Rename `config/config.template.py` to `config/config.py` and edit the url, email and password to match the ones of your komga instance (User needs to have permission to edit the metadata).
+2. 将 `config/config.template.py` 重命名为 `config/config.py`, 并修改 `KOMGA_BASE_URL`, `KOMGA_EMAIL` 和 `KOMGA_EMAIL_PASSWORD` 以便程序访问你的 Komga 实例(此用户需要有 Komga 元数据修改权限)。
 
-    `BANGUMI_ACCESS_TOKEN` （可选）用于读取NSFW条目，在 <https://next.bgm.tv/demo/access-token> 创建个人令牌
+    `BANGUMI_ACCESS_TOKEN` （可选）用于读取 NSFW 条目，在 <https://next.bgm.tv/demo/access-token> 创建个人令牌。请**自行**确认账号能否正常访问 NSFW 条目
 
     `KOMGA_LIBRARY_LIST` 处理指定库中的书籍系列。komga界面点击库（对应链接）即可获得，形如：`'0B79XX3NP97K9'`，对应地址：`http://IP:PORT/libraries/0B79XX3NP97K9/series`。填写时以英文引号`''`包裹，英文逗号`,`分割。与`KOMGA_COLLECTION_LIST`不能同时使用
 
     `KOMGA_COLLECTION_LIST` 处理指定收藏中的书籍系列。komga界面点击收藏（对应链接）即可获得，形如：`'0B79XX3NP97K9'`。填写时以英文引号`''`包裹，英文逗号`,`分割。与`KOMGA_LIBRARY_LIST`不能同时使用
 
-3. Run the script using `python refreshMetadata.py`, or `docker start bangumikomga`(The container automatically closes after execution.)
+    `USE_BANGUMI_ARCHIVE` 指定是否优先使用[bangumi/Archive](https://github.com/bangumi/Archive)离线元数据。其中不含图像数据因此无法刷新封面。可选值为 `True` 和 `False`
+
+    `ARCHIVE_FILES_DIR` 指定储存[bangumi/Archive](https://github.com/bangumi/Archive)的本地目录。形如：`./bgmArchiveData/`。离线元数据可提前手动解压至该目录中, 亦可在启用`USE_BANGUMI_ARCHIVE`后等待程序自动从Github下载解压(可能较慢)
+
+3. 用 `python refreshMetadata.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(执行后容器将自动关闭)
 
 > [!TIP]
 >

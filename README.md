@@ -187,10 +187,10 @@ Komga 并没有区分漫画与小说。
 ## 同步阅读进度
 
 > [!WARNING]
-> _注意：当前仅为 komga 至 bangumi 的单向同步，此功能未维护_
+> _注意：当前仅为komga至bangumi单向同步，此功能未维护_
 
 > [!TIP]
-> 推荐使用 Mihon 更新阅读进度👉[Tracking | Mihon](https://mihon.app/docs/guides/tracking#tracking)
+> 推荐使用Tachiyomi更新阅读进度👉[Tracking | Tachiyomi](https://tachiyomi.org/help/guides/tracking/#what-is-tracking)
 
 **同步内容：**
 

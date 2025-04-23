@@ -151,7 +151,7 @@ class BangumiApiDataSource(DataSource):
         '''
         try:
             thumbnail = self.r.get(subject_metadata['images']['large']).content
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             logger.error(f"An error occurred: {e}")
             return []
         files = {

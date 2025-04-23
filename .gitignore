@@ -1,6 +1,7 @@
 config.py
 recordsRefreshed.db
 refreshMetadata.log
+archive_update_time.json
 __pycache__/
 .vscode
 *.jsonlines

@@ -1,17 +1,33 @@
-# get access token from: https://next.bgm.tv/demo/access-token
+# BGM，获取 token : https://next.bgm.tv/demo/access-token
 BANGUMI_ACCESS_TOKEN = 'gruUsn***************************SUSSn'
+
+# Komga
 KOMGA_BASE_URL = "http://IP:PORT"
 KOMGA_EMAIL = "email"
 KOMGA_EMAIL_PASSWORD = "password"
 KOMGA_LIBRARY_LIST = []
 KOMGA_COLLECTION_LIST = []
 
+# bangumi/Archive 离线元数据
+USE_BANGUMI_ARCHIVE = False
+ARCHIVE_FILES_DIR = "./archivedata/"
+
+# Misc
+# 海报
+USE_BANGUMI_THUMBNAIL = False
+USE_BANGUMI_THUMBNAIL_FOR_BOOK = False
+# 字母导航
+SORT_TITLE = False
+# 搜索结果过滤
+FUZZ_SCORE_THRESHOLD = 80
+# 重新刷新
 RECHECK_FAILED_SERIES = False
 RECHECK_FAILED_BOOKS = False
-
+# 创建收藏
 CREATE_FAILED_COLLECTION = False
 
-# support 'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'
+# 消息通知
+# 支持： 'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'
 NOTIF_TYPE_ENABLE = []
 
 NOTIF_GOTIFY_ENDPOINT = "http://IP:PORT"
@@ -26,14 +42,3 @@ NOTIF_WEBHOOK_TIMEOUT = 10
 
 NOTIF_HEALTHCHECKS_ENDPOINT = "http://IP:PORT"
 NOTIF_HEALTHCHECKS_TIMEOUT = 10
-
-
-# Poster
-USE_BANGUMI_THUMBNAIL=False
-USE_BANGUMI_THUMBNAIL_FOR_BOOK=False
-
-SORT_TITLE = False
-
-FUZZ_SCORE_THRESHOLD = 80
-
-USE_BANGUMI_ARCHIVE = False

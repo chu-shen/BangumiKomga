@@ -5,13 +5,16 @@
 
 
 import requests
+import json
 from requests.adapters import HTTPAdapter
-from thefuzz import fuzz
+
 from tools.log import logger
+from tools.archiveAutoupdater import check_archive
+from tools.localArchiveHelper import parse_infobox, search_line_batch_optimized, search_list_batch_optimized, search_all_data_batch_optimized
+from tools.resortSearchResultsList import resort_search_list
 from zhconv import convert
 from urllib.parse import quote_plus
 from abc import ABC, abstractmethod
-from api.bangumiModel import SubjectPlatform, SubjectRelation
 
 
 class DataSource(ABC):
@@ -65,24 +68,6 @@ class BangumiApiDataSource(DataSource):
         # https://next.bgm.tv/demo/access-token
         return
 
-    def compute_name_score_by_fuzzy(self, name, name_cn, infobox, target):
-        """
-        Use fuzzy to computes the Levenshtein distance between name, name_cn, and infobox "别名" (if exists) and the target string.
-        """
-        score = fuzz.ratio(name, target)
-        if name_cn:
-            score = max(score, fuzz.ratio(name_cn, target))
-        for item in infobox:
-            if item["key"] == "别名":
-                if isinstance(item["value"], (list,)):  # 判断传入值是否为列表
-                    for alias in item["value"]:
-                        score = max(
-                            score, fuzz.ratio(alias["v"], target))
-                else:
-                    score = max(
-                        score, fuzz.ratio(item["value"], target))
-        return score
-        
     def search_subjects(self, query, threshold=80):
         '''
         获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
@@ -113,35 +98,7 @@ class BangumiApiDataSource(DataSource):
             else:
                 return []
 
-        # 具有完整元数据的排序条目，可提升结果准确性，但增加请求次数
-        sort_results = []
-        for result in results:
-            manga_id = result['id']
-            manga_metadata = self.get_subject_metadata(manga_id)
-            if not manga_metadata:
-                continue
-            # bangumi书籍类型包括：漫画、小说、画集、其他
-            # 由于komga不支持小说文字的读取，这里直接忽略`小说`类型，避免返回错误结果
-            # bangumi书籍系列包括：系列、单行本
-            # 此处需去除漫画系列的单行本，避免干扰，官方 API 已添加 series 字段（是否系列，仅对书籍类型的条目有效）
-            # bangumi数据中存在单行本与系列未建立联系的情况
-            if SubjectPlatform.parse(manga_metadata["platform"]) != SubjectPlatform.Novel and manga_metadata["series"]:
-                # 计算得分
-                score = self.compute_name_score_by_fuzzy(
-                    manga_metadata["name"],
-                    manga_metadata.get("name_cn", ""),
-                    manga_metadata['infobox'],
-                    query
-                )
-                # 仅添加得分超过阈值的条目
-                if score >= threshold:
-                    manga_metadata['fuzzScore'] = score
-                    sort_results.append(manga_metadata)
-
-        # 按得分降序排序
-        sort_results.sort(key=lambda x: x['fuzzScore'], reverse=True)
-
-        return sort_results
+        return resort_search_list(query=query, results=results, threshold=threshold, DataSource=self)
 
     def get_subject_metadata(self, subject_id):
         '''
@@ -153,7 +110,8 @@ class BangumiApiDataSource(DataSource):
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
-            logger.error(f"请检查 {subject_id} 是否填写正确；或属于 NSFW，但并未配置 BANGUMI_ACCESS_TOKEN")
+            logger.error(
+                f"请检查 {subject_id} 是否填写正确；或属于 NSFW，但并未配置 BANGUMI_ACCESS_TOKEN")
             return []
         return response.json()
 
@@ -186,14 +144,13 @@ class BangumiApiDataSource(DataSource):
             logger.error(f"An error occurred: {e}")
         return response.status_code == 204
 
-
     def get_subject_thumbnail(self, subject_metadata):
         '''
         获取漫画封面
         '''
         try:
-            thumbnail=self.r.get(subject_metadata['images']['large']).content
-        except requests.exceptions.RequestException as e:
+            thumbnail = self.r.get(subject_metadata['images']['large']).content
+        except Exception as e:
             logger.error(f"An error occurred: {e}")
             return []
         files = {
@@ -206,26 +163,125 @@ class BangumiArchiveDataSource(DataSource):
     """
     离线数据源类
     """
-    def __init__(self):
-        pass
+
+    def __init__(self, local_archive_folder):
+        self.subject_relation_file = local_archive_folder + "subject-relations.jsonlines"
+        self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
+        check_archive()
+
+    # 将10s+的全文件扫描性能提升到1s左右
+    def _get_metadata_from_archive(self, subject_id):
+        return search_line_batch_optimized(file_path=self.subject_metadata_file, subject_id=subject_id, target_field="id")
+
+    # 将10s+的全文件扫描性能提升到1s左右
+    def _get_relations_from_archive(self, subject_id):
+        return search_list_batch_optimized(file_path=self.subject_relation_file, subject_id=subject_id, target_field="subject_id")
+
+    # 将10s+的全文件扫描性能提升到1s左右
+    def _get_search_results_from_archive(self, query):
+        return search_all_data_batch_optimized(file_path=self.subject_metadata_file, query=query)
 
     def search_subjects(self, query, threshold=80):
         """
         离线数据源搜索条目
         """
-        return []
+        # TODO: 当前未限制返回列表的长度
+        # 长度限制应该和threshold搭配使用, 在resort_search_list()中实现
+        search_results = []
+        results = self._get_search_results_from_archive(query)
+        for item in results:
+            if (query.lower() in str(item["name"]).lower() or
+                    query.lower() in str(item.get("name_cn", "")).lower() or
+                    query in str(item.get("summary", "")) or
+                    any(query in tag["name"] for tag in item.get("tags", []))):
+                result = {
+                    "id": item["id"],
+                    "url": r"http://bgm.tv/subject/" + str(item["id"]),
+                    "type": item.get("type", 0),
+                    "name": item.get("name", ""),
+                    "name_cn": item.get("name_cn", ""),
+                    "summary": item.get("summary", ""),
+                    "air_date": item.get("air_date", ""),
+                    "air_weekday": item.get("air_weekday", 0),
+                    # 忽略 images 字段
+                    "images": ""
+                }
+                search_results.append(result)
+        return resort_search_list(query=query, results=search_results, threshold=threshold, DataSource=self)
 
     def get_subject_metadata(self, subject_id):
         """
         离线数据源获取条目元数据
         """
-        return {}
+        data = self._get_metadata_from_archive(subject_id)
+        try:
+            result = {
+                "date": data.get('date'),
+                "platform": data["platform"],
+                # 忽略 images 字段
+                # "images": get_images(subject_ID),
+                "images": "",
+                "summary": data.get('summary'),
+                "name": data.get('name'),
+                "name_cn": data.get('name_cn'),
+                "tags": [{'name': t['name'], 'count': t['count'], 'total_cont': 0} for t in data.get('tags', [])],
+                "infobox": parse_infobox(data['infobox']),
+                "rating": {
+                    "rank": data.get('rank', 0),
+                    "total": data.get('total', 0),
+                    "count": data.get('score_details', {}),
+                    "score": data.get('score', 0.0)
+                },
+                "total_episodes": data.get('eps', 0),
+                "collection": {
+                    "on_hold": data['favorite'].get('on_hold', 0),
+                    "dropped": data['favorite'].get('dropped', 0),
+                    "wish": data['favorite'].get('wish', 0),
+                    # 假设done对应collect
+                    "collect": data['favorite'].get('done', 0),
+                    "doing": data['favorite'].get('doing', 0)
+                },
+                "id": data.get('id'),
+                "eps": data.get('eps', 0),
+                "meta_tags": [tag['name'] for tag in data.get('tags', [])],
+                "volumes": data.get('volumes', 0),
+                "series": data.get('series', False),
+                "locked": data.get('locked', False),
+                "nsfw": data.get('nsfw', False),
+                "type": data.get('type', 0)
+            }
+            return result
+        except Exception as e:
+            logger.error(f"构建Archive元数据出错: {e}")
+            return {}
 
     def get_related_subjects(self, subject_id):
         """
-        离线数据源获取关联条目
+        离线数据源获取关联条目列表
         """
-        return []
+        relation_list = self._get_relations_from_archive(subject_id)
+        if len(relation_list) < 1:
+            return []
+        result_list = []
+        for item in relation_list:
+            # 过滤ID
+            if subject_id == item.get("subject_id", 0):
+                try:
+                    metadata = self._get_metadata_from_archive(
+                        item.get("related_subject_id", 0))
+                    result = {
+                        "name": metadata.get('name'),
+                        "name_cn": metadata.get('name_cn'),
+                        "relation": item.get('relation_type'),
+                        "id": metadata.get('id'),
+                        # 忽略 images 字段
+                        "images": ""
+                    }
+                    result_list.append(result)
+                except Exception as e:
+                    logger.error(f"构建Archive关联条目 {subject_id} 出错: {e}")
+                    continue
+        return result_list
 
     def update_reading_progress(self, subject_id, progress):
         """
@@ -248,12 +304,13 @@ class BangumiDataSourceFactory:
     """
     @staticmethod
     def create(config):
-        online= BangumiApiDataSource(config.get('access_token'))
+        online = BangumiApiDataSource(config.get('access_token'))
 
-        if config.get('use_local_archive',False):
-            offline= BangumiArchiveDataSource()
+        if config.get('use_local_archive', False):
+            offline = BangumiArchiveDataSource(
+                config.get('local_archive_folder'))
             return FallbackDataSource(offline, online)
-        
+
         return online
 
 
@@ -261,6 +318,7 @@ class FallbackDataSource(DataSource):
     """
     备用数据源类，用于在主数据源失败时使用备用数据源
     """
+
     def __init__(self, primary, secondary):
         self.primary = primary
         self.secondary = secondary
@@ -268,7 +326,7 @@ class FallbackDataSource(DataSource):
     def _fallback_call(self, method_name, *args, **kwargs):
         # 优先调用 primary 数据源的方法
         result = getattr(self.primary, method_name)(*args, **kwargs)
-        
+
         # 如果结果为空/False（根据业务逻辑判断），则尝试 secondary 数据源
         if not result:
             result = getattr(self.secondary, method_name)(*args, **kwargs)

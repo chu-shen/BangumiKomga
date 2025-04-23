@@ -119,14 +119,12 @@ This metadata then gets converted to be compatible to Komga and then gets sent t
 
 ## 创建失败收藏（可选）
 
-将`CREATE_FAILED_COLLECTION`配置为`True`，程序会在刷新完成后，将所有刷新失败的系列添加到指定收藏（默认名：`FAILED_COLLECTION`）。
-
-每次运行都会根据**本次**运行数据重新创建此收藏（无失败则跳过）。
+将`CREATE_FAILED_COLLECTION`配置为`True`，程序会在刷新完成后，将**所有**刷新失败的系列添加到指定收藏（默认名：`FAILED_COLLECTION`）。
 
 > [!TIP]
 >
 > - 在此收藏中按照[如何修正错误元数据](#如何修正错误元数据)操作即可~~治疗强迫症~~
-> - 如果要将之前所有失败的系列都添加至收藏，则需要将`RECHECK_FAILED_SERIES`配置为`True`
+> - 此收藏采用`手动排序`，因此最新失败的系列在此收藏的最后面
 
 ## 其他配置说明
 

@@ -9,13 +9,12 @@ import json
 from requests.adapters import HTTPAdapter
 
 from tools.log import logger
-# from tools.archiveAutoupdater import update_archive
+from tools.archiveAutoupdater import check_archive
 from tools.localArchiveHelper import parse_infobox, search_line_batch_optimized, search_list_batch_optimized, search_all_data_batch_optimized
 from tools.resortSearchResultsList import resort_search_list
 from zhconv import convert
 from urllib.parse import quote_plus
 from abc import ABC, abstractmethod
-from api.bangumiModel import SubjectPlatform, SubjectRelation
 
 
 class DataSource(ABC):
@@ -168,7 +167,7 @@ class BangumiArchiveDataSource(DataSource):
     def __init__(self, local_archive_folder):
         self.subject_relation_file = local_archive_folder + "subject-relations.jsonlines"
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
-        # update_archive(local_archive_folder)
+        check_archive()
 
     # 将10s+的全文件扫描性能提升到1s左右
     def _get_metadata_from_archive(self, subject_id):
@@ -308,7 +307,8 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get('access_token'))
 
         if config.get('use_local_archive', False):
-            offline = BangumiArchiveDataSource(config.get('local_archive_folder'))
+            offline = BangumiArchiveDataSource(
+                config.get('local_archive_folder'))
             return FallbackDataSource(offline, online)
 
         return online

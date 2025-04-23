@@ -47,17 +47,17 @@ def get_latest_url_and_time():
         data = response.json()
         return data.get('browser_download_url'), data.get('updated_at')
     except requests.exceptions.RequestException as e:
-        logger.warning(f"获取Bangumi Archive JSON失败: {str(e)}")
-        return ""
+        logger.warning(f"Bangumi Archive JSON 获取失败: {str(e)}")
+        return "", ""
     except json.JSONDecodeError as e:
-        logger.warning(f"Bangumi Archive JSON解析失败: {str(e)}")
-        return ""
+        logger.warning(f"Bangumi Archive JSON 解析失败: {str(e)}")
+        return "", ""
 
 
 def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
     """下载并解压文件"""
-    temp_zip_path = ARCHIVE_FILES_DIR + 'temp_archive.zip'
-    print("正在下载 Bangumi Archive 数据......")
+    temp_zip_path = target_dir + 'temp_archive.zip'
+    logger.info("正在下载 Bangumi Archive 数据......")
     try:
         # 下载文件
         response = requests.get(url, stream=True, timeout=10)
@@ -82,8 +82,8 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
     return True
 
 
-def check_archive(local_archive_folder):
-    os.makedirs(local_archive_folder, exist_ok=True)
+def check_archive():
+    os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
 
     download_url, latest_update_time = get_latest_url_and_time()
     if download_url == "":
@@ -95,7 +95,7 @@ def check_archive(local_archive_folder):
     remote_update_time = convert_to_datetime(latest_update_time)
     if remote_update_time > local_update_time:
         logger.info("检测到新版本 Bangumi Archive, 开始更新...")
-        if update_archive(download_url, local_archive_folder):
+        if update_archive(download_url, ARCHIVE_FILES_DIR):
             save_cache_time(latest_update_time)
             logger.info("Bangumi Archive 更新完成")
         else:

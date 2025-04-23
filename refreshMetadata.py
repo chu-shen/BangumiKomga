@@ -34,7 +34,6 @@ def refresh_metadata():
     success_comic = ''
     failed_comic = ''
 
-    failed_series_ids = []
 
     # Loop through each book series
     for series in all_series:
@@ -79,7 +78,6 @@ def refresh_metadata():
             if title == None:
                 failed_count, failed_comic = record_series_status(
                     conn, series_id, subject_id, 0, series_name, "None", failed_count, failed_comic)
-                failed_series_ids.append(series_id)
                 continue
             search_results = bgm.search_subjects(title, FUZZ_SCORE_THRESHOLD)
             if len(search_results) > 0:
@@ -88,7 +86,6 @@ def refresh_metadata():
             else:
                 failed_count, failed_comic = record_series_status(
                     conn, series_id, subject_id, 0, series_name, "no subject in bangumi", failed_count, failed_comic)
-                failed_series_ids.append(series_id)
                 continue
 
         if not metadata:
@@ -101,7 +98,6 @@ def refresh_metadata():
         if (komga_metadata.isvalid == False):
             failed_count, failed_comic = record_series_status(
                 conn, series_id, subject_id, 0, series_name, komga_metadata.title+" metadata invalid", failed_count, failed_comic)
-            failed_series_ids.append(series_id)
             continue
 
         series_data = {
@@ -138,7 +134,6 @@ def refresh_metadata():
         else:
             failed_count, failed_comic = record_series_status(
                 conn, series_id, subject_id, 0, series_name, "komga update failed", failed_count, failed_comic)
-            failed_series_ids.append(series_id)
             continue
 
         refresh_book_metadata(subject_id, series_id, force_refresh_flag)
@@ -149,16 +144,11 @@ def refresh_metadata():
 
         # TODO: 匹配错误的系列其update_success也是1, 需要找到一种方法将之筛选出来
 
-        # 将db中update_success为1的series_ids筛选出来
-        all_failed_series_ids = [row[0] for row in cursor.execute(
-            "SELECT series_id FROM refreshed_series WHERE update_success = 0").fetchall()]
-        # 包含本次执行所发现的新增匹配失败系列ID
-        if failed_series_ids:
-            # 把sqlite里的未更新项并入failed_series_ids
-            all_failed_series_ids = list(
-                set(failed_series_ids.append(all_failed_series_ids)))
+        # 将db中update_success为0的series_ids筛选出来
+        all_failed_series_ids = [row[0] for row in cursor.execute("SELECT series_id FROM refreshed_series WHERE update_success = 0 and series_id IN ({})".format(
+        ','.join('?' for _ in series_ids)), series_ids).fetchall()]
         # 用all_failed_series_ids 创建 FAILED_COLLECTION
-        if komga.replace_collection(collection_name, False, all_failed_series_ids):
+        if komga.replace_collection(collection_name, True, all_failed_series_ids):
             logger.info(
                 "Successfully replace collection: "+collection_name)
         else:

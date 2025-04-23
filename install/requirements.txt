@@ -1,0 +1,5 @@
+zhconv
+thefuzz
+requests
+pysqlite3
+pypinyin

@@ -48,15 +48,15 @@ def get_latest_url_and_time():
         return data.get('browser_download_url'), data.get('updated_at')
     except requests.exceptions.RequestException as e:
         logger.warning(f"Bangumi Archive JSON 获取失败: {str(e)}")
-        return "", ""
     except json.JSONDecodeError as e:
         logger.warning(f"Bangumi Archive JSON 解析失败: {str(e)}")
-        return "", ""
+    return "", ""
 
 
 def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
     """下载并解压文件"""
     temp_zip_path = target_dir + 'temp_archive.zip'
+    # 也许应该加个下载进度条?
     logger.info("正在下载 Bangumi Archive 数据......")
     try:
         # 下载文件

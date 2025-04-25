@@ -5,3 +5,4 @@ archive_update_time.json
 __pycache__/
 .vscode
 *.jsonlines
+*.index

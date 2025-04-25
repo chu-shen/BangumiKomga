@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.13.0](https://github.com/chu-shen/BangumiKomga/compare/v0.12.0...v0.13.0) (2025-04-25)
+
+
+### Features
+
+* 完善年龄限制逻辑 ([5e9af4f](https://github.com/chu-shen/BangumiKomga/commit/5e9af4f9dce50a3fc1e27804a91ceeee42463f05))
+* 新增 bgm 数据源工厂 ([3a6f4c8](https://github.com/chu-shen/BangumiKomga/commit/3a6f4c8cdd9943d810510398fb8aaccac23cb1dd))
+* 添加 bangumi Archive 自动更新器 ([#54](https://github.com/chu-shen/BangumiKomga/issues/54)) ([e0dff38](https://github.com/chu-shen/BangumiKomga/commit/e0dff38840869986361c6bbe8f53800d35e97f64))
+* 添加 bgm 条目平台及关联的枚举类 ([4a61017](https://github.com/chu-shen/BangumiKomga/commit/4a61017fb2afc07c73896c45197a540df6ab557b))
+* 添加基本的离线Archive元数据查询功能 ([#48](https://github.com/chu-shen/BangumiKomga/issues/48)) ([e176d3c](https://github.com/chu-shen/BangumiKomga/commit/e176d3ce5b812b80eb782a2a8797678765a13189))
+
+
+### Bug Fixes
+
+* 分离了 RECHECK_FAILED_SERIES 和 CREATE_FAILED_COLLECTION 选项 ([#52](https://github.com/chu-shen/BangumiKomga/issues/52)) ([9170afe](https://github.com/chu-shen/BangumiKomga/commit/9170afe70878be1dc6c789772a6a0fa0caaf72af))
+* 完善缩略图逻辑 ([fa03358](https://github.com/chu-shen/BangumiKomga/commit/fa0335850b486799560c7b182ba6958b68c08b19))
+* 捕获所有异常 ([d67383a](https://github.com/chu-shen/BangumiKomga/commit/d67383a2975fe6be532dc8bff0894d1a9abf9c65))
+
+
+### Documentation
+
+* 修正 cbl 和 RECHECK_FAILED_SERIES 说明 ([38a5b87](https://github.com/chu-shen/BangumiKomga/commit/38a5b87accc3895abbc6a839f34e8da337ec84fe))
+* 更新「为小说添加元数据」的说明 ([88563f4](https://github.com/chu-shen/BangumiKomga/commit/88563f44356479b8cf246e5221e1ac7e3c2329a6))
+* 添加配置更新警告 ([22ff4a2](https://github.com/chu-shen/BangumiKomga/commit/22ff4a2f0d74be54e3dce9d1252891870bf4cb54))
+
 ## [0.12.0](https://github.com/chu-shen/BangumiKomga/compare/v0.11.0...v0.12.0) (2025-03-29)
 
 

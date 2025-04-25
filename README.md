@@ -7,6 +7,7 @@
     - [TODO](#todo)
   - [先决条件](#先决条件)
   - [快速开始](#快速开始)
+  - [Bangumi 配置（可选）](#bangumi-配置可选)
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
@@ -87,15 +88,9 @@
 
 2. 将 `config/config.template.py` 重命名为 `config/config.py`, 并修改 `KOMGA_BASE_URL`, `KOMGA_EMAIL` 和 `KOMGA_EMAIL_PASSWORD` 以便程序访问你的 Komga 实例(此用户需要有 Komga 元数据修改权限)。
 
-    `BANGUMI_ACCESS_TOKEN` （可选）用于读取 NSFW 条目，在 <https://next.bgm.tv/demo/access-token> 创建个人令牌。请**自行**确认账号能否正常访问 NSFW 条目
-
     `KOMGA_LIBRARY_LIST` 处理指定库中的书籍系列。komga界面点击库（对应链接）即可获得，形如：`'0B79XX3NP97K9'`，对应地址：`http://IP:PORT/libraries/0B79XX3NP97K9/series`。填写时以英文引号`''`包裹，英文逗号`,`分割。与`KOMGA_COLLECTION_LIST`不能同时使用
 
     `KOMGA_COLLECTION_LIST` 处理指定收藏中的书籍系列。komga界面点击收藏（对应链接）即可获得，形如：`'0B79XX3NP97K9'`。填写时以英文引号`''`包裹，英文逗号`,`分割。与`KOMGA_LIBRARY_LIST`不能同时使用
-
-    `USE_BANGUMI_ARCHIVE` 指定是否优先使用[bangumi/Archive](https://github.com/bangumi/Archive)离线元数据。其中不含图像数据因此无法刷新封面。可选值为 `True` 和 `False`
-
-    `ARCHIVE_FILES_DIR` 指定储存[bangumi/Archive](https://github.com/bangumi/Archive)的本地目录。形如：`./bgmArchiveData/`。离线元数据可提前手动解压至该目录中, 亦可在启用`USE_BANGUMI_ARCHIVE`后等待程序自动从Github下载解压(可能较慢)
 
 3. 用 `python refreshMetadata.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(执行后容器将自动关闭)
 
@@ -103,6 +98,35 @@
 >
 > - 如果漫画系列数量上千，请考虑使用[bangumi/Archive](https://github.com/bangumi/Archive)离线数据代替联网查询
 > - 可以搭配工具定时执行，比如[ofelia](https://github.com/mcuadros/ofelia)
+
+## Bangumi 配置（可选）
+
+- `BANGUMI_ACCESS_TOKEN`: 用于读取 NSFW 条目
+  - 请**自行**确认账号能否正常访问 NSFW 条目
+  - 在 <https://next.bgm.tv/demo/access-token> 创建个人令牌
+  - 如果不使用，请设置为`''`
+
+- `USE_BANGUMI_ARCHIVE`: 指定是否优先使用[bangumi/Archive](https://github.com/bangumi/Archive)离线元数据
+  - 需搭配`ARCHIVE_FILES_DIR`使用
+  - 不含图像数据因此无法离线刷新封面。如果开启`USE_BANGUMI_THUMBNAIL`，则仍需调用 BGM API 才能替换海报
+  - 可选值为 `True` 和 `False`
+
+- `ARCHIVE_FILES_DIR`: 指定储存[bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./archivedata/`
+  - 启用`USE_BANGUMI_ARCHIVE`后，程序会自动从Github下载解压元数据(可能较慢)
+  - 离线元数据亦可提前手动解压至该目录中, 另外最好同时创建`archive_update_time.json`并添加日期，内容示例：`{"last_updated": "2025-04-22T21:03:01Z"}`
+
+> [!TIP]
+>
+> - 如果将`archive_update_time.json`中时间修改为`2099`等较大值，可在很长时间内禁用自动更新
+
+- `USE_BANGUMI_THUMBNAIL`: 设置为`True`且未曾上传过系列海报时，使用 Bangumi 封面替换系列海报
+  - 旧海报为 Komga 生成的缩略图，因此还可以通过调整`Komga 服务器设置->缩略图尺寸（默认 300px，超大 1200px）`来获得更清晰的封面
+  - `USE_BANGUMI_THUMBNAIL_FOR_BOOK`: 设置为`True`且未曾上传过单册海报时，使用 Bangumi 封面替换单册海报
+
+- `FUZZ_SCORE_THRESHOLD`：满分 100，默认值`80`。用于过滤搜索结果
+  - 值越小匹配到错误元数据的可能性越大
+  - 值越大匹配失败的可能性越大
+  - 默认值`80`并不是一个经验值，有更好的评分请开 issue
 
 ## 消息通知（可选）
 
@@ -138,21 +162,12 @@
   - ~~意义不明的参数~~，建议设置为`False`，可缩短程序运行时间
   - 如果刷新书时，bangumi 数据不完整，则可以在数据补充后使用此参数修正此书元数据
 
-- `USE_BANGUMI_THUMBNAIL`: 设置为`True`且未曾上传过系列海报时，使用 Bangumi 封面替换系列海报
-  - 旧海报为 Komga 生成的缩略图，因此还可以通过调整`Komga 服务器设置->缩略图尺寸（默认 300px，超大 1200px）`来获得更清晰的封面
-  - `USE_BANGUMI_THUMBNAIL_FOR_BOOK`: 设置为`True`且未曾上传过单册海报时，使用 Bangumi 封面替换单册海报
-
 - `SORT_TITLE`：设置为`True`时，在刷新元数据后会在系列元数据-排序标题前添加一个首字母用于导航
   - 此为临时方案，详细讨论见：
     - <https://github.com/gotson/komga/discussions/1883>
     - <https://komga.org/docs/guides/edit-metadata#sort-titles>
     - [chu-shen/BangumiKomga#37](https://github.com/chu-shen/BangumiKomga/issues/37)
   - 如果要对此功能启用前的系列进行修改，请在`scripts`目录下手动运行一次`python sortTitleByLetter.py`
-
-- `FUZZ_SCORE_THRESHOLD`：满分 100，默认值`80`。用于过滤搜索结果
-  - 值越小匹配到错误元数据的可能性越大
-  - 值越大匹配失败的可能性越大
-  - 默认值`80`并不是一个经验值，有更好的评分请开 issue
 
 ## 如何修正错误元数据
 

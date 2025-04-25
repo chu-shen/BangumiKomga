@@ -8,7 +8,7 @@ from tools.log import logger
 
 # TODO: 加入Archive更新定时检查功能
 
-UpdateTimeCacheFilePath = ARCHIVE_FILES_DIR + "archive_update_time.json"
+UpdateTimeCacheFilePath = os.path.join(ARCHIVE_FILES_DIR, "archive_update_time.json")
 
 
 def read_cache_time():
@@ -55,7 +55,7 @@ def get_latest_url_and_time():
 
 def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
     """下载并解压文件"""
-    temp_zip_path = target_dir + 'temp_archive.zip'
+    temp_zip_path = os.path.join(target_dir, "temp_archive.zip")
     # 也许应该加个下载进度条?
     logger.info("正在下载 Bangumi Archive 数据......")
     try:

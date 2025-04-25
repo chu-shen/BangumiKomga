@@ -1,10 +1,12 @@
 from enum import Enum
-    
+
+
 class SubjectPlatform(Enum):
     """
     条目平台 枚举类
     https://github.com/bangumi/common/blob/master/subject_platforms.yml
     """
+
     def __new__(cls, value, cn):
         obj = object.__new__(cls)
         obj._value_ = value
@@ -35,6 +37,7 @@ class SubjectRelation(Enum):
     条目之间的关联 枚举类
     https://github.com/bangumi/common/blob/master/subject_relations.yml
     """
+
     def __new__(cls, value, cn):
         obj = object.__new__(cls)
         obj._value_ = value
@@ -50,7 +53,7 @@ class SubjectRelation(Enum):
             if value == member.value or value == member.cn:
                 return member
         return None
-    
+
     # ADAPTATION      = (1,  "改编") # FIXME 源数据没有区分动画、书籍、游戏
     SERIES          = (1002, "系列")
     OFFPRINT        = (1003, "单行本")

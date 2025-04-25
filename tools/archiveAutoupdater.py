@@ -8,7 +8,8 @@ from tools.log import logger
 
 # TODO: 加入Archive更新定时检查功能
 
-UpdateTimeCacheFilePath = ARCHIVE_FILES_DIR + "archive_update_time.json"
+UpdateTimeCacheFilePath = os.path.join(
+    ARCHIVE_FILES_DIR, "archive_update_time.json")
 
 
 def read_cache_time():
@@ -40,12 +41,12 @@ def get_latest_url_and_time():
     """获取最新Archive文件下载地址"""
     try:
         response = requests.get(
-            'https://raw.githubusercontent.com/bangumi/Archive/master/aux/latest.json',
-            timeout=20
+            "https://raw.githubusercontent.com/bangumi/Archive/master/aux/latest.json",
+            timeout=20,
         )
         response.raise_for_status()
         data = response.json()
-        return data.get('browser_download_url'), data.get('updated_at')
+        return data.get("browser_download_url"), data.get("updated_at")
     except requests.exceptions.RequestException as e:
         logger.warning(f"Bangumi Archive JSON 获取失败: {str(e)}")
     except json.JSONDecodeError as e:
@@ -55,20 +56,20 @@ def get_latest_url_and_time():
 
 def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
     """下载并解压文件"""
-    temp_zip_path = target_dir + 'temp_archive.zip'
+    temp_zip_path = os.path.join(target_dir, "temp_archive.zip")
     # 也许应该加个下载进度条?
     logger.info("正在下载 Bangumi Archive 数据......")
     try:
         # 下载文件
         response = requests.get(url, stream=True, timeout=10)
         response.raise_for_status()
-        with open(temp_zip_path, 'wb') as f:
+        with open(temp_zip_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
         logger.info(f"Bangumi Archive 压缩包下载成功: {temp_zip_path}")
 
         # 解压文件
-        with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
             zip_ref.extractall(target_dir)
         logger.info(f"Bangumi Archive 成功解压到: {target_dir}")
 

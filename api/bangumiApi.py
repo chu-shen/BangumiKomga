@@ -10,7 +10,12 @@ from requests.adapters import HTTPAdapter
 
 from tools.log import logger
 from tools.archiveAutoupdater import check_archive
-from tools.localArchiveHelper import parse_infobox, search_line_batch_optimized, search_list_batch_optimized, search_all_data_batch_optimized
+from tools.localArchiveHelper import (
+    parse_infobox,
+    search_line_batch_optimized,
+    search_list_batch_optimized,
+    search_all_data_batch_optimized,
+)
 from tools.resortSearchResultsList import resort_search_list
 from zhconv import convert
 from urllib.parse import quote_plus
@@ -21,6 +26,7 @@ class DataSource(ABC):
     """
     数据源基类
     """
+
     @abstractmethod
     def search_subjects(self, query, threshold=80):
         pass
@@ -46,19 +52,21 @@ class BangumiApiDataSource(DataSource):
     """
     Bangumi API 数据源类
     """
+
     BASE_URL = "https://api.bgm.tv"
 
     def __init__(self, access_token=None):
         self.r = requests.Session()
-        self.r.mount('http://', HTTPAdapter(max_retries=3))
-        self.r.mount('https://', HTTPAdapter(max_retries=3))
+        self.r.mount("http://", HTTPAdapter(max_retries=3))
+        self.r.mount("https://", HTTPAdapter(max_retries=3))
         self.access_token = access_token
         if self.access_token:
             self.refresh_token()
 
     def _get_headers(self):
         headers = {
-            'User-Agent': 'chu-shen/BangumiKomga (https://github.com/chu-shen/BangumiKomga)'}
+            "User-Agent": "chu-shen/BangumiKomga (https://github.com/chu-shen/BangumiKomga)"
+        }
         if self.access_token:
             headers["Authorization"] = f"Bearer {self.access_token}"
         return headers
@@ -69,12 +77,12 @@ class BangumiApiDataSource(DataSource):
         return
 
     def search_subjects(self, query, threshold=80):
-        '''
+        """
         获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
-        '''
+        """
         # 正面例子：魔女與使魔 -> 魔女与使魔，325236
         # 反面例子：君は淫らな僕の女王 -> 君は淫らな仆の女王，47331
-        query = convert(query, 'zh-cn')
+        query = convert(query, "zh-cn")
         url = f"{self.BASE_URL}/search/subject/{quote_plus(query)}?responseGroup=small&type=1&max_results=25"
         # TODO 处理'citrus+ ~柑橘味香气plus~'
         try:
@@ -98,12 +106,14 @@ class BangumiApiDataSource(DataSource):
             else:
                 return []
 
-        return resort_search_list(query=query, results=results, threshold=threshold, DataSource=self)
+        return resort_search_list(
+            query=query, results=results, threshold=threshold, DataSource=self
+        )
 
     def get_subject_metadata(self, subject_id):
-        '''
+        """
         获取漫画元数据
-        '''
+        """
         url = f"{self.BASE_URL}/v0/subjects/{subject_id}"
         try:
             response = self.r.get(url, headers=self._get_headers())
@@ -111,14 +121,15 @@ class BangumiApiDataSource(DataSource):
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
             logger.error(
-                f"请检查 {subject_id} 是否填写正确；或属于 NSFW，但并未配置 BANGUMI_ACCESS_TOKEN")
+                f"请检查 {subject_id} 是否填写正确；或属于 NSFW，但并未配置 BANGUMI_ACCESS_TOKEN"
+            )
             return []
         return response.json()
 
     def get_related_subjects(self, subject_id):
-        '''
+        """
         获取漫画的关联条目
-        '''
+        """
         url = f"{self.BASE_URL}/v0/subjects/{subject_id}/subjects"
         try:
             response = self.r.get(url, headers=self._get_headers())
@@ -129,13 +140,11 @@ class BangumiApiDataSource(DataSource):
         return response.json()
 
     def update_reading_progress(self, subject_id, progress):
-        '''
+        """
         更新漫画系列卷阅读进度
-        '''
+        """
         url = f"{self.BASE_URL}/v0/users/-/collections/{subject_id}"
-        payload = {
-            "vol_status": progress
-        }
+        payload = {"vol_status": progress}
         try:
             response = self.r.patch(
                 url, headers=self._get_headers(), json=payload)
@@ -145,17 +154,20 @@ class BangumiApiDataSource(DataSource):
         return response.status_code == 204
 
     def get_subject_thumbnail(self, subject_metadata):
-        '''
+        """
         获取漫画封面
-        '''
+        """
         try:
-            thumbnail = self.r.get(subject_metadata['images']['large']).content
+            if subject_metadata["images"]:
+                image = subject_metadata["images"]["large"]
+            else:
+                image = self.get_subject_metadata(subject_metadata["id"])[
+                    "images"]["large"]
+            thumbnail = self.r.get(image).content
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return []
-        files = {
-            'file': (subject_metadata['name'], thumbnail)
-        }
+        files = {"file": (subject_metadata["name"], thumbnail)}
         return files
 
 
@@ -165,21 +177,33 @@ class BangumiArchiveDataSource(DataSource):
     """
 
     def __init__(self, local_archive_folder):
-        self.subject_relation_file = local_archive_folder + "subject-relations.jsonlines"
+        self.subject_relation_file = (
+            local_archive_folder + "subject-relations.jsonlines"
+        )
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
         check_archive()
 
     # 将10s+的全文件扫描性能提升到1s左右
     def _get_metadata_from_archive(self, subject_id):
-        return search_line_batch_optimized(file_path=self.subject_metadata_file, subject_id=subject_id, target_field="id")
+        return search_line_batch_optimized(
+            file_path=self.subject_metadata_file,
+            subject_id=subject_id,
+            target_field="id",
+        )
 
     # 将10s+的全文件扫描性能提升到1s左右
     def _get_relations_from_archive(self, subject_id):
-        return search_list_batch_optimized(file_path=self.subject_relation_file, subject_id=subject_id, target_field="subject_id")
+        return search_list_batch_optimized(
+            file_path=self.subject_relation_file,
+            subject_id=subject_id,
+            target_field="subject_id",
+        )
 
     # 将10s+的全文件扫描性能提升到1s左右
     def _get_search_results_from_archive(self, query):
-        return search_all_data_batch_optimized(file_path=self.subject_metadata_file, query=query)
+        return search_all_data_batch_optimized(
+            file_path=self.subject_metadata_file, query=query
+        )
 
     def search_subjects(self, query, threshold=80):
         """
@@ -190,10 +214,12 @@ class BangumiArchiveDataSource(DataSource):
         search_results = []
         results = self._get_search_results_from_archive(query)
         for item in results:
-            if (query.lower() in str(item["name"]).lower() or
-                    query.lower() in str(item.get("name_cn", "")).lower() or
-                    query in str(item.get("summary", "")) or
-                    any(query in tag["name"] for tag in item.get("tags", []))):
+            if (
+                query.lower() in str(item["name"]).lower()
+                or query.lower() in str(item.get("name_cn", "")).lower()
+                or query in str(item.get("summary", ""))
+                or any(query in tag["name"] for tag in item.get("tags", []))
+            ):
                 result = {
                     "id": item["id"],
                     "url": r"http://bgm.tv/subject/" + str(item["id"]),
@@ -204,10 +230,12 @@ class BangumiArchiveDataSource(DataSource):
                     "air_date": item.get("air_date", ""),
                     "air_weekday": item.get("air_weekday", 0),
                     # 忽略 images 字段
-                    "images": ""
+                    "images": "",
                 }
                 search_results.append(result)
-        return resort_search_list(query=query, results=search_results, threshold=threshold, DataSource=self)
+        return resort_search_list(
+            query=query, results=search_results, threshold=threshold, DataSource=self
+        )
 
     def get_subject_metadata(self, subject_id):
         """
@@ -216,39 +244,42 @@ class BangumiArchiveDataSource(DataSource):
         data = self._get_metadata_from_archive(subject_id)
         try:
             result = {
-                "date": data.get('date'),
+                "date": data.get("date"),
                 "platform": data["platform"],
                 # 忽略 images 字段
                 # "images": get_images(subject_ID),
                 "images": "",
-                "summary": data.get('summary'),
-                "name": data.get('name'),
-                "name_cn": data.get('name_cn'),
-                "tags": [{'name': t['name'], 'count': t['count'], 'total_cont': 0} for t in data.get('tags', [])],
-                "infobox": parse_infobox(data['infobox']),
+                "summary": data.get("summary"),
+                "name": data.get("name"),
+                "name_cn": data.get("name_cn"),
+                "tags": [
+                    {"name": t["name"], "count": t["count"], "total_cont": 0}
+                    for t in data.get("tags", [])
+                ],
+                "infobox": parse_infobox(data["infobox"]),
                 "rating": {
-                    "rank": data.get('rank', 0),
-                    "total": data.get('total', 0),
-                    "count": data.get('score_details', {}),
-                    "score": data.get('score', 0.0)
+                    "rank": data.get("rank", 0),
+                    "total": data.get("total", 0),
+                    "count": data.get("score_details", {}),
+                    "score": data.get("score", 0.0),
                 },
-                "total_episodes": data.get('eps', 0),
+                "total_episodes": data.get("eps", 0),
                 "collection": {
-                    "on_hold": data['favorite'].get('on_hold', 0),
-                    "dropped": data['favorite'].get('dropped', 0),
-                    "wish": data['favorite'].get('wish', 0),
+                    "on_hold": data["favorite"].get("on_hold", 0),
+                    "dropped": data["favorite"].get("dropped", 0),
+                    "wish": data["favorite"].get("wish", 0),
                     # 假设done对应collect
-                    "collect": data['favorite'].get('done', 0),
-                    "doing": data['favorite'].get('doing', 0)
+                    "collect": data["favorite"].get("done", 0),
+                    "doing": data["favorite"].get("doing", 0),
                 },
-                "id": data.get('id'),
-                "eps": data.get('eps', 0),
-                "meta_tags": [tag['name'] for tag in data.get('tags', [])],
-                "volumes": data.get('volumes', 0),
-                "series": data.get('series', False),
-                "locked": data.get('locked', False),
-                "nsfw": data.get('nsfw', False),
-                "type": data.get('type', 0)
+                "id": data.get("id"),
+                "eps": data.get("eps", 0),
+                "meta_tags": [tag["name"] for tag in data.get("tags", [])],
+                "volumes": data.get("volumes", 0),
+                "series": data.get("series", False),
+                "locked": data.get("locked", False),
+                "nsfw": data.get("nsfw", False),
+                "type": data.get("type", 0),
             }
             return result
         except Exception as e:
@@ -268,14 +299,15 @@ class BangumiArchiveDataSource(DataSource):
             if subject_id == item.get("subject_id", 0):
                 try:
                     metadata = self._get_metadata_from_archive(
-                        item.get("related_subject_id", 0))
+                        item.get("related_subject_id", 0)
+                    )
                     result = {
-                        "name": metadata.get('name'),
-                        "name_cn": metadata.get('name_cn'),
-                        "relation": item.get('relation_type'),
-                        "id": metadata.get('id'),
+                        "name": metadata.get("name"),
+                        "name_cn": metadata.get("name_cn"),
+                        "relation": item.get("relation_type"),
+                        "id": metadata.get("id"),
                         # 忽略 images 字段
-                        "images": ""
+                        "images": "",
                     }
                     result_list.append(result)
                 except Exception as e:
@@ -302,13 +334,14 @@ class BangumiDataSourceFactory:
     """
     数据源工厂类
     """
+
     @staticmethod
     def create(config):
-        online = BangumiApiDataSource(config.get('access_token'))
+        online = BangumiApiDataSource(config.get("access_token"))
 
-        if config.get('use_local_archive', False):
+        if config.get("use_local_archive", False):
             offline = BangumiArchiveDataSource(
-                config.get('local_archive_folder'))
+                config.get("local_archive_folder"))
             return FallbackDataSource(offline, online)
 
         return online
@@ -333,16 +366,16 @@ class FallbackDataSource(DataSource):
         return result
 
     def search_subjects(self, query, threshold=80):
-        return self._fallback_call('search_subjects', query, threshold=threshold)
+        return self._fallback_call("search_subjects", query, threshold=threshold)
 
     def get_subject_metadata(self, subject_id):
-        return self._fallback_call('get_subject_metadata', subject_id)
+        return self._fallback_call("get_subject_metadata", subject_id)
 
     def get_related_subjects(self, subject_id):
-        return self._fallback_call('get_related_subjects', subject_id)
+        return self._fallback_call("get_related_subjects", subject_id)
 
     def update_reading_progress(self, subject_id, progress):
-        self._fallback_call('update_reading_progress', subject_id, progress)
+        self._fallback_call("update_reading_progress", subject_id, progress)
 
     def get_subject_thumbnail(self, subject_metadata):
-        return self._fallback_call('get_subject_thumbnail', subject_metadata)
+        return self._fallback_call("get_subject_thumbnail", subject_metadata)

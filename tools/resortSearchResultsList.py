@@ -13,11 +13,9 @@ def compute_name_score_by_fuzzy(name, name_cn, infobox, target):
         if item["key"] == "别名":
             if isinstance(item["value"], (list,)):  # 判断传入值是否为列表
                 for alias in item["value"]:
-                    score = max(
-                        score, fuzz.ratio(alias["v"], target))
+                    score = max(score, fuzz.ratio(alias["v"], target))
             else:
-                score = max(
-                    score, fuzz.ratio(item["value"], target))
+                score = max(score, fuzz.ratio(item["value"], target))
     return score
 
 
@@ -27,7 +25,7 @@ def resort_search_list(query, results, threshold, DataSource):
     # 构建具有完整元数据的排序条目
     sort_results = []
     for result in results:
-        manga_id = result['id']
+        manga_id = result["id"]
         manga_metadata = DataSource.get_subject_metadata(manga_id)
         if not manga_metadata:
             continue
@@ -36,20 +34,23 @@ def resort_search_list(query, results, threshold, DataSource):
         # bangumi书籍系列包括：系列、单行本
         # 此处需去除漫画系列的单行本，避免干扰，官方 API 已添加 series 字段（是否系列，仅对书籍类型的条目有效）
         # bangumi数据中存在单行本与系列未建立联系的情况
-        if SubjectPlatform.parse(manga_metadata["platform"]) != SubjectPlatform.Novel and manga_metadata["series"]:
+        if (
+            SubjectPlatform.parse(manga_metadata["platform"]) != SubjectPlatform.Novel
+            and manga_metadata["series"]
+        ):
             # 计算得分
             score = compute_name_score_by_fuzzy(
                 manga_metadata["name"],
                 manga_metadata.get("name_cn", ""),
-                manga_metadata['infobox'],
-                query
+                manga_metadata["infobox"],
+                query,
             )
             # 仅添加得分超过阈值的条目
             if score >= threshold:
-                manga_metadata['fuzzScore'] = score
+                manga_metadata["fuzzScore"] = score
                 sort_results.append(manga_metadata)
 
     # 按得分降序排序
-    sort_results.sort(key=lambda x: x['fuzzScore'], reverse=True)
+    sort_results.sort(key=lambda x: x["fuzzScore"], reverse=True)
 
     return sort_results

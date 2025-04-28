@@ -14,6 +14,7 @@ class PollingCaller:
     def start_polling(self):
         """启动服务"""
         # TODO: 添加 refresh_metadata() 是否正在执行的判断
+        # TODO: 添加 refresh_metadata() 正在执行时的等待
         def poll():
             while True:
                 try:

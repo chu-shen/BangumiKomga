@@ -25,6 +25,8 @@ RECHECK_FAILED_SERIES = False
 RECHECK_FAILED_BOOKS = False
 # 创建收藏
 CREATE_FAILED_COLLECTION = False
+# 只应用于 Komga 的小说库
+IS_NOVEL_ONLY = False
 
 # 消息通知
 # 支持： 'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'

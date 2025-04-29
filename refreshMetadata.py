@@ -19,7 +19,7 @@ def refresh_partial_metadata():
     """
     刷新部分书籍系列元数据
     """
-    new_added_series =
+    new_added_series = komga.get_new_added_series()
     parse_title = ParseTitle()
 
     # 批量获取所有series_id

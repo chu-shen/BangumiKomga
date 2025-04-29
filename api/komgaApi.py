@@ -35,9 +35,9 @@ class KomgaApi:
     def get_new_added_series(self):
         """
         Return newly added series.
-        https://komga.org/docs/openapi/get-new-series
+        https://komga.org/docs/openapi/get-latest-series/
         """
-        url = f"{self.base_url}/series/new"
+        url = f"{self.base_url}/series/latest?size=99999999"
 
         try:
             response = self.r.get(url)
@@ -48,12 +48,12 @@ class KomgaApi:
         new_added_subjects = response.json()["content"]
         added_subjects_result = []
 
-        # 30秒内更改的系列均视为新加入, 大概率是新加入的系列或者新增了书本
-        # 30秒和80分一样是个超参数, 并无依据
+        # 60秒内更改的系列均视为新加入, 大概率是新加入的系列或者新增了书本
+        # 60秒和80分一样是个超参数, 并无依据
         # 也许应该让用户可配置该值?
-        modified_time_scope = datetime.now() - timedelta(seconds=30)
+        modified_time_scope = datetime.now() - timedelta(seconds=60)
         for new_added_subject in new_added_subjects:
-            # fileLastModified 和 lastModified 字段似乎没有多大区别?
+            # 当前使用 lastModified 字段而非 fileLastModified
             modified_time = datetime.fromisoformat(
                 new_added_subject["lastModified"].replace("Z", "+00:00"))
             # 判断是否符合新更改系列的标准

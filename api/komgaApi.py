@@ -7,6 +7,7 @@
 import requests
 from tools.log import logger
 from requests.adapters import HTTPAdapter
+from datetime import datetime, timedelta
 
 
 class KomgaApi:
@@ -30,6 +31,37 @@ class KomgaApi:
         if response.status_code != 204:
             logger.error("Komga: login failed!")
             exit(1)
+
+    def get_new_added_series(self):
+        """
+        Return newly added series.
+        https://komga.org/docs/openapi/get-new-series
+        """
+        url = f"{self.base_url}/series/new"
+
+        try:
+            response = self.r.get(url)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"An error occurred: {e}")
+            return []
+        new_added_subjects = response.json()["content"]
+        added_subjects_result = []
+
+        # 30秒内更改的系列均视为新加入, 大概率是新加入的系列或者新增了书本
+        # 30秒和80分一样是个超参数, 并无依据
+        # 也许应该让用户可配置该值?
+        modified_time_scope = datetime.now() - timedelta(seconds=30)
+        for new_added_subject in new_added_subjects:
+            # fileLastModified 和 lastModified 字段似乎没有多大区别?
+            modified_time = datetime.fromisoformat(
+                new_added_subject["lastModified"].replace("Z", "+00:00"))
+            # 判断是否符合新更改系列的标准
+            if modified_time > modified_time_scope:
+                added_subjects_result.append(new_added_subject)
+
+        new_added_subjects["content"] = added_subjects_result
+        return new_added_subjects
 
     def get_all_series(self, parameters=None):
         """
@@ -112,7 +144,8 @@ class KomgaApi:
         """
         try:
             # make a GET request to the URL to retrieve all thumbnails in a given series
-            response = self.r.get(f"{self.base_url}/series/{series_id}/thumbnails")
+            response = self.r.get(
+                f"{self.base_url}/series/{series_id}/thumbnails")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
@@ -126,7 +159,8 @@ class KomgaApi:
         """
         try:
             # make a GET request to the URL to retrieve all thumbnails in a given series
-            response = self.r.get(f"{self.base_url}/books/{book_id}/thumbnails")
+            response = self.r.get(
+                f"{self.base_url}/books/{book_id}/thumbnails")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")

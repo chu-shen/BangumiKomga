@@ -10,6 +10,7 @@ class PollingCaller:
         env = InitEnv()
         self.komgaAPI = env.komga
         self.interval = POLL_INTERVAL
+        self.is_refreshing = False
 
     def start_polling(self):
         """启动服务"""
@@ -18,19 +19,27 @@ class PollingCaller:
         def poll():
             while True:
                 try:
-                    series_added, series_added_number = self.komgaAPI.is_new_series_added()
+                    if not self.is_refreshing:
+                        series_added, series_added_number = self.komgaAPI.is_new_series_added()
 
-                    if series_added:
-                        logger.info(f"检测到 {len(series_added_number)} 个系列更改")
-                        # 开始执行刷新脚本
-                        refresh_metadata()
-                    else:
-                        logger.info(f"{time.time()} 无新增内容")
+                        if series_added:
+                            logger.info(
+                                f"检测到 {len(series_added_number)} 个系列更改")
+                            # 死去的操作系统开始攻击我
+                            self.is_refreshing = True
+                            # 开始执行刷新脚本
+                            refresh_metadata()
+                            # 死去的操作系统停止攻击我
+                            self.is_refreshing = False
+                        else:
+                            logger.info(f"{time.time()} 无新增内容")
 
                 except Exception as e:
                     logger.error(f"轮询失败: {str(e)}", exc_info=True)
                     # 指数退避重试
                     retry_delay = min(2**self.interval, 60)
+                    # 固定值重试
+                    # retry_delay = self.interval
                     logger.warning(f"{retry_delay}秒后重试...")
                     time.sleep(retry_delay)
                     continue

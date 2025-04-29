@@ -11,8 +11,8 @@
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
-  - [如何修正错误元数据](#如何修正错误元数据)
   - [为小说添加元数据](#为小说添加元数据)
+  - [如何修正错误元数据](#如何修正错误元数据)
   - [同步阅读进度](#同步阅读进度)
   - [命名建议](#命名建议)
   - [Issues \& Pull Requests](#issues--pull-requests)
@@ -174,6 +174,12 @@
     - [chu-shen/BangumiKomga#37](https://github.com/chu-shen/BangumiKomga/issues/37)
   - 如果要对此功能启用前的系列进行修改，请在`scripts`目录下手动运行一次`python sortTitleByLetter.py`
 
+## 为小说添加元数据
+
+Komga 并没有区分漫画与小说，建议不同类型使用不同库
+
+`IS_NOVEL_ONLY`：设置为`True`时，将只匹配小说数据；默认设置为`False`，匹配漫画数据
+
 ## 如何修正错误元数据
 
 人工修正错误元数据可以使用`cbl(Correct Bangumi Link)`，只需在系列元数据的链接中填入`cbl`和该漫画系列的 bangumi 地址。将强制使用此链接，不再进行刮削。与`RECHECK_FAILED_SERIES`配置无关
@@ -195,12 +201,6 @@
 - 系列元数据更新错误，即匹配错误，刮削成其他条目：
   - 填入上面提到的信息
   - 正常执行`python refreshMetadata.py`
-
-## 为小说添加元数据
-
-Komga 并没有区分漫画与小说。
-
-可以尝试修改代码，使其**只应用**于 Komga 的**小说库**：将`resortSearchResultsList.py`中的`SubjectPlatform.parse(manga_metadata["platform"]) != SubjectPlatform.Novel`修改为`SubjectPlatform.parse(manga_metadata["platform"]) == SubjectPlatform.Novel`
 
 ## 同步阅读进度
 

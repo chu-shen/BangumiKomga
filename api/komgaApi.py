@@ -36,9 +36,9 @@ class KomgaApi:
         """
         Return newly added series.
 
-        https://komga.org/docs/openapi/get-new-series
+        https://komga.org/docs/openapi/get-latest-series
         """
-        url = f"{self.base_url}/series/new"
+        url = f"{self.base_url}/series/latest?size=99999999"
 
         try:
             # make a GET request to the URL to retrieve all new added series

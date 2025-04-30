@@ -45,23 +45,23 @@ class KomgaApi:
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
             return []
-        new_added_subjects = response.json()["content"]
-        added_subjects_result = []
+        added_subjects = response.json()
+        recent_added_subjects = []
 
         # 60秒内更改的系列均视为新加入, 大概率是新加入的系列或者新增了书本
         # 60秒和80分一样是个超参数, 并无依据
         # 也许应该让用户可配置该值?
         modified_time_scope = datetime.now() - timedelta(seconds=60)
-        for new_added_subject in new_added_subjects:
+        for added_subject in added_subjects["content"]:
             # 当前使用 lastModified 字段而非 fileLastModified
             modified_time = datetime.fromisoformat(
-                new_added_subject["lastModified"].replace("Z", "+00:00"))
+                added_subject["lastModified"].replace("Z", "+00:00"))
             # 判断是否符合新更改系列的标准
             if modified_time > modified_time_scope:
-                added_subjects_result.append(new_added_subject)
+                recent_added_subjects.append(added_subject)
 
-        new_added_subjects["content"] = added_subjects_result
-        return new_added_subjects
+        added_subjects["content"] = recent_added_subjects
+        return added_subjects
 
     def get_all_series(self, parameters=None):
         """

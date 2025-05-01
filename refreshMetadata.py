@@ -197,7 +197,13 @@ def refresh_partial_metadata():
     """
     刷新部分书籍系列元数据
     """
-    new_added_series = komga.get_new_added_series()
+    new_added_series = []
+    if KOMGA_LIBRARY_LIST:
+        for library in KOMGA_LIBRARY_LIST:
+            new_added_series.append(
+                komga.get_new_added_series_with_libaryid(library))
+    else:
+        new_added_series = komga.get_new_added_series()
     _refresh_metadata(new_added_series)
 
 

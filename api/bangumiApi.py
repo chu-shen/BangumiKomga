@@ -10,6 +10,8 @@ from requests.adapters import HTTPAdapter
 
 from tools.log import logger
 from tools.archiveAutoupdater import check_archive
+from tools.slideWindowRateLimiter import SlideWindowRateLimiter
+from tools.leakybucketRateLimiter import LeakyBucketRateLimiter
 from tools.localArchiveHelper import (
     parse_infobox,
     search_line_batch_optimized,
@@ -76,6 +78,7 @@ class BangumiApiDataSource(DataSource):
         # https://next.bgm.tv/demo/access-token
         return
 
+    @SlideWindowRateLimiter(max_requests=5, window_seconds=3, max_retries=3, delay=1)
     def search_subjects(self, query, threshold=80):
         """
         获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
@@ -110,6 +113,7 @@ class BangumiApiDataSource(DataSource):
             query=query, results=results, threshold=threshold, DataSource=self
         )
 
+    @SlideWindowRateLimiter(max_requests=5, window_seconds=3, max_retries=3, delay=1)
     def get_subject_metadata(self, subject_id):
         """
         获取漫画元数据
@@ -126,6 +130,7 @@ class BangumiApiDataSource(DataSource):
             return []
         return response.json()
 
+    @SlideWindowRateLimiter(max_requests=5, window_seconds=3, max_retries=3, delay=1)
     def get_related_subjects(self, subject_id):
         """
         获取漫画的关联条目
@@ -139,6 +144,7 @@ class BangumiApiDataSource(DataSource):
             return []
         return response.json()
 
+    @SlideWindowRateLimiter(max_requests=5, window_seconds=3, max_retries=3, delay=1)
     def update_reading_progress(self, subject_id, progress):
         """
         更新漫画系列卷阅读进度
@@ -146,12 +152,14 @@ class BangumiApiDataSource(DataSource):
         url = f"{self.BASE_URL}/v0/users/-/collections/{subject_id}"
         payload = {"vol_status": progress}
         try:
-            response = self.r.patch(url, headers=self._get_headers(), json=payload)
+            response = self.r.patch(
+                url, headers=self._get_headers(), json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
         return response.status_code == 204
 
+    @SlideWindowRateLimiter(max_requests=5, window_seconds=3, max_retries=3, delay=1)
     def get_subject_thumbnail(self, subject_metadata):
         """
         获取漫画封面
@@ -160,7 +168,8 @@ class BangumiApiDataSource(DataSource):
             if subject_metadata["images"]:
                 image = subject_metadata["images"]["large"]
             else:
-                image = self.get_subject_metadata(subject_metadata["id"])["images"]["large"]
+                image = self.get_subject_metadata(subject_metadata["id"])[
+                    "images"]["large"]
             thumbnail = self.r.get(image).content
         except Exception as e:
             logger.error(f"An error occurred: {e}")
@@ -338,7 +347,8 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get("access_token"))
 
         if config.get("use_local_archive", False):
-            offline = BangumiArchiveDataSource(config.get("local_archive_folder"))
+            offline = BangumiArchiveDataSource(
+                config.get("local_archive_folder"))
             return FallbackDataSource(offline, online)
 
         return online

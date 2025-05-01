@@ -62,6 +62,11 @@ class KomgaApi:
             # 判断是否符合新更改系列的标准
             if modified_time > modified_time_scope:
                 recent_added_subjects.append(added_subject)
+            else:
+                # Correct Bgm Link (CBL)
+                for link in added_subject["metadata"]["links"]:
+                    if link["label"].lower() == "cbl":
+                        recent_added_subjects.append(added_subject)
 
         added_subjects["content"] = recent_added_subjects
         return added_subjects

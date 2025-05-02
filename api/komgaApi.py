@@ -31,16 +31,17 @@ class KomgaApi:
             logger.error("Komga: login failed!")
             exit(1)
 
-    def get_latest_series(self, parameters=None):
+    def get_latest_series(self, library_id=None, page=0):
         """
         Return newly added series.
         https://komga.org/docs/openapi/get-latest-series/
         """
         url = f"{self.base_url}/series/latest"
-        if parameters:
-            url += f"?{parameters}&size=50000&unpaged=true"
+        if library_id:
+            url += f"?{library_id}&size=20"
         else:
-            url += "?size=50000&unpaged=true"
+            url += "?size=20"
+        url += f"&page={page}"
         try:
             response = self.r.get(url)
             response.raise_for_status()
@@ -49,13 +50,13 @@ class KomgaApi:
             return []
         return response.json()
 
-    def get_latest_series_with_libaryid(self, library_id):
+    def get_latest_series_with_libaryid(self, library_id, page=0):
         """
         Retrieves newly added series in a specified library in the komga.
 
         https://komga.org/docs/openapi/get-latest-series/
         """
-        return self.get_latest_series(f"library_id={library_id}")
+        return self.get_latest_series(f"library_id={library_id}", page)
 
     def get_all_series(self, parameters=None):
         """

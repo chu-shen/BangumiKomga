@@ -193,43 +193,80 @@ def refresh_metadata(series_list=None):
         refresh_book_metadata(subject_id, series_id, force_refresh_flag)
 
 
+def _filter_new_modified_metadata(time_scope, seriesList):
+    """
+    过滤出新更改系列元数据
+    """
+    result = []
+    # 60秒内更改的系列均视为新加入, 大概率是新加入的系列或者新增了书本
+    # 60秒和80分一样是个超参数, 并无依据
+    # 也许应该让用户可配置该值?
+
+    for item in seriesList["content"]:
+        # 当前使用 lastModified 字段而非 fileLastModified
+        modified_time = datetime.fromisoformat(
+            item["lastModified"].replace("Z", "+00:00"))
+        # 判断是否符合新更改系列的标准
+        if modified_time > time_scope:
+            result.append(item)
+        else:
+            # Correct Bgm Link (CBL)
+            for link in item["metadata"]["links"]:
+                if link["label"].lower() == "cbl":
+                    result.append(item)
+    return result
+
+
 def refresh_partial_metadata():
     """
     刷新部分书籍系列元数据
     """
-    seriesList = []
+    recent_modified_subjects = []
+    modified_time_scope = datetime.now() - timedelta(seconds=60)
+    # 指定了 LIBRARY_ID
     if KOMGA_LIBRARY_LIST:
         for library in KOMGA_LIBRARY_LIST:
-            seriesList.append(
-                komga.get_latest_series_with_libaryid(library))
+            page_index = 0
+            while True:
+                seriesList = komga.get_latest_series_with_libaryid(
+                    library_id=library, page=page_index)
+                new_add_series = _filter_new_modified_metadata(
+                    modified_time_scope, seriesList)
+                if new_add_series:
+                    recent_modified_subjects.append(new_add_series)
+                    # 更新分页状态
+                    current_page = seriesList["number"]
+                    total_pages = seriesList["totalPages"]
+                    if current_page + 1 >= total_pages:
+                        break
+                    page_index += 1
+                else:
+                    # 没有符合 _filter_new_modified_metadata 标准的新更改系列
+                    break
+    # 未指定 LIBRARY_ID
     else:
-        seriesList = komga.get_latest_series()
+        page_index = 0
+        while True:
+            seriesList = komga.get_latest_series(page=page_index)
+            new_add_series = _filter_new_modified_metadata(
+                modified_time_scope, seriesList)
+            if new_add_series:
+                recent_modified_subjects.append(new_add_series)
+                # 更新分页状态
+                current_page = seriesList["number"]
+                total_pages = seriesList["totalPages"]
+                if current_page + 1 >= total_pages:
+                    break
+                page_index += 1
+            else:
+                # 没有符合 _filter_new_modified_metadata 标准的新更改系列
+                break
 
-    recent_modified_subjects = []
-
-    # 60秒内更改的系列均视为新加入, 大概率是新加入的系列或者新增了书本
-    # 60秒和80分一样是个超参数, 并无依据
-    # 也许应该让用户可配置该值?
-    modified_time_scope = datetime.now() - timedelta(seconds=60)
-    for added_subject in seriesList["content"]:
-        # 当前使用 lastModified 字段而非 fileLastModified
-        modified_time = datetime.fromisoformat(
-            added_subject["lastModified"].replace("Z", "+00:00"))
-        # 判断是否符合新更改系列的标准
-        if modified_time > modified_time_scope:
-            recent_modified_subjects.append(added_subject)
-        else:
-            # Correct Bgm Link (CBL)
-            for link in added_subject["metadata"]["links"]:
-                if link["label"].lower() == "cbl":
-                    recent_modified_subjects.append(added_subject)
-
-    if len(recent_modified_subjects) < 1:
+    if recent_modified_subjects:
+        refresh_metadata(recent_modified_subjects)
+    else:
         logger.info("未找到最近添加系列, 无需刷新")
         return
-    else:
-        seriesList["content"] = recent_modified_subjects
-        refresh_metadata(seriesList)
 
 
 def update_book_metadata(book_id, related_subject, book_name, number):

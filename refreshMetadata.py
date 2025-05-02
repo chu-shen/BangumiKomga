@@ -224,8 +224,12 @@ def refresh_partial_metadata():
                 if link["label"].lower() == "cbl":
                     recent_modified_subjects.append(added_subject)
 
-    seriesList["content"] = recent_modified_subjects
-    refresh_metadata(seriesList)
+    if len(recent_modified_subjects) < 1:
+        logger.info("未找到最近添加系列, 无需刷新")
+        return
+    else:
+        seriesList["content"] = recent_modified_subjects
+        refresh_metadata(seriesList)
 
 
 def update_book_metadata(book_id, related_subject, book_name, number):

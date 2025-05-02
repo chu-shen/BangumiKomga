@@ -5,10 +5,12 @@ import json
 from datetime import datetime
 from config.config import ARCHIVE_FILES_DIR
 from tools.log import logger
+from tools.indexedJsonlinesRead import IndexedDataReader
 
 # TODO: 加入Archive更新定时检查功能
 
-UpdateTimeCacheFilePath = os.path.join(ARCHIVE_FILES_DIR, "archive_update_time.json")
+UpdateTimeCacheFilePath = os.path.join(
+    ARCHIVE_FILES_DIR, "archive_update_time.json")
 
 
 def read_cache_time():
@@ -28,7 +30,8 @@ def save_cache_time(last_updated):
 
 def convert_to_datetime(update_time_string):
     try:
-        result = datetime.fromisoformat(update_time_string.replace("Z", "+00:00"))
+        result = datetime.fromisoformat(
+            update_time_string.replace("Z", "+00:00"))
     except Exception as e:
         logger.warning(f"更新时间 {update_time_string} 获取失败: {str(e)}")
         return None
@@ -50,6 +53,18 @@ def get_latest_url_and_time():
     except json.JSONDecodeError as e:
         logger.warning(f"Bangumi Archive JSON 解析失败: {str(e)}")
     return "", ""
+
+
+def update_index():
+    filePaths = [os.path.join(ARCHIVE_FILES_DIR, filename)
+                 for filename in ["subject-relations.jsonlines", "subject.jsonlines"]]
+    for filePath in filePaths:
+        archivefile = IndexedDataReader(filePath)
+        if "relation" in archivefile:
+            return archivefile.build_offsets_index(indexedFiled="subject_id")
+        else:
+            return archivefile.build_offsets_index(indexedFiled="id")
+    return
 
 
 def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
@@ -95,6 +110,7 @@ def check_archive():
     if remote_update_time > local_update_time:
         logger.info("检测到新版本 Bangumi Archive, 开始更新...")
         if update_archive(download_url, ARCHIVE_FILES_DIR):
+            update_index()
             save_cache_time(latest_update_time)
             logger.info("Bangumi Archive 更新完成")
         else:

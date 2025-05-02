@@ -1,6 +1,27 @@
 import re
 import json
 from tools.log import logger
+from tools.indexedJsonlinesRead import IndexedDataReader
+
+
+def search_line_with_index(file_path: str, subject_id: int, target_field: str):
+    """
+    从Archive文件中返回单个JSON对象
+    """
+    try:
+        indexed_data = IndexedDataReader(file_path)
+        result = indexed_data.get_line_by_id(
+            targetID=subject_id, targetFiled=target_field)
+        if len(result) < 1:
+            logger.error(f"Archive文件: {file_path} 中不包含 {subject_id} 相关数据")
+            return None
+        else:
+            return result[0]
+    except FileNotFoundError:
+        logger.error(f"Archive文件未找到: {file_path}")
+    except Exception as e:
+        logger.error(f"读取Archive发生错误: {str(e)}")
+    return None
 
 
 def search_line_batch_optimized(
@@ -44,6 +65,29 @@ def search_line_batch_optimized(
         logger.error(f"读取Archive发生错误: {str(e)}")
     # 没有找到任何结果
     logger.error(f"Archive中不包含Subject_ID: {subject_id} 的元数据.")
+    return None
+
+
+def search_list_with_index(
+    file_path: str, subject_id: int, target_field: str
+):
+    """
+    从Archive文件中返回结果对象列表
+    """
+    try:
+        indexed_data = IndexedDataReader(file_path)
+        results = indexed_data.get_list_by_id(
+            targetID=subject_id, targetFiled=target_field)
+        if len(results) < 1:
+            logger.error(f"Archive文件: {file_path} 中不包含 {subject_id} 相关数据")
+            return None
+        else:
+            return results
+        return
+    except FileNotFoundError:
+        logger.error(f"Archive文件未找到: {file_path}")
+    except Exception as e:
+        logger.error(f"读取Archive发生错误: {str(e)}")
     return None
 
 

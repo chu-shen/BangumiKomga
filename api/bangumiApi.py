@@ -12,8 +12,8 @@ from tools.log import logger
 from tools.archiveAutoupdater import check_archive
 from tools.localArchiveHelper import (
     parse_infobox,
-    search_line_batch_optimized,
-    search_list_batch_optimized,
+    search_line_with_index,
+    search_list_with_index,
     search_all_data_batch_optimized,
 )
 from tools.resortSearchResultsList import resort_search_list
@@ -146,7 +146,8 @@ class BangumiApiDataSource(DataSource):
         url = f"{self.BASE_URL}/v0/users/-/collections/{subject_id}"
         payload = {"vol_status": progress}
         try:
-            response = self.r.patch(url, headers=self._get_headers(), json=payload)
+            response = self.r.patch(
+                url, headers=self._get_headers(), json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
@@ -160,7 +161,8 @@ class BangumiApiDataSource(DataSource):
             if subject_metadata["images"]:
                 image = subject_metadata["images"]["large"]
             else:
-                image = self.get_subject_metadata(subject_metadata["id"])["images"]["large"]
+                image = self.get_subject_metadata(subject_metadata["id"])[
+                    "images"]["large"]
             thumbnail = self.r.get(image).content
         except Exception as e:
             logger.error(f"An error occurred: {e}")
@@ -181,17 +183,17 @@ class BangumiArchiveDataSource(DataSource):
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
         check_archive()
 
-    # 将10s+的全文件扫描性能提升到1s左右
     def _get_metadata_from_archive(self, subject_id):
-        return search_line_batch_optimized(
+        # return search_line_batch_optimized(
+        return search_line_with_index(
             file_path=self.subject_metadata_file,
             subject_id=subject_id,
             target_field="id",
         )
 
-    # 将10s+的全文件扫描性能提升到1s左右
     def _get_relations_from_archive(self, subject_id):
-        return search_list_batch_optimized(
+        # return search_list_batch_optimized(
+        return search_list_with_index(
             file_path=self.subject_relation_file,
             subject_id=subject_id,
             target_field="subject_id",
@@ -338,7 +340,8 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get("access_token"))
 
         if config.get("use_local_archive", False):
-            offline = BangumiArchiveDataSource(config.get("local_archive_folder"))
+            offline = BangumiArchiveDataSource(
+                config.get("local_archive_folder"))
             return FallbackDataSource(offline, online)
 
         return online

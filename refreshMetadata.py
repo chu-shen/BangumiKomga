@@ -7,7 +7,7 @@ from tools.env import *
 from tools.log import logger
 from tools.notification import send_notification
 from tools.db import initSqlite3, record_series_status, record_book_status
-
+from datetime import datetime, timedelta
 
 env = InitEnv()
 bgm = env.bgm
@@ -15,12 +15,12 @@ komga = env.komga
 cursor, conn = initSqlite3()
 
 
-def _refresh_metadata(series_list):
+def refresh_metadata(series_list=None):
     """
-    刷新指定书籍系列元数据
+    刷新书籍系列元数据
     """
-    if len(series_list) < 1:
-        return
+    if series_list is None or series_list == []:
+        series_list = env.all_series
 
     parse_title = ParseTitle()
 
@@ -197,22 +197,35 @@ def refresh_partial_metadata():
     """
     刷新部分书籍系列元数据
     """
-    new_added_series = []
+    seriesList = []
     if KOMGA_LIBRARY_LIST:
         for library in KOMGA_LIBRARY_LIST:
-            new_added_series.append(
-                komga.get_new_added_series_with_libaryid(library))
+            seriesList.append(
+                komga.get_latest_series_with_libaryid(library))
     else:
-        new_added_series = komga.get_new_added_series()
-    _refresh_metadata(new_added_series)
+        seriesList = komga.get_latest_series()
 
+    recent_modified_subjects = []
 
-def refresh_all_metadata():
-    """
-    刷新书籍系列元数据
-    """
-    all_series = env.all_series
-    _refresh_metadata(all_series)
+    # 60秒内更改的系列均视为新加入, 大概率是新加入的系列或者新增了书本
+    # 60秒和80分一样是个超参数, 并无依据
+    # 也许应该让用户可配置该值?
+    modified_time_scope = datetime.now() - timedelta(seconds=60)
+    for added_subject in seriesList["content"]:
+        # 当前使用 lastModified 字段而非 fileLastModified
+        modified_time = datetime.fromisoformat(
+            added_subject["lastModified"].replace("Z", "+00:00"))
+        # 判断是否符合新更改系列的标准
+        if modified_time > modified_time_scope:
+            recent_modified_subjects.append(added_subject)
+        else:
+            # Correct Bgm Link (CBL)
+            for link in added_subject["metadata"]["links"]:
+                if link["label"].lower() == "cbl":
+                    recent_modified_subjects.append(added_subject)
+
+    seriesList["content"] = recent_modified_subjects
+    refresh_metadata(seriesList)
 
 
 def update_book_metadata(book_id, related_subject, book_name, number):
@@ -364,4 +377,4 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
             )
 
 
-refresh_all_metadata()
+refresh_metadata()

@@ -7,7 +7,6 @@
 import requests
 from tools.log import logger
 from requests.adapters import HTTPAdapter
-from datetime import datetime, timedelta
 
 
 class KomgaApi:
@@ -32,7 +31,7 @@ class KomgaApi:
             logger.error("Komga: login failed!")
             exit(1)
 
-    def get_new_added_series(self, parameters=None):
+    def get_latest_series(self, parameters=None):
         """
         Return newly added series.
         https://komga.org/docs/openapi/get-latest-series/
@@ -48,36 +47,15 @@ class KomgaApi:
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
             return []
-        added_subjects = response.json()
-        recent_added_subjects = []
+        return response.json()
 
-        # 60秒内更改的系列均视为新加入, 大概率是新加入的系列或者新增了书本
-        # 60秒和80分一样是个超参数, 并无依据
-        # 也许应该让用户可配置该值?
-        modified_time_scope = datetime.now() - timedelta(seconds=60)
-        for added_subject in added_subjects["content"]:
-            # 当前使用 lastModified 字段而非 fileLastModified
-            modified_time = datetime.fromisoformat(
-                added_subject["lastModified"].replace("Z", "+00:00"))
-            # 判断是否符合新更改系列的标准
-            if modified_time > modified_time_scope:
-                recent_added_subjects.append(added_subject)
-            else:
-                # Correct Bgm Link (CBL)
-                for link in added_subject["metadata"]["links"]:
-                    if link["label"].lower() == "cbl":
-                        recent_added_subjects.append(added_subject)
-
-        added_subjects["content"] = recent_added_subjects
-        return added_subjects
-
-    def get_new_added_series_with_libaryid(self, library_id):
+    def get_latest_series_with_libaryid(self, library_id):
         """
         Retrieves newly added series in a specified library in the komga.
 
         https://komga.org/docs/openapi/get-latest-series/
         """
-        return self.get_new_added_series(f"library_id={library_id}")
+        return self.get_latest_series(f"library_id={library_id}")
 
     def get_all_series(self, parameters=None):
         """
@@ -85,6 +63,9 @@ class KomgaApi:
 
         https://github.com/gotson/komga/blob/master/komga/docs/openapi.json#L4859
         """
+        # 这里是不是该更新一下， https://komga.org/docs/openapi/get-all-series 说
+        # Use POST /api/v1/series/list instead. Deprecated since 1.19.0.
+        # 似乎应该换用这个 https://komga.org/docs/openapi/get-series-list
         url = f"{self.base_url}/series"
         if parameters:
             # 取消默认分页（大小为 2000），以便一次性获取所有系列

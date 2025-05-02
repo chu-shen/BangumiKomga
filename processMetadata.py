@@ -85,12 +85,35 @@ def __setTotalBookCount(komga_metadata, subjectRelations):
 def __setLanguage(komga_metadata, manga_filename):
     """
     本地漫画语言
-    """
-    languageTypes = ["日版"]
-    for languageType in languageTypes:
-        if languageType in manga_filename:
-            komga_metadata.language = "ja-JP"
 
+    根据文件名中的关键字设置漫画语言，后续分组会覆盖前面的匹配结果
+    """
+    languageTypes = [
+        ("ja-JP", ["日版"]),
+        ("zh-Hans", ["bili", "B漫", "汉化", "简中"]),
+        (
+            "zh-Hant",
+            [
+                "繁中",
+                "尖端",
+                "东立",
+                "東立",
+                "东贩",
+                "東販",
+                "玉皇朝",
+                "天下",
+                "青文",
+                "长鸿",
+                "角川",
+                "文传",
+                "文傳",
+                "時報",
+            ],
+        ),
+    ]
+    for langCode, keywords in languageTypes:
+        if any(keyword in manga_filename for keyword in keywords):
+            komga_metadata.language = langCode
 
 def __setAlternateTitles(komga_metadata, bangumi_metadata):
     """

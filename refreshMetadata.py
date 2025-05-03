@@ -208,12 +208,13 @@ def _filter_new_modified_metadata(time_scope, seriesList):
             item["lastModified"].replace("Z", "+00:00"))
         # 判断是否符合新更改系列的标准
         if modified_time > time_scope:
-            result.append(item)
-        else:
+            result.extend(item)
+        # 那我缺的增量CBL跟踪这块谁给我补啊.jpg
+        # else:
             # Correct Bgm Link (CBL)
-            for link in item["metadata"]["links"]:
-                if link["label"].lower() == "cbl":
-                    result.append(item)
+            # for link in item["metadata"]["links"]:
+            #     if link["label"].lower() == "cbl":
+            #         result.append(item)
     return result
 
 

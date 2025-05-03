@@ -5,6 +5,7 @@
 
 
 import requests
+import json
 from tools.log import logger
 from requests.adapters import HTTPAdapter
 
@@ -33,7 +34,7 @@ class KomgaApi:
 
     def get_latest_series(self, library_id=None, page=0):
         """
-        Return newly added series.
+        Return recently added or updated series.
         https://komga.org/docs/openapi/get-latest-series/
         """
         url = f"{self.base_url}/series/latest"
@@ -62,25 +63,33 @@ class KomgaApi:
         """
         Retrieves all series in the komga comic.
 
-        https://github.com/gotson/komga/blob/master/komga/docs/openapi.json#L4859
+        https://komga.org/docs/openapi/get-series/
         """
-        # 这里是不是该更新一下， https://komga.org/docs/openapi/get-all-series 说
-        # Use POST /api/v1/series/list instead. Deprecated since 1.19.0.
-        # 似乎应该换用这个 https://komga.org/docs/openapi/get-series-list
-        url = f"{self.base_url}/series"
+        # 更新为 /api/v1/series/list
+        url = f"{self.base_url}/series/list"
         if parameters:
             # 取消默认分页（大小为 2000），以便一次性获取所有系列
             url += f"?{parameters}&size=50000&unpaged=true"
         else:
             url += "?size=50000&unpaged=true"
+        # 现在年龄限制和按LIBRARY_ID筛选都能写到这里面了, 其他函数也能统一用这个API了吧
+        payload = json.dumps({
+            "condition": {
+                "releaseDate": {
+                    "operator": "after",
+                    "dateTime": "1800-01-01T00:00:00Z"
+                }
+            },
+            "fullTextSearch": ""
+        })
         try:
-            # make a GET request to the URL to retrieve all series
-            response = self.r.get(url)
+            # 改为POST方法获取所有数据
+            response = self.r.post(url, payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
             return []
-        # return the response as a JSON object
+        # 将response作为JSON对象返回
         return response.json()
 
     def get_series_with_libaryid(self, library_id):
@@ -286,7 +295,8 @@ class seriesMetadata:
     """
     Class to represent Komga series metadata fields.
 
-    See https://github.com/gotson/komga/blob/master/komga/docs/openapi.json#L10449 for fields.
+    #L10449 for fields.
+    See https://github.com/gotson/komga/blob/master/komga/docs/openapi.json
     """
 
     def __init__(self):

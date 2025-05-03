@@ -2,7 +2,7 @@ import threading
 import time
 from tools.log import logger
 from tools.env import InitEnv
-from refreshMetadata import refresh_metadata
+from refreshMetadata import refresh_metadata, refresh_partial_metadata
 
 
 class PollingCaller:
@@ -11,10 +11,13 @@ class PollingCaller:
         self.komgaAPI = env.komga
         self.interval = POLL_INTERVAL
         self.is_refreshing = False
+        # 暂定10次轮询后执行一次全量刷新
+        self.refresh_all_metadata_interval = 10
 
     def start_polling(self):
         """启动服务"""
         def poll():
+            refresh_all_metadata_counter = 0
             while True:
                 try:
                     if not self.is_refreshing:
@@ -25,8 +28,13 @@ class PollingCaller:
                                 f"检测到 {len(series_added_number)} 个系列更改")
                             # 死去的操作系统开始攻击我
                             self.is_refreshing = True
-                            # 开始执行刷新脚本
-                            refresh_metadata()
+                            if refresh_all_metadata_counter >= self.refresh_all_metadata_interval:
+                                # 执行全量刷新逻辑
+                                refresh_metadata()
+                                refresh_all_metadata_counter = 0
+                            else:
+                                # 尚未适配 refresh_partial_metadata
+                                refresh_partial_metadata()
                             # 死去的操作系统停止攻击我
                             self.is_refreshing = False
                         else:
@@ -43,6 +51,7 @@ class PollingCaller:
                     continue
                 # 等待一个预设时间间隔
                 time.sleep(self.interval)
+                refresh_all_metadata_counter += 1
 
         # 使用守护线程启动轮询
         threading.Thread(target=poll, daemon=True).start()

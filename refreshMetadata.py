@@ -1,7 +1,8 @@
 from api.bangumiModel import SubjectRelation
 from tools.getTitle import ParseTitle
 import processMetadata
-from time import strftime, localtime
+import json
+import datetime
 from tools.getNumber import getNumber, NumberType
 from tools.env import *
 from tools.log import logger
@@ -193,28 +194,39 @@ def refresh_metadata(series_list=None):
         refresh_book_metadata(subject_id, series_id, force_refresh_flag)
 
 
-def _filter_new_modified_metadata(time_scope, seriesList):
+class ModifiedRecord:
+    def __init__(self):
+        self.records_file_name = "modified_records.json"
+        self.records = self.load_records()
+
+    def load_records(self) -> dict:
+        try:
+            with open(self.records_file_name, "r") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
+
+    def save_records(self, records):
+        with open(self.records_file_name, "w") as f:
+            json.dump(records, f)
+
+
+def _filter_new_modified_metadata(seriesList, modified_records: dict):
     """
     过滤出新更改系列元数据
     """
     result = []
-    # 60秒内更改的系列均视为新加入, 大概率是新加入的系列或者新增了书本
-    # 60秒和80分一样是个超参数, 并无依据
-    # 也许应该让用户可配置该值?
-
     for item in seriesList["content"]:
-        # 当前使用 lastModified 字段而非 fileLastModified
-        modified_time = datetime.fromisoformat(
-            item["lastModified"].replace("Z", "+00:00"))
-        # 判断是否符合新更改系列的标准
-        if modified_time > time_scope:
+        if item["id"] in modified_records.keys():
+            komga_modified_time = datetime.fromisoformat(
+                item["lastModified"].replace("Z", "+00:00"))
+            local_modified_time = datetime.fromisoformat(
+                modified_records[item["id"]].replace("Z", "+00:00"))
+            if komga_modified_time > local_modified_time:
+                result.extend(item)
+        else:
             result.extend(item)
-        # 那我缺的增量CBL跟踪这块谁给我补啊.jpg
-        # else:
-            # Correct Bgm Link (CBL)
-            # for link in item["metadata"]["links"]:
-            #     if link["label"].lower() == "cbl":
-            #         result.append(item)
+
     return result
 
 
@@ -223,21 +235,21 @@ def refresh_partial_metadata():
     刷新部分书籍系列元数据
     """
     recent_modified_subjects = []
-    modified_time_scope = datetime.now() - timedelta(seconds=60)
+    modified_local_records = ModifiedRecord.records
     # 指定了 LIBRARY_ID
     if KOMGA_LIBRARY_LIST:
         for library in KOMGA_LIBRARY_LIST:
             page_index = 0
             while True:
-                seriesList = komga.get_latest_series_with_libaryid(
+                temp_series = komga.get_latest_series_with_libaryid(
                     library_id=library, page=page_index)
                 new_add_series = _filter_new_modified_metadata(
-                    modified_time_scope, seriesList)
+                    temp_series, modified_records=modified_local_records)
                 if new_add_series:
                     recent_modified_subjects.append(new_add_series)
-                    # 更新分页状态
-                    current_page = seriesList["number"]
-                    total_pages = seriesList["totalPages"]
+                    # 更新分页状态seriesList,
+                    current_page["number"]
+                    total_pages = temp_series["totalPages"]
                     if current_page + 1 >= total_pages:
                         break
                     page_index += 1
@@ -248,14 +260,14 @@ def refresh_partial_metadata():
     else:
         page_index = 0
         while True:
-            seriesList = komga.get_latest_series(page=page_index)
+            temp_series = komga.get_latest_series(page=page_index)
             new_add_series = _filter_new_modified_metadata(
-                modified_time_scope, seriesList)
+                temp_series, modified_records=modified_local_records)
             if new_add_series:
                 recent_modified_subjects.append(new_add_series)
                 # 更新分页状态
-                current_page = seriesList["number"]
-                total_pages = seriesList["totalPages"]
+                current_page = temp_series["number"]
+                total_pages = temp_series["totalPages"]
                 if current_page + 1 >= total_pages:
                     break
                 page_index += 1
@@ -265,9 +277,14 @@ def refresh_partial_metadata():
 
     if recent_modified_subjects:
         refresh_metadata(recent_modified_subjects)
+        updated_time = datetime.now()
+        for recent_modified_subject in recent_modified_subjects:
+            modified_local_records.records[recent_modified_subject["id"]
+                                           ] = updated_time
+        modified_local_records.save_records(modified_local_records)
     else:
         logger.info("未找到最近添加系列, 无需刷新")
-        return
+    return
 
 
 def update_book_metadata(book_id, related_subject, book_name, number):

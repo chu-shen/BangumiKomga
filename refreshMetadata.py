@@ -21,7 +21,7 @@ def refresh_metadata(series_list=None):
     刷新书籍系列元数据
     """
     if series_list is None or series_list == []:
-        series_list = env.all_series
+        series_list = getSeries()
 
     parse_title = ParseTitle()
 
@@ -230,6 +230,25 @@ def refresh_metadata(series_list=None):
     )
 
 
+def getSeries():
+    series_list = []
+
+    if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
+        logger.error("Use only one of KOMGA_LIBRARY_LIST or KOMGA_COLLECTION_LIST")
+    elif KOMGA_LIBRARY_LIST:
+        series_list.extend(
+            komga.get_series_with_libraryid(KOMGA_LIBRARY_LIST)["content"]
+        )
+    elif KOMGA_COLLECTION_LIST:
+        series_list.extend(
+            komga.get_series_with_collection(KOMGA_COLLECTION_LIST)["content"]
+        )
+    else:
+        series_list = komga.get_all_series()["content"]
+
+    return series_list
+
+
 def _filter_new_modified_series(library_id=None):
     """
     过滤出新更改系列元数据
@@ -243,9 +262,12 @@ def _filter_new_modified_series(library_id=None):
     )
     page_index = 0
     new_series = []
-    StopPaging = False
-    while True:
+    stop_paging_flag = False
+    while not stop_paging_flag:
         temp_series = komga.get_latest_series(library_id=library_id, page=page_index)
+
+        if not temp_series:
+            break
 
         for item in temp_series["content"]:
             komga_modified_time = TimeCacheManager.convert_to_datetime(
@@ -255,7 +277,7 @@ def _filter_new_modified_series(library_id=None):
                 new_series.append(item)
             else:
                 # 如果没有新更改的系列，停止分页
-                StopPaging = True
+                stop_paging_flag = True
                 break
 
         if page_index == 0 and new_series:
@@ -264,14 +286,10 @@ def _filter_new_modified_series(library_id=None):
                 LastModifiedCacheFilePath, temp_series["content"][0]["lastModified"]
             )
 
-        if StopPaging:
-            break
-        else:
-            # 更新分页状态
-            total_pages = temp_series["totalPages"]
-            if page_index + 1 >= total_pages:
-                break
+        if not stop_paging_flag and (page_index + 1) < temp_series["totalPages"]:
             page_index += 1
+        else:
+            break
 
     return new_series
 
@@ -283,10 +301,9 @@ def refresh_partial_metadata():
     recent_modified_series = []
     # 指定了 LIBRARY_ID
     if KOMGA_LIBRARY_LIST:
-        for library_id in KOMGA_LIBRARY_LIST:
-            recent_modified_series.extend(
-                _filter_new_modified_series(library_id=library_id)
-            )
+        recent_modified_series.extend(
+            _filter_new_modified_series(library_id=KOMGA_LIBRARY_LIST)
+        )
     else:
         recent_modified_series.extend(_filter_new_modified_series())
 

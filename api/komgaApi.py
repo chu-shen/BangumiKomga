@@ -5,7 +5,6 @@
 
 
 import requests
-import json
 from tools.log import logger
 from requests.adapters import HTTPAdapter
 
@@ -40,18 +39,24 @@ class KomgaApi:
         https://komga.org/docs/openapi/get-latest-series/
         """
         url = f"{self.base_url}/series/latest"
-        url += f"?size=20&page={page}&deleted=false"
+        params = {
+            "size": 20,
+            "page": page,
+            "deleted": "false",
+        }
         if library_id:
-            url += f"&library_id={library_id}"
+            params["library_id"] = (
+                library_id if isinstance(library_id, (list, tuple)) else [library_id]
+            )
         try:
-            response = self.r.get(url)
+            response = self.r.get(url, params=params)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
             return []
         return response.json()
 
-    def get_all_series(self, payload={}):
+    def get_all_series(self, payload=None):
         """
         Retrieves all series in the komga comic.
 
@@ -61,12 +66,16 @@ class KomgaApi:
         url = f"{self.base_url}/series/list"
         # 取消默认分页（大小为 2000），以便一次性获取所有系列
         params = {"size": 50000, "unpaged": True}
-        default_condition = {
-            "deleted": {
-                "operator": "IsFalse",
+        conditions = [
+            {
+                "deleted": {
+                    "operator": "isFalse",
+                }
             }
-        }
-        merged_payload = {"condition": {**default_condition, **payload}}
+        ]
+        if payload is not None:
+            conditions.append(payload)
+        merged_payload = {"condition": {"allOf": conditions}}
         try:
             response = self.r.post(url, params=params, json=merged_payload)
             response.raise_for_status()
@@ -80,24 +89,34 @@ class KomgaApi:
         """
         Retrieves all series in a specified library in the komga comic.
         """
-        payload = {
-            "libraryId": {
-                "operator": "Is",
-                "value": str(library_id),
-            }
-        }
+        conditions = []
+        for id in library_id:
+            conditions.append(
+                {
+                    "libraryId": {
+                        "operator": "is",
+                        "value": str(id),
+                    }
+                }
+            )
+        payload = {"anyOf": conditions} if len(conditions) > 1 else conditions[0]
         return self.get_all_series(payload)
 
     def get_series_with_collection(self, collection_id):
         """
         Retrieves all series with a specified collection in the komga comic.
         """
-        payload = {
-            "collectionId": {
-                "operator": "Is",
-                "value": str(collection_id),
-            }
-        }
+        conditions = []
+        for id in collection_id:
+            conditions.append(
+                {
+                    "collectionId": {
+                        "operator": "is",
+                        "value": str(id),
+                    }
+                }
+            )
+        payload = {"anyOf": conditions} if len(conditions) > 1 else conditions[0]
         return self.get_all_series(payload)
 
     def get_series_with_read_status(self, read_status):
@@ -108,7 +127,7 @@ class KomgaApi:
         """
         payload = {
             "readStatus": {
-                "operator": "Is",
+                "operator": "is",
                 "value": str(read_status),
             }
         }

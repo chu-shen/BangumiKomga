@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from typing import Optional
 from tools.log import logger
 
 
@@ -29,7 +30,7 @@ class TimeCacheManager:
         with open(file_path, "w") as f:
             json.dump({"last_updated": last_updated}, f)
 
-    def convert_to_datetime(time_str: str) -> datetime | None:
+    def convert_to_datetime(time_str: str) -> Optional[datetime]:
         """
         将 ISO 格式字符串转换为 datetime 对象
         """

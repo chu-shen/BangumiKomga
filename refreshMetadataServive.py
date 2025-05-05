@@ -43,7 +43,6 @@ class PollingCaller:
         启动服务
         """
         def poll():
-            refresh_all_metadata_counter = 0
             while True:
                 try:
                     with self.lock:
@@ -57,9 +56,10 @@ class PollingCaller:
                     if not success:
                         retry_delay = min(2 ** self.interval, 60)
                         time.sleep(retry_delay)
+
+                    self.refresh_counter += 1
                     # 等待一个预设时间间隔
                     time.sleep(self.interval)
-                    self.refresh_counter += 1
 
                 except Exception as e:
                     logger.error(f"轮询失败: {str(e)}", exc_info=True)

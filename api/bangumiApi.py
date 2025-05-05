@@ -5,12 +5,11 @@
 
 
 import requests
-import json
 from requests.adapters import HTTPAdapter
 
 from tools.log import logger
-from tools.archiveAutoupdater import check_archive
-from tools.localArchiveHelper import (
+from bangumiArchive.archiveAutoupdater import check_archive
+from bangumiArchive.localArchiveHelper import (
     parse_infobox,
     search_line_with_index,
     search_list_with_index,

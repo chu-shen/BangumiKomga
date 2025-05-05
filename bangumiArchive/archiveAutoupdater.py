@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from config.config import ARCHIVE_FILES_DIR
 from tools.log import logger
-from tools.indexedJsonlinesRead import IndexedDataReader
+from bangumiArchive.indexedJsonlinesRead import IndexedDataReader
 
 # TODO: 加入Archive更新定时检查功能
 

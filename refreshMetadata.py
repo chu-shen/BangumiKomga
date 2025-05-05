@@ -247,10 +247,9 @@ def refresh_partial_metadata():
                     temp_series, modified_records=modified_local_records)
                 if new_add_series:
                     recent_modified_subjects.append(new_add_series)
-                    # 更新分页状态seriesList,
-                    current_page["number"]
+                    # 更新分页状态
                     total_pages = temp_series["totalPages"]
-                    if current_page + 1 >= total_pages:
+                    if page_index + 1 >= total_pages:
                         break
                     page_index += 1
                 else:
@@ -266,9 +265,8 @@ def refresh_partial_metadata():
             if new_add_series:
                 recent_modified_subjects.append(new_add_series)
                 # 更新分页状态
-                current_page = temp_series["number"]
                 total_pages = temp_series["totalPages"]
-                if current_page + 1 >= total_pages:
+                if page_index + 1 >= total_pages:
                     break
                 page_index += 1
             else:

@@ -12,6 +12,7 @@ class PollingCaller:
         self.interval = POLL_INTERVAL
         self.is_refreshing = False
         # 暂定10次轮询后执行一次全量刷新
+        # refresh_all_metadata_interval 是否应该纳入配置项？
         self.refresh_all_metadata_interval = 10
 
     def start_polling(self):
@@ -21,24 +22,16 @@ class PollingCaller:
             while True:
                 try:
                     if not self.is_refreshing:
-                        series_added, series_added_number = self.komgaAPI.is_new_series_added()
-
-                        if series_added:
-                            logger.info(
-                                f"检测到 {len(series_added_number)} 个系列更改")
-                            # 死去的操作系统开始攻击我
-                            self.is_refreshing = True
-                            if refresh_all_metadata_counter >= self.refresh_all_metadata_interval:
-                                # 执行全量刷新逻辑
-                                refresh_metadata()
-                                refresh_all_metadata_counter = 0
-                            else:
-                                # 尚未适配 refresh_partial_metadata
-                                refresh_partial_metadata()
-                            # 死去的操作系统停止攻击我
-                            self.is_refreshing = False
+                        self.is_refreshing = True
+                        if refresh_all_metadata_counter >= self.refresh_all_metadata_interval:
+                            # 执行全量刷新逻辑
+                            refresh_metadata()
+                            refresh_all_metadata_counter = 0
                         else:
-                            logger.info(f"{time.time()} 无新增内容")
+                            # 尚未适配 refresh_partial_metadata
+                            refresh_partial_metadata()
+                        # 死去的操作系统停止攻击我
+                        self.is_refreshing = False
 
                 except Exception as e:
                     logger.error(f"轮询失败: {str(e)}", exc_info=True)
@@ -59,6 +52,7 @@ class PollingCaller:
 
 def main():
     # 20秒轮询一次
+    # POLL_INTERVAL 是否应该纳入配置项？
     POLL_INTERVAL = 20
     api_poller = PollingCaller(POLL_INTERVAL)
     api_poller.start_polling()

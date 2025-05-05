@@ -65,20 +65,22 @@ def initSqlite3():
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_subject_id ON refreshed_series(subject_id)"
     )
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_book_id ON refreshed_books(book_id)")
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_book_id ON refreshed_books(book_id)")
     return cursor, conn
 
 
 def record_series_status(
     conn, series_id, subject_id, status, series_name, message, count, comic
 ):
-    upsert_series_record(conn, series_id, subject_id, status, series_name, message)
+    upsert_series_record(conn, series_id, subject_id,
+                         status, series_name, message)
     count += 1
     if status == 0:
-        logger.warning("Failed to update series: " + series_name + ", " + message)
+        logger.warning("更新系列元数据失败: " + series_name + ", " + message)
         comic = comic + "- " + series_name + "\n"
     elif status == 1:
-        logger.info("Successfully update series: " + series_name + ", " + message)
+        logger.info("更新系列元数据成功: " + series_name + ", " + message)
         comic = comic + "- " + message + "\n"
 
     return count, comic
@@ -87,6 +89,6 @@ def record_series_status(
 def record_book_status(conn, book_id, subject_id, status, book_name, message):
     upsert_book_record(conn, book_id, subject_id, status, book_name)
     if status == 0:
-        logger.warning("Failed to update book: " + book_name + ", " + message)
+        logger.warning("更新书籍元数据失败: " + book_name + ", " + message)
     elif status == 1:
-        logger.info("Successfully update book " + book_name)
+        logger.info("更新系列元数据成功: " + book_name)

@@ -25,7 +25,9 @@ class KomgaApi:
             url,
             auth=self.auth,
             headers={
-                "User-Agent": "chu-shen/BangumiKomga (https://github.com/chu-shen/BangumiKomga)"
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "chu-shen/BangumiKomga (https://github.com/chu-shen/BangumiKomga)",
             },
         )
         if response.status_code != 204:
@@ -38,11 +40,9 @@ class KomgaApi:
         https://komga.org/docs/openapi/get-latest-series/
         """
         url = f"{self.base_url}/series/latest"
+        url += f"?size=20&page={page}&deleted=false"
         if library_id:
-            url += f"?{library_id}&size=20"
-        else:
-            url += "?size=20"
-        url += f"&page={page}"
+            url += f"&{library_id}"
         try:
             response = self.r.get(url)
             response.raise_for_status()
@@ -51,15 +51,15 @@ class KomgaApi:
             return []
         return response.json()
 
-    def get_latest_series_with_libaryid(self, library_id, page=0):
+    def get_latest_series_with_libraryid(self, library_id, page=0):
         """
-        Retrieves newly added series in a specified library in the komga.
+        Return recently added or updated series in a specified library in the komga.
 
         https://komga.org/docs/openapi/get-latest-series/
         """
         return self.get_latest_series(f"library_id={library_id}", page)
 
-    def get_all_series(self, parameters=None):
+    def get_all_series(self, payload={}):
         """
         Retrieves all series in the komga comic.
 
@@ -67,24 +67,16 @@ class KomgaApi:
         """
         # 更新为 /api/v1/series/list
         url = f"{self.base_url}/series/list"
-        if parameters:
-            # 取消默认分页（大小为 2000），以便一次性获取所有系列
-            url += f"?{parameters}&size=50000&unpaged=true"
-        else:
-            url += "?size=50000&unpaged=true"
-        # 现在年龄限制和按LIBRARY_ID筛选都能写到这里面了, 其他函数也能统一用这个API了吧
-        payload = json.dumps({
-            "condition": {
-                "releaseDate": {
-                    "operator": "after",
-                    "dateTime": "1800-01-01T00:00:00Z"
-                }
-            },
-            "fullTextSearch": ""
-        })
+        # 取消默认分页（大小为 2000），以便一次性获取所有系列
+        params = {"size": 50000, "unpaged": True}
+        default_condition = {
+            "deleted": {
+                "operator": "IsFalse",
+            }
+        }
+        merged_payload = {"condition": {**default_condition, **payload}}
         try:
-            # 改为POST方法获取所有数据
-            response = self.r.post(url, payload)
+            response = self.r.post(url, params=params, json=merged_payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
@@ -92,19 +84,29 @@ class KomgaApi:
         # 将response作为JSON对象返回
         return response.json()
 
-    def get_series_with_libaryid(self, library_id):
+    def get_series_with_libraryid(self, library_id):
         """
         Retrieves all series in a specified library in the komga comic.
-
-        https://github.com/gotson/komga/blob/master/komga/docs/openapi.json#L4875
         """
-        return self.get_all_series(f"library_id={library_id}")
+        payload = {
+            "libraryId": {
+                "operator": "Is",
+                "value": str(library_id),
+            }
+        }
+        return self.get_all_series(payload)
 
     def get_series_with_collection(self, collection_id):
         """
         Retrieves all series with a specified collection in the komga comic.
         """
-        return self.get_all_series(f"collection_id={collection_id}")
+        payload = {
+            "collectionId": {
+                "operator": "Is",
+                "value": str(collection_id),
+            }
+        }
+        return self.get_all_series(payload)
 
     def get_series_with_read_status(self, read_status):
         """
@@ -112,7 +114,13 @@ class KomgaApi:
 
         Status options: "UNREAD", "READ", "IN_PROGRESS"
         """
-        return self.get_all_series(f"read_status={read_status}")
+        payload = {
+            "readStatus": {
+                "operator": "Is",
+                "value": str(read_status),
+            }
+        }
+        return self.get_all_series(payload)
 
     def get_series_with_readlist(self, readlist_id):
         """
@@ -151,8 +159,7 @@ class KomgaApi:
         """
         try:
             # make a GET request to the URL to retrieve all thumbnails in a given series
-            response = self.r.get(
-                f"{self.base_url}/series/{series_id}/thumbnails")
+            response = self.r.get(f"{self.base_url}/series/{series_id}/thumbnails")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
@@ -166,8 +173,7 @@ class KomgaApi:
         """
         try:
             # make a GET request to the URL to retrieve all thumbnails in a given series
-            response = self.r.get(
-                f"{self.base_url}/books/{book_id}/thumbnails")
+            response = self.r.get(f"{self.base_url}/books/{book_id}/thumbnails")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")

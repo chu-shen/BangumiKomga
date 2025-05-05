@@ -23,7 +23,7 @@ class InitEnv:
         elif KOMGA_LIBRARY_LIST:
             for library in KOMGA_LIBRARY_LIST:
                 self.all_series.extend(
-                    self.komga.get_series_with_libaryid(library)["content"]
+                    self.komga.get_series_with_libraryid(library)["content"]
                 )
         elif KOMGA_COLLECTION_LIST:
             for collection in KOMGA_COLLECTION_LIST:

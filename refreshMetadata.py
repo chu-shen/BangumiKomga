@@ -241,7 +241,7 @@ def refresh_partial_metadata():
         for library in KOMGA_LIBRARY_LIST:
             page_index = 0
             while True:
-                temp_series = komga.get_latest_series_with_libaryid(
+                temp_series = komga.get_latest_series_with_libraryid(
                     library_id=library, page=page_index)
                 new_add_series = _filter_new_modified_metadata(
                     temp_series, modified_records=modified_local_records)

@@ -5,17 +5,14 @@
 
 
 import requests
-import json
 from requests.adapters import HTTPAdapter
 
 from tools.log import logger
-from tools.archiveAutoupdater import check_archive
-from tools.slideWindowRateLimiter import SlideWindowRateLimiter
-from tools.leakybucketRateLimiter import LeakyBucketRateLimiter
-from tools.localArchiveHelper import (
+from bangumiArchive.archiveAutoupdater import check_archive
+from bangumiArchive.localArchiveHelper import (
     parse_infobox,
-    search_line_batch_optimized,
-    search_list_batch_optimized,
+    search_line_with_index,
+    search_list_with_index,
     search_all_data_batch_optimized,
 )
 from tools.resortSearchResultsList import resort_search_list
@@ -190,17 +187,17 @@ class BangumiArchiveDataSource(DataSource):
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
         check_archive()
 
-    # 将10s+的全文件扫描性能提升到1s左右
     def _get_metadata_from_archive(self, subject_id):
-        return search_line_batch_optimized(
+        # return search_line_batch_optimized(
+        return search_line_with_index(
             file_path=self.subject_metadata_file,
             subject_id=subject_id,
             target_field="id",
         )
 
-    # 将10s+的全文件扫描性能提升到1s左右
     def _get_relations_from_archive(self, subject_id):
-        return search_list_batch_optimized(
+        # return search_list_batch_optimized(
+        return search_list_with_index(
             file_path=self.subject_relation_file,
             subject_id=subject_id,
             target_field="subject_id",
@@ -298,7 +295,7 @@ class BangumiArchiveDataSource(DataSource):
         离线数据源获取关联条目列表
         """
         relation_list = self._get_relations_from_archive(subject_id)
-        if len(relation_list) < 1:
+        if not relation_list:
             return []
         result_list = []
         for item in relation_list:

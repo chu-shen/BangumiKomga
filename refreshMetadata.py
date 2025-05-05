@@ -1,3 +1,4 @@
+import os
 from api.bangumiModel import SubjectRelation
 from tools.getTitle import ParseTitle
 import processMetadata
@@ -7,7 +8,7 @@ from tools.env import *
 from tools.log import logger
 from tools.notification import send_notification
 from tools.db import initSqlite3, record_series_status, record_book_status
-
+from tools.cacheTime import TimeCacheManager
 
 env = InitEnv()
 bgm = env.bgm
@@ -15,16 +16,17 @@ komga = env.komga
 cursor, conn = initSqlite3()
 
 
-def refresh_metadata():
+def refresh_metadata(series_list=None):
     """
     刷新书籍系列元数据
     """
-    all_series = env.all_series
+    if series_list is None or series_list == []:
+        series_list = getSeries()
 
     parse_title = ParseTitle()
 
     # 批量获取所有series_id
-    series_ids = [series["id"] for series in all_series]
+    series_ids = [series["id"] for series in series_list]
     # 执行一次查询获取所有series_id对应的记录
     series_records = cursor.execute(
         "SELECT * FROM refreshed_series WHERE series_id IN ({})".format(
@@ -39,7 +41,7 @@ def refresh_metadata():
     failed_comic = ""
 
     # Loop through each book series
-    for series in all_series:
+    for series in series_list:
         series_id = series["id"]
         series_name = series["name"]
 
@@ -228,6 +230,90 @@ def refresh_metadata():
     )
 
 
+def getSeries():
+    series_list = []
+
+    if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
+        logger.error("Use only one of KOMGA_LIBRARY_LIST or KOMGA_COLLECTION_LIST")
+    elif KOMGA_LIBRARY_LIST:
+        series_list.extend(
+            komga.get_series_with_libraryid(KOMGA_LIBRARY_LIST)["content"]
+        )
+    elif KOMGA_COLLECTION_LIST:
+        series_list.extend(
+            komga.get_series_with_collection(KOMGA_COLLECTION_LIST)["content"]
+        )
+    else:
+        series_list = komga.get_all_series()["content"]
+
+    return series_list
+
+
+def _filter_new_modified_series(library_id=None):
+    """
+    过滤出新更改系列元数据
+    """
+    # 读取上次修改时间
+    LastModifiedCacheFilePath = os.path.join(
+        ARCHIVE_FILES_DIR, "komga_last_modified_time.json"
+    )
+    local_last_modified = TimeCacheManager.convert_to_datetime(
+        TimeCacheManager.read_time(LastModifiedCacheFilePath)
+    )
+    page_index = 0
+    new_series = []
+    stop_paging_flag = False
+    while not stop_paging_flag:
+        temp_series = komga.get_latest_series(library_id=library_id, page=page_index)
+
+        if not temp_series:
+            break
+
+        for item in temp_series["content"]:
+            komga_modified_time = TimeCacheManager.convert_to_datetime(
+                item["lastModified"]
+            )
+            if komga_modified_time > local_last_modified:
+                new_series.append(item)
+            else:
+                # 如果没有新更改的系列，停止分页
+                stop_paging_flag = True
+                break
+
+        if page_index == 0 and new_series:
+            # 取第一页第一个系列的 lastModified 时间作为新的更新时间
+            TimeCacheManager.save_time(
+                LastModifiedCacheFilePath, temp_series["content"][0]["lastModified"]
+            )
+
+        if not stop_paging_flag and (page_index + 1) < temp_series["totalPages"]:
+            page_index += 1
+        else:
+            break
+
+    return new_series
+
+
+def refresh_partial_metadata():
+    """
+    刷新部分书籍系列元数据
+    """
+    recent_modified_series = []
+    # 指定了 LIBRARY_ID
+    if KOMGA_LIBRARY_LIST:
+        recent_modified_series.extend(
+            _filter_new_modified_series(library_id=KOMGA_LIBRARY_LIST)
+        )
+    else:
+        recent_modified_series.extend(_filter_new_modified_series())
+
+    if recent_modified_series:
+        refresh_metadata(recent_modified_series)
+    else:
+        logger.info("未找到最近添加系列, 无需刷新")
+    return
+
+
 def update_book_metadata(book_id, related_subject, book_name, number):
     # Get the metadata for the book from bangumi
     book_metadata = processMetadata.setKomangaBookMetadata(
@@ -346,7 +432,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
                         "Failed to extract number: %s, %s, %s",
                         book_id,
                         subject["name"],
-                        subject["name_cn"]
+                        subject["name_cn"],
                     )
 
         # get nunmber from book name

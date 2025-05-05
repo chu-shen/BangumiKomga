@@ -1,14 +1,11 @@
 import threading
 import time
 from tools.log import logger
-from tools.env import InitEnv
 from refreshMetadata import refresh_metadata, refresh_partial_metadata
 
 
 class PollingCaller:
     def __init__(self, POLL_INTERVAL: float):
-        env = InitEnv()
-        self.komgaAPI = env.komga
         self.interval = POLL_INTERVAL
         self.is_refreshing = False
         # 暂定10次轮询后执行一次全量刷新

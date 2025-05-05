@@ -9,7 +9,8 @@ from tools.cacheTime import TimeCacheManager
 
 # TODO: 加入Archive更新定时检查功能
 
-UpdateTimeCacheFilePath = os.path.join(ARCHIVE_FILES_DIR, "archive_update_time.json")
+UpdateTimeCacheFilePath = os.path.join(
+    ARCHIVE_FILES_DIR, "archive_update_time.json")
 
 
 def get_latest_url_and_time():
@@ -84,12 +85,14 @@ def check_archive():
     local_update_time = TimeCacheManager.convert_to_datetime(
         TimeCacheManager.read_time(UpdateTimeCacheFilePath)
     )
-    remote_update_time = TimeCacheManager.convert_to_datetime(latest_update_time)
+    remote_update_time = TimeCacheManager.convert_to_datetime(
+        latest_update_time)
     if remote_update_time > local_update_time:
         logger.info("检测到新版本 Bangumi Archive, 开始更新...")
         if update_archive(download_url, ARCHIVE_FILES_DIR):
             update_index()
-            TimeCacheManager.save_time(UpdateTimeCacheFilePath, latest_update_time)
+            TimeCacheManager.save_time(
+                UpdateTimeCacheFilePath, latest_update_time)
             logger.info("Bangumi Archive 更新完成")
         else:
             logger.warning("Bangumi Archive 更新失败")

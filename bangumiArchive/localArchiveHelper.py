@@ -10,7 +10,7 @@ def search_line_with_index(file_path: str, subject_id: int, target_field: str):
     """
     try:
         indexed_data = IndexedDataReader(file_path)
-        result = indexed_data.get_line_by_id(
+        result = indexed_data.get_data_by_id(
             targetID=subject_id, targetFiled=target_field)
         if len(result) < 1:
             logger.error(f"Archive文件: {file_path} 中不包含 {subject_id} 相关数据")
@@ -76,7 +76,7 @@ def search_list_with_index(
     """
     try:
         indexed_data = IndexedDataReader(file_path)
-        results = indexed_data.get_list_by_id(
+        results = indexed_data.get_data_by_id(
             targetID=subject_id, targetFiled=target_field)
         if len(results) < 1:
             logger.error(f"Archive文件: {file_path} 中不包含 {subject_id} 相关数据")

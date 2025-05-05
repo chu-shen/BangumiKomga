@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.14.0](https://github.com/chu-shen/BangumiKomga/compare/v0.13.0...v0.14.0) (2025-05-05)
+
+
+### Features
+
+* prepare for api key ([ea9d9e8](https://github.com/chu-shen/BangumiKomga/commit/ea9d9e8d2e25d94e215215ce8ba673599b7c2939))
+* 添加`get_new_added_series()`函数, 以支持新增的`refresh_partial_metadata()` ([#64](https://github.com/chu-shen/BangumiKomga/issues/64)) ([9f65a9f](https://github.com/chu-shen/BangumiKomga/commit/9f65a9fe2817cff2fca5c7753da8c0e521341900))
+* 添加Archive索引读取器 ([#60](https://github.com/chu-shen/BangumiKomga/issues/60)) ([32a5ab3](https://github.com/chu-shen/BangumiKomga/commit/32a5ab3e21f9ee532540d966d739086825ec5c34))
+* 添加更多漫画语言类型 ([1781a75](https://github.com/chu-shen/BangumiKomga/commit/1781a75bce2431824217b7676f6beb633f2bf4f7))
+
+
+### Bug Fixes
+
+* 使用最新 API ([07cbf1e](https://github.com/chu-shen/BangumiKomga/commit/07cbf1ef365886813085efeb3d0b7dd31d7af8a5))
+* 修复对 `IndexedDataReader` 中成员函数的无效引用 ([#69](https://github.com/chu-shen/BangumiKomga/issues/69)) ([3152d8a](https://github.com/chu-shen/BangumiKomga/commit/3152d8a0fea33f3d7cfdd5a4e440576e515c65ef))
+* 修正语言代码 ([b676c0e](https://github.com/chu-shen/BangumiKomga/commit/b676c0ecae0d7354b7a71a1035d95d268623363c))
+* 处理 relation_list 为 None 的情况 ([406fdfe](https://github.com/chu-shen/BangumiKomga/commit/406fdfe7b2ef1a9769a4cb6a82c0aee7ef3e1481))
+* 添加 IS_NOVEL_ONLY 选项指定是否komga只包含小说数据 ([#59](https://github.com/chu-shen/BangumiKomga/issues/59)) ([71803a8](https://github.com/chu-shen/BangumiKomga/commit/71803a8540b261fd6030ac4c935ae04c2578bcf1))
+* 类型注解错误 ([c628f6f](https://github.com/chu-shen/BangumiKomga/commit/c628f6f4db3bd0e1d6099c4575f9cbac41e21f51))
+
 ## [0.13.0](https://github.com/chu-shen/BangumiKomga/compare/v0.12.0...v0.13.0) (2025-04-25)
 
 

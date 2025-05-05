@@ -14,24 +14,52 @@ class PollingCaller:
         # 暂定10次轮询后执行一次全量刷新
         # refresh_all_metadata_interval 是否应该纳入配置项？
         self.refresh_all_metadata_interval = 10
+        self.refresh_counter = 0
+        # 添加锁对象
+        self.lock = threading.Lock()
+
+    def _safe_refresh(self, refresh_func):
+        """
+        封装安全刷新操作
+        """
+        with self.lock:
+            if self.is_refreshing:
+                logger.warning("已有元数据刷新任务在运行")
+                return False
+            self.is_refreshing = True
+
+        try:
+            refresh_func()
+            return True
+        except Exception as e:
+            logger.error(f"刷新失败: {str(e)}", exc_info=True)
+            return False
+        finally:
+            with self.lock:
+                self.is_refreshing = False
 
     def start_polling(self):
-        """启动服务"""
+        """
+        启动服务
+        """
         def poll():
             refresh_all_metadata_counter = 0
             while True:
                 try:
-                    if not self.is_refreshing:
-                        self.is_refreshing = True
-                        if refresh_all_metadata_counter >= self.refresh_all_metadata_interval:
-                            # 执行全量刷新逻辑
-                            refresh_metadata()
-                            refresh_all_metadata_counter = 0
+                    with self.lock:
+                        if self.refresh_counter >= self.refresh_all_metadata_interval:
+                            success = self._safe_refresh(refresh_metadata)
+                            self.refresh_counter = 0
                         else:
-                            # 尚未适配 refresh_partial_metadata
-                            refresh_partial_metadata()
-                        # 死去的操作系统停止攻击我
-                        self.is_refreshing = False
+                            success = self._safe_refresh(
+                                refresh_partial_metadata)
+
+                    if not success:
+                        retry_delay = min(2 ** self.interval, 60)
+                        time.sleep(retry_delay)
+                    # 等待一个预设时间间隔
+                    time.sleep(self.interval)
+                    self.refresh_counter += 1
 
                 except Exception as e:
                     logger.error(f"轮询失败: {str(e)}", exc_info=True)
@@ -42,9 +70,6 @@ class PollingCaller:
                     logger.warning(f"{retry_delay}秒后重试...")
                     time.sleep(retry_delay)
                     continue
-                # 等待一个预设时间间隔
-                time.sleep(self.interval)
-                refresh_all_metadata_counter += 1
 
         # 使用守护线程启动轮询
         threading.Thread(target=poll, daemon=True).start()

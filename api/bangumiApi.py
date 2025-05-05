@@ -5,12 +5,11 @@
 
 
 import requests
-import json
 from requests.adapters import HTTPAdapter
 
 from tools.log import logger
-from tools.archiveAutoupdater import check_archive
-from tools.localArchiveHelper import (
+from bangumiArchive.archiveAutoupdater import check_archive
+from bangumiArchive.localArchiveHelper import (
     parse_infobox,
     search_line_with_index,
     search_list_with_index,
@@ -291,7 +290,7 @@ class BangumiArchiveDataSource(DataSource):
         离线数据源获取关联条目列表
         """
         relation_list = self._get_relations_from_archive(subject_id)
-        if len(relation_list) < 1:
+        if not relation_list:
             return []
         result_list = []
         for item in relation_list:

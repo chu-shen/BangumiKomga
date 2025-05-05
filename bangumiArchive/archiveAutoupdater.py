@@ -2,40 +2,14 @@ import os
 import zipfile
 import requests
 import json
-from datetime import datetime
 from config.config import ARCHIVE_FILES_DIR
 from tools.log import logger
-from tools.indexedJsonlinesRead import IndexedDataReader
+from bangumiArchive.indexedJsonlinesRead import IndexedDataReader
+from tools.cacheTime import TimeCacheManager
 
 # TODO: 加入Archive更新定时检查功能
 
-UpdateTimeCacheFilePath = os.path.join(
-    ARCHIVE_FILES_DIR, "archive_update_time.json")
-
-
-def read_cache_time():
-    """读取本地更新时间"""
-    try:
-        with open(UpdateTimeCacheFilePath, "r") as f:
-            return json.load(f).get("last_updated", "1970-01-01T00:00:00Z")
-    except (FileNotFoundError, json.JSONDecodeError):
-        return "1970-01-01T00:00:00Z"
-
-
-def save_cache_time(last_updated):
-    """保存最新成功时间"""
-    with open(UpdateTimeCacheFilePath, "w") as f:
-        json.dump({"last_updated": last_updated}, f)
-
-
-def convert_to_datetime(update_time_string):
-    try:
-        result = datetime.fromisoformat(
-            update_time_string.replace("Z", "+00:00"))
-    except Exception as e:
-        logger.warning(f"更新时间 {update_time_string} 获取失败: {str(e)}")
-        return None
-    return result
+UpdateTimeCacheFilePath = os.path.join(ARCHIVE_FILES_DIR, "archive_update_time.json")
 
 
 def get_latest_url_and_time():
@@ -56,8 +30,10 @@ def get_latest_url_and_time():
 
 
 def update_index():
-    filePaths = [os.path.join(ARCHIVE_FILES_DIR, filename)
-                 for filename in ["subject-relations.jsonlines", "subject.jsonlines"]]
+    filePaths = [
+        os.path.join(ARCHIVE_FILES_DIR, filename)
+        for filename in ["subject-relations.jsonlines", "subject.jsonlines"]
+    ]
     for filePath in filePaths:
         archivefile = IndexedDataReader(filePath)
         if "relation" in archivefile:
@@ -105,13 +81,15 @@ def check_archive():
         return
 
     # 读取本地缓存时间
-    local_update_time = convert_to_datetime(read_cache_time())
-    remote_update_time = convert_to_datetime(latest_update_time)
+    local_update_time = TimeCacheManager.convert_to_datetime(
+        TimeCacheManager.read_time(UpdateTimeCacheFilePath)
+    )
+    remote_update_time = TimeCacheManager.convert_to_datetime(latest_update_time)
     if remote_update_time > local_update_time:
         logger.info("检测到新版本 Bangumi Archive, 开始更新...")
         if update_archive(download_url, ARCHIVE_FILES_DIR):
             update_index()
-            save_cache_time(latest_update_time)
+            TimeCacheManager.save_time(UpdateTimeCacheFilePath, latest_update_time)
             logger.info("Bangumi Archive 更新完成")
         else:
             logger.warning("Bangumi Archive 更新失败")

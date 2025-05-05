@@ -42,7 +42,7 @@ class KomgaApi:
         url = f"{self.base_url}/series/latest"
         url += f"?size=20&page={page}&deleted=false"
         if library_id:
-            url += f"&{library_id}"
+            url += f"&library_id={library_id}"
         try:
             response = self.r.get(url)
             response.raise_for_status()
@@ -50,14 +50,6 @@ class KomgaApi:
             logger.error(f"An error occurred: {e}")
             return []
         return response.json()
-
-    def get_latest_series_with_libraryid(self, library_id, page=0):
-        """
-        Return recently added or updated series in a specified library in the komga.
-
-        https://komga.org/docs/openapi/get-latest-series/
-        """
-        return self.get_latest_series(f"library_id={library_id}", page)
 
     def get_all_series(self, payload={}):
         """

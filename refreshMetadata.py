@@ -1,14 +1,14 @@
+import os
 from api.bangumiModel import SubjectRelation
 from tools.getTitle import ParseTitle
 import processMetadata
 from time import strftime, localtime
-import json
 from tools.getNumber import getNumber, NumberType
 from tools.env import *
 from tools.log import logger
 from tools.notification import send_notification
 from tools.db import initSqlite3, record_series_status, record_book_status
-from datetime import datetime
+from tools.cacheTime import TimeCacheManager
 
 env = InitEnv()
 bgm = env.bgm
@@ -230,92 +230,68 @@ def refresh_metadata(series_list=None):
     )
 
 
-class ModifiedRecord:
-    def __init__(self):
-        self.records_file_name = "modified_records.json"
-        self.records = self.load_records()
-
-    def load_records(self) -> dict:
-        try:
-            with open(self.records_file_name, "r") as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {}
-
-    def save_records(self, records):
-        with open(self.records_file_name, "w") as f:
-            json.dump(records, f)
-
-
-def _filter_new_modified_metadata(seriesList, modified_records: dict):
+def _filter_new_modified_series(library_id=None):
     """
     过滤出新更改系列元数据
     """
-    result = []
-    for item in seriesList["content"]:
-        if item["id"] in modified_records.keys():
-            komga_modified_time = datetime.fromisoformat(
-                item["lastModified"].replace("Z", "+00:00"))
-            local_modified_time = datetime.fromisoformat(
-                modified_records[item["id"]].replace("Z", "+00:00"))
-            if komga_modified_time > local_modified_time:
-                result.extend(item)
-        else:
-            result.extend(item)
+    # 读取上次修改时间
+    LastModifiedCacheFilePath = os.path.join(
+        ARCHIVE_FILES_DIR, "komga_last_modified_time.json"
+    )
+    local_last_modified = TimeCacheManager.convert_to_datetime(
+        TimeCacheManager.read_time(LastModifiedCacheFilePath)
+    )
+    page_index = 0
+    new_series = []
+    StopPaging = False
+    while True:
+        temp_series = komga.get_latest_series(library_id=library_id, page=page_index)
 
-    return result
+        for item in temp_series["content"]:
+            komga_modified_time = TimeCacheManager.convert_to_datetime(
+                item["lastModified"]
+            )
+            if komga_modified_time > local_last_modified:
+                new_series.append(item)
+            else:
+                # 如果没有新更改的系列，停止分页
+                StopPaging = True
+                break
+
+        if page_index == 0 and new_series:
+            # 取第一页第一个系列的 lastModified 时间作为新的更新时间
+            TimeCacheManager.save_time(
+                LastModifiedCacheFilePath, temp_series["content"][0]["lastModified"]
+            )
+
+        if StopPaging:
+            break
+        else:
+            # 更新分页状态
+            total_pages = temp_series["totalPages"]
+            if page_index + 1 >= total_pages:
+                break
+            page_index += 1
+
+    return new_series
 
 
 def refresh_partial_metadata():
     """
     刷新部分书籍系列元数据
     """
-    recent_modified_subjects = []
-    modified_local_records = ModifiedRecord.records
+    recent_modified_series = []
     # 指定了 LIBRARY_ID
     if KOMGA_LIBRARY_LIST:
-        for library in KOMGA_LIBRARY_LIST:
-            page_index = 0
-            while True:
-                temp_series = komga.get_latest_series_with_libraryid(
-                    library_id=library, page=page_index)
-                new_add_series = _filter_new_modified_metadata(
-                    temp_series, modified_records=modified_local_records)
-                if new_add_series:
-                    recent_modified_subjects.append(new_add_series)
-                    # 更新分页状态
-                    total_pages = temp_series["totalPages"]
-                    if page_index + 1 >= total_pages:
-                        break
-                    page_index += 1
-                else:
-                    # 没有符合 _filter_new_modified_metadata 标准的新更改系列
-                    break
-    # 未指定 LIBRARY_ID
+        for library_id in KOMGA_LIBRARY_LIST:
+            recent_modified_series.extend(
+                _filter_new_modified_series(library_id=library_id)
+            )
     else:
-        page_index = 0
-        while True:
-            temp_series = komga.get_latest_series(page=page_index)
-            new_add_series = _filter_new_modified_metadata(
-                temp_series, modified_records=modified_local_records)
-            if new_add_series:
-                recent_modified_subjects.append(new_add_series)
-                # 更新分页状态
-                total_pages = temp_series["totalPages"]
-                if page_index + 1 >= total_pages:
-                    break
-                page_index += 1
-            else:
-                # 没有符合 _filter_new_modified_metadata 标准的新更改系列
-                break
+        recent_modified_series.extend(_filter_new_modified_series())
 
-    if recent_modified_subjects:
-        refresh_metadata(recent_modified_subjects)
-        updated_time = datetime.now()
-        for recent_modified_subject in recent_modified_subjects:
-            modified_local_records.records[recent_modified_subject["id"]
-                                           ] = updated_time
-        modified_local_records.save_records(modified_local_records)
+    if recent_modified_series:
+        refresh_metadata(recent_modified_series)
     else:
         logger.info("未找到最近添加系列, 无需刷新")
     return

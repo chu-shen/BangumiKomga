@@ -1,14 +1,14 @@
 from api.bangumiModel import SubjectRelation
 from tools.getTitle import ParseTitle
 import processMetadata
+from time import strftime, localtime
 import json
-import datetime
 from tools.getNumber import getNumber, NumberType
 from tools.env import *
 from tools.log import logger
 from tools.notification import send_notification
 from tools.db import initSqlite3, record_series_status, record_book_status
-from datetime import datetime, timedelta
+from datetime import datetime
 
 env = InitEnv()
 bgm = env.bgm
@@ -70,8 +70,7 @@ def refresh_metadata(series_list=None):
                         "SELECT subject_id FROM refreshed_series WHERE series_id=?",
                         (series_id,),
                     ).fetchone()[0]
-                    refresh_book_metadata(
-                        subject_id, series_id, force_refresh_flag)
+                    refresh_book_metadata(subject_id, series_id, force_refresh_flag)
                     continue
 
                 # recheck or skip failed series
@@ -172,8 +171,7 @@ def refresh_metadata(series_list=None):
                     series_id, thumbnail
                 )
                 if replace_thumbnail_result:
-                    logger.debug(
-                        "replace thumbnail for series: %s", series_name)
+                    logger.debug("replace thumbnail for series: %s", series_name)
                 else:
                     logger.error(
                         "Failed to replace thumbnail for series: %s", series_name
@@ -192,6 +190,44 @@ def refresh_metadata(series_list=None):
             continue
 
         refresh_book_metadata(subject_id, series_id, force_refresh_flag)
+
+    # Add the series that failed to obtain metadata to the collection
+    if CREATE_FAILED_COLLECTION:
+        collection_name = "FAILED_COLLECTION"
+
+        # TODO: 匹配错误的系列其update_success也是1, 需要找到一种方法将之筛选出来
+
+        # 将db中update_success为0的series_ids筛选出来
+        all_failed_series_ids = [
+            row[0]
+            for row in cursor.execute(
+                "SELECT series_id FROM refreshed_series WHERE update_success = 0 and series_id IN ({})".format(
+                    ",".join("?" for _ in series_ids)
+                ),
+                series_ids,
+            ).fetchall()
+        ]
+        # 用all_failed_series_ids 创建 FAILED_COLLECTION
+        if komga.replace_collection(collection_name, True, all_failed_series_ids):
+            logger.info("Successfully replace collection: %s", collection_name)
+        else:
+            logger.error("Failed to replace collection: " + collection_name)
+
+    logger.info("Finish! succeed: %s, failed: %s", success_count, failed_count)
+    send_notification(
+        "已完成刷新！",
+        "<font color='green'>已成功刷新："
+        + str(success_count)
+        + "</font> \n ---\n 包含以下条目：\n"
+        + success_comic
+        + "\n"
+        + "<font color='red'>失败数："
+        + str(failed_count)
+        + "</font>\n\n包含以下条目：\n"
+        + failed_comic
+        + "\n"
+        + strftime("%Y-%m-%d %H:%M:%S", localtime()),
+    )
 
 
 class ModifiedRecord:
@@ -311,8 +347,7 @@ def update_book_metadata(book_id, related_subject, book_name, number):
     # Update the metadata for the series on komga
     is_success = komga.update_book_metadata(book_id, book_data)
     if is_success:
-        record_book_status(
-            conn, book_id, related_subject["id"], 1, book_name, "")
+        record_book_status(conn, book_id, related_subject["id"], 1, book_name, "")
 
         # 使用 Bangumi 图片替换原封面
         # 确保没有上传过海报，避免重复上传，排除 komga 生成的封面
@@ -321,13 +356,11 @@ def update_book_metadata(book_id, related_subject, book_name, number):
             and len(komga.get_book_thumbnails(book_id)) == 1
         ):
             thumbnail = bgm.get_subject_thumbnail(related_subject)
-            replace_thumbnail_result = komga.update_book_thumbnail(
-                book_id, thumbnail)
+            replace_thumbnail_result = komga.update_book_thumbnail(book_id, thumbnail)
             if replace_thumbnail_result:
                 logger.debug("replace thumbnail for book: %s", book_name)
             else:
-                logger.error(
-                    "Failed to replace thumbnail for book: %s", book_name)
+                logger.error("Failed to replace thumbnail for book: %s", book_name)
     else:
         record_book_status(
             conn, book_id, related_subject["id"], 0, book_name, "komga update failed"
@@ -367,10 +400,8 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
         # Get the subject id from the Correct Bgm Link (CBL) if it exists
         for link in book["metadata"]["links"]:
             if link["label"].lower() == "cbl":
-                cbl_subject = bgm.get_subject_metadata(
-                    link["url"].split("/")[-1])
-                number, _ = getNumber(
-                    cbl_subject["name"] + cbl_subject["name_cn"])
+                cbl_subject = bgm.get_subject_metadata(link["url"].split("/")[-1])
+                number, _ = getNumber(cbl_subject["name"] + cbl_subject["name_cn"])
                 update_book_metadata(book_id, cbl_subject, book_name, number)
                 break
 
@@ -408,7 +439,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
                         "Failed to extract number: %s, %s, %s",
                         book_id,
                         subject["name"],
-                        subject["name_cn"]
+                        subject["name_cn"],
                     )
 
         # get nunmber from book name

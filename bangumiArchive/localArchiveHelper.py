@@ -1,7 +1,7 @@
 import re
 import json
 from tools.log import logger
-from tools.indexedJsonlinesRead import IndexedDataReader
+from bangumiArchive.indexedJsonlinesRead import IndexedDataReader
 
 
 def search_line_with_index(file_path: str, subject_id: int, target_field: str):

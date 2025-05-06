@@ -1,6 +1,7 @@
 import threading
 import time
 from tools.log import logger
+from config.config import USE_BANGUMI_KOMGA_SERVICE
 from refreshMetadata import refresh_metadata, refresh_partial_metadata
 
 
@@ -88,4 +89,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if USE_BANGUMI_KOMGA_SERVICE:
+        main()
+    else:
+        refresh_metadata()

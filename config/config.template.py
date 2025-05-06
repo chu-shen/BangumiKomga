@@ -13,6 +13,8 @@ USE_BANGUMI_ARCHIVE = False
 ARCHIVE_FILES_DIR = "./archivedata/"
 
 # Misc
+# 指定是否以服务方式启动 BangumiKomga
+USE_BANGUMI_KOMGA_SERVICE = False
 # 海报
 USE_BANGUMI_THUMBNAIL = False
 USE_BANGUMI_THUMBNAIL_FOR_BOOK = False

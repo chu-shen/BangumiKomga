@@ -81,7 +81,7 @@ def refresh_metadata(series_list=None):
 
         # Use the bangumi API to search for the series by title on komga
         if subject_id == None:
-            logger.debug("在bangumi中搜索: %s ", series_name)
+            logger.debug("在 Bangumi 中搜索: %s ", series_name)
             title = parse_title.get_title(series_name)
             if title == None:
                 failed_count, failed_comic = record_series_status(
@@ -173,7 +173,7 @@ def refresh_metadata(series_list=None):
                 )
                 if replace_thumbnail_result:
                     logger.debug(
-                        "替换了系列: %s 的海报", series_name)
+                        "替换系列: %s 的海报", series_name)
                 else:
                     logger.error(
                         "替换系列: %s 的海报失败", series_name
@@ -211,9 +211,9 @@ def refresh_metadata(series_list=None):
         ]
         # 用all_failed_series_ids 创建 FAILED_COLLECTION
         if komga.replace_collection(collection_name, True, all_failed_series_ids):
-            logger.info("成功更新收藏集: %s", collection_name)
+            logger.info("成功替换收藏: %s", collection_name)
         else:
-            logger.error("更新收藏集失败: " + collection_name)
+            logger.error("替换收藏失败: " + collection_name)
 
     logger.info("执行完成! 刮削成功: %s 个, 刮削失败: %s 个", success_count, failed_count)
     send_notification(
@@ -357,7 +357,7 @@ def update_book_metadata(book_id, related_subject, book_name, number):
             replace_thumbnail_result = komga.update_book_thumbnail(
                 book_id, thumbnail)
             if replace_thumbnail_result:
-                logger.debug("替换了书籍: %s 的海报 ", book_name)
+                logger.debug("替换书籍: %s 的海报 ", book_name)
             else:
                 logger.error(
                     "替换书籍: %s 的海报失败", book_name)

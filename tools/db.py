@@ -91,4 +91,4 @@ def record_book_status(conn, book_id, subject_id, status, book_name, message):
     if status == 0:
         logger.warning("更新书籍元数据失败: " + book_name + ", " + message)
     elif status == 1:
-        logger.info("更新系列元数据成功: " + book_name)
+        logger.info("更新书籍元数据成功: " + book_name)

@@ -43,13 +43,12 @@ class PollingCaller:
         def poll():
             while True:
                 try:
-                    with self.lock:
-                        if self.refresh_counter >= self.refresh_all_metadata_interval:
-                            success = self._safe_refresh(refresh_metadata)
-                            self.refresh_counter = 0
-                        else:
-                            success = self._safe_refresh(
-                                refresh_partial_metadata)
+                    if self.refresh_counter >= self.refresh_all_metadata_interval:
+                        success = self._safe_refresh(refresh_metadata)
+                        self.refresh_counter = 0
+                    else:
+                        success = self._safe_refresh(
+                            refresh_partial_metadata)
 
                     if not success:
                         retry_delay = min(2 ** self.interval, 60)

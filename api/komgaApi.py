@@ -5,7 +5,6 @@
 
 
 import requests
-from datetime import timedelta, datetime
 from tools.log import logger
 from requests.adapters import HTTPAdapter
 
@@ -57,8 +56,7 @@ class KomgaApi:
         }
         if library_id:
             params["library_id"] = (
-                library_id if isinstance(library_id, (list, tuple)) else [
-                    library_id]
+                library_id if isinstance(library_id, (list, tuple)) else [library_id]
             )
         try:
             response = self.r.get(url, params=params)
@@ -111,8 +109,7 @@ class KomgaApi:
                     }
                 }
             )
-        payload = {"anyOf": conditions} if len(
-            conditions) > 1 else conditions[0]
+        payload = {"anyOf": conditions} if len(conditions) > 1 else conditions[0]
         return self.get_all_series(payload)
 
     def get_series_with_collection(self, collection_id):
@@ -129,8 +126,7 @@ class KomgaApi:
                     }
                 }
             )
-        payload = {"anyOf": conditions} if len(
-            conditions) > 1 else conditions[0]
+        payload = {"anyOf": conditions} if len(conditions) > 1 else conditions[0]
         return self.get_all_series(payload)
 
     def get_series_with_read_status(self, read_status):
@@ -205,8 +201,7 @@ class KomgaApi:
         """
         try:
             # make a GET request to the URL to retrieve all thumbnails in a given series
-            response = self.r.get(
-                f"{self.base_url}/series/{series_id}/thumbnails")
+            response = self.r.get(f"{self.base_url}/series/{series_id}/thumbnails")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")
@@ -220,8 +215,7 @@ class KomgaApi:
         """
         try:
             # make a GET request to the URL to retrieve all thumbnails in a given series
-            response = self.r.get(
-                f"{self.base_url}/books/{book_id}/thumbnails")
+            response = self.r.get(f"{self.base_url}/books/{book_id}/thumbnails")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred: {e}")

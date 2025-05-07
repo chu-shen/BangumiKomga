@@ -89,7 +89,7 @@ class BangumiApiDataSource(DataSource):
             response = self.r.get(url, headers=self._get_headers())
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
 
         # e.g. Artbooks.VOL.14 -> {"request":"\/search\/subject\/Artbooks.VOL.14?responseGroup=large&type=1","code":404,"error":"Not Found"}
@@ -137,7 +137,7 @@ class BangumiApiDataSource(DataSource):
             response = self.r.get(url, headers=self._get_headers())
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
         return response.json()
 
@@ -153,7 +153,7 @@ class BangumiApiDataSource(DataSource):
                 url, headers=self._get_headers(), json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
         return response.status_code == 204
 
     @SlideWindowRateLimiter(max_requests=5, window_seconds=3, max_retries=3, delay=1)
@@ -169,7 +169,7 @@ class BangumiApiDataSource(DataSource):
                     "images"]["large"]
             thumbnail = self.r.get(image).content
         except Exception as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
         files = {"file": (subject_metadata["name"], thumbnail)}
         return files

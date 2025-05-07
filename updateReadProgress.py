@@ -14,7 +14,7 @@ def update_read_progress():
     series_list = []
 
     if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
-        logger.error("Use only one of KOMGA_LIBRARY_LIST or KOMGA_COLLECTION_LIST")
+        logger.error("KOMGA_LIBRARY_LIST 和 KOMGA_COLLECTION_LIST 只能配置一种")
     elif KOMGA_LIBRARY_LIST:
         series_list.extend(
             komga.get_series_with_libraryid(KOMGA_LIBRARY_LIST)["content"]
@@ -37,22 +37,22 @@ def update_read_progress():
                     break
         except ValueError as e:
             logger.exception(e)
-            logger.error("Update read progress for " + series_name + " failed:")
+            logger.error("更新 " + series_name + " 的阅读进度失败")
             continue
 
         # TODO 添加是否同步判断逻辑，比如：是否`在读`
         if bgm.update_reading_progress(subject_id, books_read_count):
             logger.info(
-                "Successfully update: "
+                "成功更新系列: "
                 + series_name
-                + " series read progress: "
+                + " 的阅读进度至: "
                 + str(books_read_count)
             )
         else:
             logger.error(
-                "Failed to update: "
+                "无法将系列: "
                 + series_name
-                + " series read progress: "
+                + " 的阅读进度更新至: "
                 + str(books_read_count)
             )
 

@@ -11,6 +11,7 @@
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
+  - [以后台服务形式运行](#以后台服务形式运行)
   - [为小说添加元数据](#为小说添加元数据)
   - [如何修正错误元数据](#如何修正错误元数据)
   - [同步阅读进度](#同步阅读进度)
@@ -50,6 +51,7 @@
 - [x] 排序标题，支持字母导航
 - [x] 提高匹配准确率：使用 FUZZ 对 bgm 搜索结果进行过滤和排序
 - [x] 使用[bangumi/Archive](https://github.com/bangumi/Archive)离线数据代替联网查询
+- [x] 可常驻后台轮询更新元数据
 
 处理逻辑见[DESIGN](docs/DESIGN.md)
 
@@ -152,12 +154,15 @@
 
 ## 创建失败收藏（可选）
 
-将`CREATE_FAILED_COLLECTION`配置为`True`，程序会在刷新完成后，将**所有**刷新失败的系列添加到指定收藏（默认名：`FAILED_COLLECTION`）。
+将`CREATE_FAILED_COLLECTION`配置为`True`，程序会在刷新完成后，将**本次**刷新失败的系列添加到指定收藏（默认名：`FAILED_COLLECTION`）。
 
 > [!TIP]
 >
 > - 在此收藏中按照[如何修正错误元数据](#如何修正错误元数据)操作即可~~治疗强迫症~~
 > - 此收藏采用`手动排序`，因此最新失败的系列在此收藏的最后面
+> - 当与`USE_BANGUMI_KOMGA_SERVICE`同时使用时：
+>   - 如果是增量刷新，则仅添加增量刷新时失败的系列
+>   - 全量刷新则是**所有**失败的系列
 
 ## 其他配置说明
 
@@ -174,6 +179,14 @@
     - <https://komga.org/docs/guides/edit-metadata#sort-titles>
     - [chu-shen/BangumiKomga#37](https://github.com/chu-shen/BangumiKomga/issues/37)
   - 如果要对此功能启用前的系列进行修改，请在`scripts`目录下手动运行一次`python sortTitleByLetter.py`
+
+## 以后台服务形式运行
+
+- `USE_BANGUMI_KOMGA_SERVICE`：设置为`True`时，以后台服务形式运行
+
+- `SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
+
+- `SERVICE_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
 
 ## 为小说添加元数据
 

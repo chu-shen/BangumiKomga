@@ -12,6 +12,13 @@ KOMGA_COLLECTION_LIST = []
 USE_BANGUMI_ARCHIVE = False
 ARCHIVE_FILES_DIR = "./archivedata/"
 
+# 指定是否以服务方式启动 BangumiKomga
+USE_BANGUMI_KOMGA_SERVICE = False
+# 轮询间隔，单位秒
+SERVICE_POLL_INTERVAL = 20
+# 多少次轮询后执行一次全量刷新
+SERVICE_REFRESH_ALL_METADATA_INTERVAL= 10000
+
 # Misc
 # 海报
 USE_BANGUMI_THUMBNAIL = False

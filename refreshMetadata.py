@@ -280,12 +280,6 @@ def _filter_new_modified_series(library_id=None):
                 stop_paging_flag = True
                 break
 
-        if page_index == 0 and new_series:
-            # 取第一页第一个系列的 lastModified 时间作为新的更新时间
-            TimeCacheManager.save_time(
-                LastModifiedCacheFilePath, temp_series["content"][0]["lastModified"]
-            )
-
         if not stop_paging_flag and (page_index + 1) < temp_series["totalPages"]:
             page_index += 1
         else:
@@ -298,17 +292,27 @@ def refresh_partial_metadata():
     """
     刷新部分书籍系列元数据
     """
+    # FIXME: 未处理有 cbl 的系列
     recent_modified_series = []
     # 指定了 LIBRARY_ID
     if KOMGA_LIBRARY_LIST:
         recent_modified_series.extend(
             _filter_new_modified_series(library_id=KOMGA_LIBRARY_LIST)
         )
+    # FIXME: 未处理 collection
     else:
         recent_modified_series.extend(_filter_new_modified_series())
 
     if recent_modified_series:
         refresh_metadata(recent_modified_series)
+        # 取第一个系列的 lastModified 时间作为新的更新时间
+        LastModifiedCacheFilePath = os.path.join(
+            ARCHIVE_FILES_DIR, "komga_last_modified_time.json"
+        )
+        TimeCacheManager.save_time(
+            LastModifiedCacheFilePath,
+            recent_modified_series[0]["lastModified"],
+        )
     else:
         logger.info("未找到最近添加系列, 无需刷新")
     return
@@ -456,6 +460,3 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
             record_book_status(
                 conn, book_id, None, 0, book_name, "Only update book number"
             )
-
-
-refresh_metadata()

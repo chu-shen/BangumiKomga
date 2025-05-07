@@ -1,17 +1,20 @@
 import threading
 import time
 from tools.log import logger
-from config.config import USE_BANGUMI_KOMGA_SERVICE
+from config.config import (
+    USE_BANGUMI_KOMGA_SERVICE,
+    SERVICE_POLL_INTERVAL,
+    SERVICE_REFRESH_ALL_METADATA_INTERVAL,
+)
 from refreshMetadata import refresh_metadata, refresh_partial_metadata
 
 
 class PollingCaller:
-    def __init__(self, POLL_INTERVAL: float):
-        self.interval = POLL_INTERVAL
+    def __init__(self):
         self.is_refreshing = False
-        # 暂定10次轮询后执行一次全量刷新
-        # refresh_all_metadata_interval 是否应该纳入配置项？
-        self.refresh_all_metadata_interval = 10
+        self.interval = SERVICE_POLL_INTERVAL
+        # 多少次轮询后执行一次全量刷新
+        self.refresh_all_metadata_interval = SERVICE_REFRESH_ALL_METADATA_INTERVAL
         self.refresh_counter = 0
         # 添加锁对象
         self.lock = threading.Lock()
@@ -40,6 +43,7 @@ class PollingCaller:
         """
         启动服务
         """
+
         def poll():
             while True:
                 try:
@@ -47,11 +51,10 @@ class PollingCaller:
                         success = self._safe_refresh(refresh_metadata)
                         self.refresh_counter = 0
                     else:
-                        success = self._safe_refresh(
-                            refresh_partial_metadata)
+                        success = self._safe_refresh(refresh_partial_metadata)
 
                     if not success:
-                        retry_delay = min(2 ** self.interval, 60)
+                        retry_delay = min(2**self.interval, 60)
                         time.sleep(retry_delay)
 
                     self.refresh_counter += 1
@@ -73,18 +76,13 @@ class PollingCaller:
 
 
 def main():
-    # 20秒轮询一次
-    # POLL_INTERVAL 是否应该纳入配置项？
-    POLL_INTERVAL = 20
-    api_poller = PollingCaller(POLL_INTERVAL)
-    api_poller.start_polling()
+    PollingCaller().start_polling()
 
     # 防止服务主线程退出
     try:
-        while True:
-            time.sleep(65)
+        threading.Event().wait()
     except KeyboardInterrupt:
-        logger.warning("服务手动终止: 退出BangumiKomga服务")
+        logger.warning("服务手动终止: 退出 BangumiKomga 服务")
 
 
 if __name__ == "__main__":

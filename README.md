@@ -11,6 +11,7 @@
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
+  - [以后台服务形式运行](#以后台服务形式运行)
   - [为小说添加元数据](#为小说添加元数据)
   - [如何修正错误元数据](#如何修正错误元数据)
   - [同步阅读进度](#同步阅读进度)
@@ -50,6 +51,7 @@
 - [x] 排序标题，支持字母导航
 - [x] 提高匹配准确率：使用 FUZZ 对 bgm 搜索结果进行过滤和排序
 - [x] 使用[bangumi/Archive](https://github.com/bangumi/Archive)离线数据代替联网查询
+- [x] 可常驻后台轮询更新元数据
 
 处理逻辑见[DESIGN](docs/DESIGN.md)
 
@@ -174,6 +176,14 @@
     - <https://komga.org/docs/guides/edit-metadata#sort-titles>
     - [chu-shen/BangumiKomga#37](https://github.com/chu-shen/BangumiKomga/issues/37)
   - 如果要对此功能启用前的系列进行修改，请在`scripts`目录下手动运行一次`python sortTitleByLetter.py`
+
+## 以后台服务形式运行
+
+- `USE_BANGUMI_KOMGA_SERVICE`：设置为`True`时，以后台服务形式运行
+
+- `SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
+
+- `SERVICE_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
 
 ## 为小说添加元数据
 

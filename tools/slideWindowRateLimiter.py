@@ -1,7 +1,7 @@
-import threading
 import time
 from collections import deque
 from functools import wraps
+from tools.log import logger
 
 
 class SlideWindowCounter:
@@ -11,7 +11,6 @@ class SlideWindowCounter:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.requests = deque()
-        self.lock = threading.Lock()
 
     def is_allowed(self) -> bool:
         """检查是否允许请求"""
@@ -19,23 +18,30 @@ class SlideWindowCounter:
         # 清理过期请求
         while self.requests and current_time - self.requests[0] > self.window_seconds:
             expired_time = self.requests.popleft()
-            print(f"时间: {time.time():.2f} | 移除过期请求")
+            logger.debug(f"时间: {time.time():.2f} | 移除过期请求")
         if len(self.requests) < self.max_requests:
             self.requests.append(current_time)
-            print(
-                f"时间: {time.time():.2f} | 允许请求 | 剩余: {self.remaining_requests()})")
+            logger.debug(
+                f"时间: {time.time():.2f} | 允许请求 | 剩余: {self.remaining_requests()})"
+            )
             return True
         else:
-            print(
-                f"时间: {time.time():.2f} | 拒绝请求 | max reached: {self.max_requests})")
+            logger.debug(
+                f"时间: {time.time():.2f} | 拒绝请求 | max reached: {self.max_requests})"
+            )
             return False
 
     def remaining_requests(self) -> int:
         """获取剩余可用请求数"""
         return self.max_requests - len(self.requests)
 
-
-def SlideWindowRateLimiter(max_requests: int, window_seconds: float, max_retries: int = 3, delay: float = 0.1):
+# 参数设置参考：https://docs.anilist.co/guide/rate-limiting
+def SlideWindowRateLimiter(
+    max_requests: int = 90,
+    window_seconds: float = 60,
+    max_retries: int = 3,
+    delay: float = 1,
+):
     def decorator(func):
         limiter = SlideWindowCounter(max_requests, window_seconds)
 
@@ -53,5 +59,7 @@ def SlideWindowRateLimiter(max_requests: int, window_seconds: float, max_retries
                         print(e)
                     time.sleep(delay)
                     retries += 1
+
         return wrapper
+
     return decorator

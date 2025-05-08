@@ -25,9 +25,9 @@ def send_notification(title, message):
                 json=data,
             )
             if response.status_code == 200:
-                logger.info(type + ": Notification sent successfully.")
+                logger.info(type + ": 成功发送通知")
             else:
-                logger.error(type + ": Failed to send notification.")
+                logger.error(type + ": 发送通知失败")
 
         elif type == "WEBHOOK":
             data = {
@@ -53,9 +53,9 @@ def send_notification(title, message):
                 json=data,
             )
             if response.status_code == 200:
-                logger.info(type + ": Notification sent successfully.")
+                logger.info(type + ": 成功发送通知")
             else:
-                logger.error(type + ": Failed to send notification.")
+                logger.error(type + ": 发送通知失败")
 
         elif type == "HEALTHCHECKS":
             try:
@@ -64,4 +64,4 @@ def send_notification(title, message):
                 )
             except requests.RequestException as e:
                 # Log ping failure here...
-                logger.error(type + ": Ping failed: " + e)
+                logger.error(type + ": Ping 失败。错误: " + e)

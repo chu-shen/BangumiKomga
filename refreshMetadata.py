@@ -1,3 +1,4 @@
+import os
 from api.bangumiModel import SubjectRelation
 from tools.getTitle import ParseTitle
 import processMetadata
@@ -7,7 +8,7 @@ from tools.env import *
 from tools.log import logger
 from tools.notification import send_notification
 from tools.db import initSqlite3, record_series_status, record_book_status
-
+from tools.cacheTime import TimeCacheManager
 
 env = InitEnv()
 bgm = env.bgm
@@ -15,16 +16,17 @@ komga = env.komga
 cursor, conn = initSqlite3()
 
 
-def refresh_metadata():
+def refresh_metadata(series_list=None):
     """
     刷新书籍系列元数据
     """
-    all_series = env.all_series
+    if series_list is None or series_list == []:
+        series_list = getSeries()
 
     parse_title = ParseTitle()
 
     # 批量获取所有series_id
-    series_ids = [series["id"] for series in all_series]
+    series_ids = [series["id"] for series in series_list]
     # 执行一次查询获取所有series_id对应的记录
     series_records = cursor.execute(
         "SELECT * FROM refreshed_series WHERE series_id IN ({})".format(
@@ -39,7 +41,7 @@ def refresh_metadata():
     failed_comic = ""
 
     # Loop through each book series
-    for series in all_series:
+    for series in series_list:
         series_id = series["id"]
         series_name = series["name"]
 
@@ -49,7 +51,7 @@ def refresh_metadata():
         for link in series["metadata"]["links"]:
             if link["label"].lower() == "cbl":
                 subject_id = int(link["url"].split("/")[-1])
-                logger.debug("use cbl %s for %s", subject_id, series_name)
+                logger.debug("将 cbl %s 匹配于 %s", subject_id, series_name)
                 # Get the metadata for the series from bangumi
                 metadata = bgm.get_subject_metadata(subject_id)
                 force_refresh_flag = True
@@ -73,12 +75,12 @@ def refresh_metadata():
 
                 # recheck or skip failed series
                 elif series_record[2] == 0 and not RECHECK_FAILED_SERIES:
-                    logger.debug("skip falied series: %s", series_name)
+                    logger.debug("跳过刮削失败的系列: %s", series_name)
                     continue
 
         # Use the bangumi API to search for the series by title on komga
         if subject_id == None:
-            logger.debug("search for %s in bangumi", series_name)
+            logger.debug("在 Bangumi 中搜索: %s ", series_name)
             title = parse_title.get_title(series_name)
             if title == None:
                 failed_count, failed_comic = record_series_status(
@@ -110,7 +112,7 @@ def refresh_metadata():
                 continue
 
         if not metadata:
-            logger.warning("Failed to get metadata: %s", series_name)
+            logger.warning("无法获取元数据: %s", series_name)
             continue
 
         komga_metadata = processMetadata.setKomangaSeriesMetadata(
@@ -169,11 +171,9 @@ def refresh_metadata():
                     series_id, thumbnail
                 )
                 if replace_thumbnail_result:
-                    logger.debug("replace thumbnail for series: %s", series_name)
+                    logger.debug("替换系列: %s 的海报", series_name)
                 else:
-                    logger.error(
-                        "Failed to replace thumbnail for series: %s", series_name
-                    )
+                    logger.error("替换系列: %s 的海报失败", series_name)
         else:
             failed_count, failed_comic = record_series_status(
                 conn,
@@ -206,12 +206,15 @@ def refresh_metadata():
             ).fetchall()
         ]
         # 用all_failed_series_ids 创建 FAILED_COLLECTION
-        if komga.replace_collection(collection_name, True, all_failed_series_ids):
-            logger.info("Successfully replace collection: %s", collection_name)
-        else:
-            logger.error("Failed to replace collection: " + collection_name)
+        if all_failed_series_ids:
+            if komga.replace_collection(collection_name, True, all_failed_series_ids):
+                logger.info("成功替换收藏: %s", collection_name)
+            else:
+                logger.error("替换收藏失败: %s", collection_name)
 
-    logger.info("Finish! succeed: %s, failed: %s", success_count, failed_count)
+    logger.info(
+        "执行完成! 刮削成功: %s 个, 刮削失败: %s 个", success_count, failed_count
+    )
     send_notification(
         "已完成刷新！",
         "<font color='green'>已成功刷新："
@@ -226,6 +229,94 @@ def refresh_metadata():
         + "\n"
         + strftime("%Y-%m-%d %H:%M:%S", localtime()),
     )
+
+
+def getSeries():
+    series_list = []
+
+    if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
+        logger.error("KOMGA_LIBRARY_LIST 和 KOMGA_COLLECTION_LIST 只能配置一种")
+    elif KOMGA_LIBRARY_LIST:
+        series_list.extend(
+            komga.get_series_with_libraryid(KOMGA_LIBRARY_LIST)["content"]
+        )
+    elif KOMGA_COLLECTION_LIST:
+        series_list.extend(
+            komga.get_series_with_collection(KOMGA_COLLECTION_LIST)["content"]
+        )
+    else:
+        series_list = komga.get_all_series()["content"]
+
+    return series_list
+
+
+def _filter_new_modified_series(library_id=None):
+    """
+    过滤出新更改系列元数据
+    """
+    # 读取上次修改时间
+    LastModifiedCacheFilePath = os.path.join(
+        ARCHIVE_FILES_DIR, "komga_last_modified_time.json"
+    )
+    local_last_modified = TimeCacheManager.convert_to_datetime(
+        TimeCacheManager.read_time(LastModifiedCacheFilePath)
+    )
+    page_index = 0
+    new_series = []
+    stop_paging_flag = False
+    while not stop_paging_flag:
+        temp_series = komga.get_latest_series(library_id=library_id, page=page_index)
+
+        if not temp_series:
+            break
+
+        for item in temp_series["content"]:
+            komga_modified_time = TimeCacheManager.convert_to_datetime(
+                item["lastModified"]
+            )
+            if komga_modified_time > local_last_modified:
+                new_series.append(item)
+            else:
+                # 如果没有新更改的系列，停止分页
+                stop_paging_flag = True
+                break
+
+        if not stop_paging_flag and (page_index + 1) < temp_series["totalPages"]:
+            page_index += 1
+        else:
+            break
+
+    return new_series
+
+
+def refresh_partial_metadata():
+    """
+    刷新部分书籍系列元数据
+    """
+    # FIXME: 未处理有 cbl 的系列
+    recent_modified_series = []
+    # 指定了 LIBRARY_ID
+    if KOMGA_LIBRARY_LIST:
+        recent_modified_series.extend(
+            _filter_new_modified_series(library_id=KOMGA_LIBRARY_LIST)
+        )
+    # FIXME: 未处理 collection
+    else:
+        recent_modified_series.extend(_filter_new_modified_series())
+
+    if recent_modified_series:
+        refresh_metadata(recent_modified_series)
+        # 取第一个系列的 lastModified 时间作为新的更新时间
+        LastModifiedCacheFilePath = os.path.join(
+            ARCHIVE_FILES_DIR, "komga_last_modified_time.json"
+        )
+        TimeCacheManager.save_time(
+            LastModifiedCacheFilePath,
+            recent_modified_series[0]["lastModified"],
+        )
+    else:
+        logger.info("未找到最近添加系列, 无需刷新")
+    return
 
 
 def update_book_metadata(book_id, related_subject, book_name, number):
@@ -265,9 +356,9 @@ def update_book_metadata(book_id, related_subject, book_name, number):
             thumbnail = bgm.get_subject_thumbnail(related_subject)
             replace_thumbnail_result = komga.update_book_thumbnail(book_id, thumbnail)
             if replace_thumbnail_result:
-                logger.debug("replace thumbnail for book: %s", book_name)
+                logger.debug("替换书籍: %s 的海报 ", book_name)
             else:
-                logger.error("Failed to replace thumbnail for book: %s", book_name)
+                logger.error("替换书籍: %s 的海报失败", book_name)
     else:
         record_book_status(
             conn, book_id, related_subject["id"], 0, book_name, "komga update failed"
@@ -322,7 +413,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
 
             # recheck or skip failed book
             elif book_record[2] == 0 and not RECHECK_FAILED_BOOKS:
-                logger.debug("skip falied books: %s", book_name)
+                logger.debug("跳过刮削失败的书籍: %s", book_name)
                 continue
 
         # If related_subjects is still empty[], skip
@@ -343,10 +434,10 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
                     subjects_numbers.append(number)
                 except ValueError:
                     logger.error(
-                        "Failed to extract number: %s, %s, %s",
+                        "提取序号失败: %s, %s, %s",
                         book_id,
                         subject["name"],
-                        subject["name_cn"]
+                        subject["name_cn"],
                     )
 
         # get nunmber from book name
@@ -370,6 +461,3 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
             record_book_status(
                 conn, book_id, None, 0, book_name, "Only update book number"
             )
-
-
-refresh_metadata()

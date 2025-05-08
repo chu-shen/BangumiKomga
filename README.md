@@ -52,12 +52,12 @@
 - [x] 提高匹配准确率：使用 FUZZ 对 bgm 搜索结果进行过滤和排序
 - [x] 使用[bangumi/Archive](https://github.com/bangumi/Archive)离线数据代替联网查询
 - [x] 可常驻后台轮询更新元数据
+- [x] 使用滑动窗口限制联网查询频率
 
 处理逻辑见[DESIGN](docs/DESIGN.md)
 
 ### TODO
 
-- [ ] 限制联网查询频率
 - [ ] 更新 Komga 封面时，判断：类型（'GENERATED'）、大小
 - [ ] 重构元数据更新范围及覆盖逻辑
 - [ ] 增强文件名解析

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.0](https://github.com/chu-shen/BangumiKomga/compare/v0.15.0...v0.16.0) (2025-05-08)
+
+
+### Features
+
+* 添加滑动窗口限流器&漏桶限流器 ([#68](https://github.com/chu-shen/BangumiKomga/issues/68)) ([729763b](https://github.com/chu-shen/BangumiKomga/commit/729763b9ab98d287432331991718b870fae0d586))
+
+
+### Bug Fixes
+
+* fuzz 算法计算时忽略大小写 ([654a66e](https://github.com/chu-shen/BangumiKomga/commit/654a66ee8f9eed97505273bd9f6a96bb892cb4db))
+
 ## [0.15.0](https://github.com/chu-shen/BangumiKomga/compare/v0.14.0...v0.15.0) (2025-05-07)
 
 

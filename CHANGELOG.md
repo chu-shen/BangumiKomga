@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/chu-shen/BangumiKomga/compare/v0.16.0...v0.16.1) (2025-05-09)
+
+
+### Bug Fixes
+
+* 错误判断文件路径 ([88b2560](https://github.com/chu-shen/BangumiKomga/commit/88b25607d043b92d22b0a08b315fba812b381dcb))
+
 ## [0.16.0](https://github.com/chu-shen/BangumiKomga/compare/v0.15.0...v0.16.0) (2025-05-08)
 
 

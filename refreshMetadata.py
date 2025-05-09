@@ -254,6 +254,7 @@ def _filter_new_modified_series(library_id=None):
     """
     过滤出新更改系列元数据
     """
+    os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
     # 读取上次修改时间
     LastModifiedCacheFilePath = os.path.join(
         ARCHIVE_FILES_DIR, "komga_last_modified_time.json"

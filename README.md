@@ -92,8 +92,7 @@
         - /path/BangumiKomga/config.py:/app/config/config.py   # 内容更改见 step.2
         - /path/BangumiKomga/recordsRefreshed.db:/app/recordsRefreshed.db
         - /path/BangumiKomga/logs:/app/logs
-        # 使用 `ARCHIVE_FILES_DIR`中定义的目录名称
-        - /path/BangumiKomga/<archivedata>:/app/<archivedata>
+        - /path/BangumiKomga/archivedata:/app/archivedata # 离线元数据（可选）
     ```
 
 2. 将 `config/config.template.py` 重命名为 `config/config.py`, 并修改 `KOMGA_BASE_URL`, `KOMGA_EMAIL` 和 `KOMGA_EMAIL_PASSWORD` 以便程序访问你的 Komga 实例(此用户需要有 Komga 元数据修改权限)。
@@ -185,7 +184,6 @@
 ## 以后台服务形式运行
 
 - `USE_BANGUMI_KOMGA_SERVICE`：设置为`True`时，以后台服务形式运行
-  - 需搭配`ARCHIVE_FILES_DIR`使用
 
 - `SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
 

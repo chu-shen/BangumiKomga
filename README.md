@@ -92,7 +92,7 @@
         - /path/BangumiKomga/config.py:/app/config/config.py   # 内容更改见 step.2
         - /path/BangumiKomga/recordsRefreshed.db:/app/recordsRefreshed.db
         - /path/BangumiKomga/logs:/app/logs
-        - /path/BangumiKomga/archivedata:/app/archivedata # 离线元数据（可选）
+        - /path/BangumiKomga/archivedata:/app/archivedata # 离线元数据（可选），详见`ARCHIVE_FILES_DIR`
     ```
 
 2. 将 `config/config.template.py` 重命名为 `config/config.py`, 并修改 `KOMGA_BASE_URL`, `KOMGA_EMAIL` 和 `KOMGA_EMAIL_PASSWORD` 以便程序访问你的 Komga 实例(此用户需要有 Komga 元数据修改权限)。

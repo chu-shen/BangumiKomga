@@ -21,17 +21,16 @@ class KomgaApi:
 
         self.r.headers.update(
             {
-                "Content-Type": "application/json",
                 "Accept": "application/json",
                 "User-Agent": "chu-shen/BangumiKomga (https://github.com/chu-shen/BangumiKomga)",
             }
         )
         if api_key:
-            self.r.headers["X-API-Key"]= api_key
+            self.r.headers["X-API-Key"] = api_key
             test_url = f"{base_url}/api/v2/users/me"
             response = self.r.get(test_url)
             if response.status_code != 200:
-                logger.error("Komga: API key authentication failed!")
+                logger.error("Komga: API Key 验证失败!")
                 exit(1)
         else:
             url = f"{self.base_url}/login/set-cookie"
@@ -40,7 +39,7 @@ class KomgaApi:
                 auth=self.auth,
             )
             if response.status_code != 204:
-                logger.error("Komga: Basic authentication failed!")
+                logger.error("Komga: 基本身份验证失败!")
                 exit(1)
 
     def get_latest_series(self, library_id=None, page=0):
@@ -56,13 +55,14 @@ class KomgaApi:
         }
         if library_id:
             params["library_id"] = (
-                library_id if isinstance(library_id, (list, tuple)) else [library_id]
+                library_id if isinstance(library_id, (list, tuple)) else [
+                    library_id]
             )
         try:
             response = self.r.get(url, params=params)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
         return response.json()
 
@@ -90,7 +90,7 @@ class KomgaApi:
             response = self.r.post(url, params=params, json=merged_payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
         # 将response作为JSON对象返回
         return response.json()
@@ -109,7 +109,8 @@ class KomgaApi:
                     }
                 }
             )
-        payload = {"anyOf": conditions} if len(conditions) > 1 else conditions[0]
+        payload = {"anyOf": conditions} if len(
+            conditions) > 1 else conditions[0]
         return self.get_all_series(payload)
 
     def get_series_with_collection(self, collection_id):
@@ -126,7 +127,8 @@ class KomgaApi:
                     }
                 }
             )
-        payload = {"anyOf": conditions} if len(conditions) > 1 else conditions[0]
+        payload = {"anyOf": conditions} if len(
+            conditions) > 1 else conditions[0]
         return self.get_all_series(payload)
 
     def get_series_with_read_status(self, read_status):
@@ -151,7 +153,7 @@ class KomgaApi:
             response = self.r.get(f"{self.base_url}/readlists/{readlist_id}")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
         # return the response as a JSON object
         return response.json()
@@ -190,7 +192,7 @@ class KomgaApi:
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
         # return the response as a JSON object
         return response.json()
@@ -201,10 +203,11 @@ class KomgaApi:
         """
         try:
             # make a GET request to the URL to retrieve all thumbnails in a given series
-            response = self.r.get(f"{self.base_url}/series/{series_id}/thumbnails")
+            response = self.r.get(
+                f"{self.base_url}/series/{series_id}/thumbnails")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
         # return the response as a JSON object
         return response.json()
@@ -215,10 +218,11 @@ class KomgaApi:
         """
         try:
             # make a GET request to the URL to retrieve all thumbnails in a given series
-            response = self.r.get(f"{self.base_url}/books/{book_id}/thumbnails")
+            response = self.r.get(
+                f"{self.base_url}/books/{book_id}/thumbnails")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
         # return the response as a JSON object
         return response.json()
@@ -234,7 +238,7 @@ class KomgaApi:
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
         # return True if the status code indicates success, False otherwise
         return response.status_code == 204
 
@@ -253,7 +257,7 @@ class KomgaApi:
             if response.status_code == 413:
                 logger.error("缩略图过大，无法上传")
             else:
-                logger.error(f"An error occurred: {e}")
+                logger.error(f"出现错误: {e}")
         # return True if the status code indicates success, False otherwise
         return response.status_code == 200
 
@@ -270,7 +274,7 @@ class KomgaApi:
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
         # return True if the status code indicates success, False otherwise
         return response.status_code == 204
 
@@ -286,7 +290,7 @@ class KomgaApi:
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
         # return True if the status code indicates success, False otherwise
         return response.status_code == 200
 
@@ -301,7 +305,7 @@ class KomgaApi:
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
         # return True if the status code indicates success, False otherwise
         return response.status_code == 200
 
@@ -314,7 +318,7 @@ class KomgaApi:
             response = self.r.get(f"{self.base_url}/collections?search={name}")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
         collection = response.json()["content"]
         if collection:
             return collection[0]["id"]
@@ -329,7 +333,7 @@ class KomgaApi:
             response = self.r.delete(f"{self.base_url}/collections/{id}")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
         # return True if the status code indicates success, False otherwise
         return response.status_code == 204
 

@@ -16,6 +16,7 @@ from bangumiArchive.localArchiveHelper import (
     search_all_data_batch_optimized,
 )
 from tools.resortSearchResultsList import resort_search_list
+from tools.slideWindowRateLimiter import SlideWindowRateLimiter
 from zhconv import convert
 from urllib.parse import quote_plus
 from abc import ABC, abstractmethod
@@ -75,6 +76,7 @@ class BangumiApiDataSource(DataSource):
         # https://next.bgm.tv/demo/access-token
         return
 
+    @SlideWindowRateLimiter()
     def search_subjects(self, query, threshold=80):
         """
         获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
@@ -88,7 +90,7 @@ class BangumiApiDataSource(DataSource):
             response = self.r.get(url, headers=self._get_headers())
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
 
         # e.g. Artbooks.VOL.14 -> {"request":"\/search\/subject\/Artbooks.VOL.14?responseGroup=large&type=1","code":404,"error":"Not Found"}
@@ -109,6 +111,7 @@ class BangumiApiDataSource(DataSource):
             query=query, results=results, threshold=threshold, DataSource=self
         )
 
+    @SlideWindowRateLimiter()
     def get_subject_metadata(self, subject_id):
         """
         获取漫画元数据
@@ -125,6 +128,7 @@ class BangumiApiDataSource(DataSource):
             return []
         return response.json()
 
+    @SlideWindowRateLimiter()
     def get_related_subjects(self, subject_id):
         """
         获取漫画的关联条目
@@ -134,10 +138,11 @@ class BangumiApiDataSource(DataSource):
             response = self.r.get(url, headers=self._get_headers())
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
         return response.json()
 
+    @SlideWindowRateLimiter()
     def update_reading_progress(self, subject_id, progress):
         """
         更新漫画系列卷阅读进度
@@ -145,13 +150,13 @@ class BangumiApiDataSource(DataSource):
         url = f"{self.BASE_URL}/v0/users/-/collections/{subject_id}"
         payload = {"vol_status": progress}
         try:
-            response = self.r.patch(
-                url, headers=self._get_headers(), json=payload)
+            response = self.r.patch(url, headers=self._get_headers(), json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
         return response.status_code == 204
 
+    @SlideWindowRateLimiter()
     def get_subject_thumbnail(self, subject_metadata):
         """
         获取漫画封面
@@ -160,11 +165,12 @@ class BangumiApiDataSource(DataSource):
             if subject_metadata["images"]:
                 image = subject_metadata["images"]["large"]
             else:
-                image = self.get_subject_metadata(subject_metadata["id"])[
-                    "images"]["large"]
+                image = self.get_subject_metadata(subject_metadata["id"])["images"][
+                    "large"
+                ]
             thumbnail = self.r.get(image).content
         except Exception as e:
-            logger.error(f"An error occurred: {e}")
+            logger.error(f"出现错误: {e}")
             return []
         files = {"file": (subject_metadata["name"], thumbnail)}
         return files
@@ -339,8 +345,7 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get("access_token"))
 
         if config.get("use_local_archive", False):
-            offline = BangumiArchiveDataSource(
-                config.get("local_archive_folder"))
+            offline = BangumiArchiveDataSource(config.get("local_archive_folder"))
             return FallbackDataSource(offline, online)
 
         return online

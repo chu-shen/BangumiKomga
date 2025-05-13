@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.16.1](https://github.com/chu-shen/BangumiKomga/compare/v0.16.0...v0.16.1) (2025-05-09)
+
+
+### Bug Fixes
+
+* 错误判断文件路径 ([88b2560](https://github.com/chu-shen/BangumiKomga/commit/88b25607d043b92d22b0a08b315fba812b381dcb))
+
+## [0.16.0](https://github.com/chu-shen/BangumiKomga/compare/v0.15.0...v0.16.0) (2025-05-08)
+
+
+### Features
+
+* 添加滑动窗口限流器&漏桶限流器 ([#68](https://github.com/chu-shen/BangumiKomga/issues/68)) ([729763b](https://github.com/chu-shen/BangumiKomga/commit/729763b9ab98d287432331991718b870fae0d586))
+
+
+### Bug Fixes
+
+* fuzz 算法计算时忽略大小写 ([654a66e](https://github.com/chu-shen/BangumiKomga/commit/654a66ee8f9eed97505273bd9f6a96bb892cb4db))
+
+## [0.15.0](https://github.com/chu-shen/BangumiKomga/compare/v0.14.0...v0.15.0) (2025-05-07)
+
+
+### Features
+
+* 添加了 `refreshMetadataServive` 轮询服务 ([#67](https://github.com/chu-shen/BangumiKomga/issues/67)) ([6618cee](https://github.com/chu-shen/BangumiKomga/commit/6618cee4ed881eeb5ce92275f53d6713d0b83d67))
+
+
+### Bug Fixes
+
+* fix header ([a2b342b](https://github.com/chu-shen/BangumiKomga/commit/a2b342be450d843eefcf869fe3928a768435d9fa))
+* 修正「失败收藏」相关说明 ([9d78344](https://github.com/chu-shen/BangumiKomga/commit/9d7834438b3153c31f8594386e0a3a7697e317ab))
+
 ## [0.14.0](https://github.com/chu-shen/BangumiKomga/compare/v0.13.0...v0.14.0) (2025-05-05)
 
 

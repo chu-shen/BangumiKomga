@@ -3,20 +3,21 @@ from api.bangumiModel import SubjectPlatform
 from config.config import IS_NOVEL_ONLY
 
 
-def compute_name_score_by_fuzzy(name, name_cn, infobox, target):
+def compute_name_score_by_fuzzy(name: str, name_cn: str, infobox, target: str) -> int:
     """
     Use fuzzy to computes the Levenshtein distance between name, name_cn, and infobox "别名" (if exists) and the target string.
     """
-    score = fuzz.ratio(name, target)
+    target = target.lower()
+    score = fuzz.ratio(name.lower(), target)
     if name_cn:
-        score = max(score, fuzz.ratio(name_cn, target))
+        score = max(score, fuzz.ratio(name_cn.lower(), target))
     for item in infobox:
         if item["key"] == "别名":
             if isinstance(item["value"], (list,)):  # 判断传入值是否为列表
                 for alias in item["value"]:
-                    score = max(score, fuzz.ratio(alias["v"], target))
+                    score = max(score, fuzz.ratio(alias["v"].lower(), target))
             else:
-                score = max(score, fuzz.ratio(item["value"], target))
+                score = max(score, fuzz.ratio(item["value"].lower(), target))
     return score
 
 

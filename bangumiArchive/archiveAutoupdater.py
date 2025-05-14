@@ -8,8 +8,6 @@ from tools.log import logger
 from bangumiArchive.indexedJsonlinesRead import IndexedDataReader
 from tools.cacheTime import TimeCacheManager
 
-# TODO: 加入Archive更新定时检查功能
-
 UpdateTimeCacheFilePath = os.path.join(
     ARCHIVE_FILES_DIR, "archive_update_time.json")
 CheckTimeCacheFilePath = os.path.join(

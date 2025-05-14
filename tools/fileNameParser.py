@@ -10,7 +10,7 @@ class NumberType:
 
 
 class FileNameParser:
-
+    # TODO: 实现其他字段的提取
     def __init__(self):
         self.corpus = []
         self.vocabulary = set()
@@ -121,8 +121,7 @@ class FileNameParser:
         """
         一站式解析字符串，返回结构化结果
         """
-        processed_str = self.formatString(input_str)
-        number, num_type = self.getNumber(processed_str)
+        number, num_type = self.getNumber(input_str)
         title = self.get_title(input_str)
 
         return {

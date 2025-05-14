@@ -2,7 +2,8 @@ import os
 import zipfile
 import requests
 import json
-from config.config import ARCHIVE_FILES_DIR
+import datetime
+from config.config import ARCHIVE_FILES_DIR, ARCHIVE_CHECK_INTERVAL
 from tools.log import logger
 from bangumiArchive.indexedJsonlinesRead import IndexedDataReader
 from tools.cacheTime import TimeCacheManager
@@ -11,6 +12,8 @@ from tools.cacheTime import TimeCacheManager
 
 UpdateTimeCacheFilePath = os.path.join(
     ARCHIVE_FILES_DIR, "archive_update_time.json")
+CheckTimeCacheFilePath = os.path.join(
+    ARCHIVE_FILES_DIR, "archive_check_time.json")
 
 
 def get_latest_url_and_time():
@@ -76,15 +79,28 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
 def check_archive():
     os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
 
+    local_check_time = TimeCacheManager.convert_to_datetime(
+        TimeCacheManager.read_time(CheckTimeCacheFilePath))
+    present_datatime = datetime.datetime.now()
+
+    # 按设置判断是否跳过更新检查
+    # 不如叫 CHECK_DELAY_PERIOD 算了
+    if ARCHIVE_CHECK_INTERVAL:
+        if present_datatime < local_check_time + datetime.timedelta(hours=ARCHIVE_CHECK_INTERVAL):
+            logger.warning("按设置跳过Archive更新检查")
+            return
+    # 缓存更新检查时间
+    TimeCacheManager.save_time(
+        CheckTimeCacheFilePath, present_datatime.strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+    # 解析 Bangumi Archive 下载链接
     download_url, latest_update_time = get_latest_url_and_time()
     if download_url == "":
         logger.warning("无法获取 Bangumi Archive 下载链接, 跳过Archive更新")
         return
-
     # 读取本地缓存时间
     local_update_time = TimeCacheManager.convert_to_datetime(
-        TimeCacheManager.read_time(UpdateTimeCacheFilePath)
-    )
+        TimeCacheManager.read_time(UpdateTimeCacheFilePath))
     remote_update_time = TimeCacheManager.convert_to_datetime(
         latest_update_time)
     if remote_update_time > local_update_time:

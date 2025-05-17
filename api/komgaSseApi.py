@@ -35,10 +35,9 @@ class KomgaSseClient:
 
         # 用于Debug的默认回调函数
         self.on_open = lambda: logger.info("成功连接 Komga SSE 服务端点")
+        self.on_close = lambda: logger.info("正常关闭 Komga SSE 连接")
         self.on_error = lambda err: logger.info(f"出现错误: {err}")
-        # TODO: 未实现默认消息回调
         self.on_message = lambda msg: logger.info(f"SSE消息内容: {msg}")
-        # TODO: 未实现重试回调
         self.on_retry = lambda: logger.info("正在重连...")
         self.on_event = lambda event_type, data: logger.info(
             f"Event [{event_type}]: {data}")
@@ -110,6 +109,7 @@ class KomgaSseClient:
             self.thread.join()
         # 释放 Session
         self.session.close()
+        self.on_close()
 
     def _connect(self):
         """建立 SSE 连接"""
@@ -139,6 +139,7 @@ class KomgaSseClient:
                 delay = min(self.delay * (2 ** retry_count), 30)
                 logger.info(f"将在 {delay} 秒后尝试重连...")
                 time.sleep(delay)
+                self.on_retry()
 
     def _process_stream(self, response):
         """解析事件流"""
@@ -171,14 +172,16 @@ class KomgaSseClient:
                     data = line[5:].strip()
                     if data:
                         self._dispatch_event(current_event, data)
-                        # 重置为默认类型
-                        current_event = "message"
+                        # 重置为空
+                        current_event = ""
 
     def _dispatch_event(self, event_type, data):
         """分发事件到对应处理器"""
         # 忽略refresh_event_type外的其他事件类型
         if event_type in RefreshEventType:
             self.on_event(event_type, data)
+        else:
+            self.on_message(data)
 
 
 class KomgaSseApi:

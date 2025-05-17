@@ -30,6 +30,8 @@ class KomgaSseClient:
         self.running = False
         self.timeout = timeout
         self.thread = None
+        self.delay = 1
+        self.max_retries = 5
 
         # 用于Debug的默认回调函数
         self.on_open = lambda: logger.info("成功连接 Komga SSE 服务端点")
@@ -42,6 +44,7 @@ class KomgaSseClient:
             f"Event [{event_type}]: {data}")
 
         self.session = requests.Session()
+        # 传输层自动重连, 重试3次
         self.session.mount("http://", HTTPAdapter(max_retries=3))
         self.session.mount("https://", HTTPAdapter(max_retries=3))
         self.session.headers.update(
@@ -70,6 +73,7 @@ class KomgaSseClient:
                     "Authorization": auth_text
                 }
             )
+            # 测试连接
             try:
                 response = self.session.get(
                     self.url,
@@ -80,9 +84,15 @@ class KomgaSseClient:
                 logger.error("Komga SSE 连接失败!")
                 self.on_error(str(e))
                 exit(1)
+        if response.status_code == 401:
+            logger.error("Komga 身份验证失败!")
+            self.on_error(f"Komga SSE 身份验证失败!")
+            return
         if response.status_code != 200:
-            logger.error("Komga: API Key 验证失败!")
-            exit(1)
+            logger.error("Komga SSE 连接失败!")
+            self.on_error(
+                f"Komga SSE 连接失败, HTTP {response.status_code}: {response.reason}")
+            return
 
     def start(self):
         """启动 SSE 监听"""
@@ -110,14 +120,25 @@ class KomgaSseClient:
                                       timeout=self.timeout) as response:
                     if response.status_code != 200:
                         self.on_error(
-                            f"HTTP {response.status_code}: {response.reason}")
+                            f"Komga SSE 连接失败, HTTP {response.status_code}: {response.reason}")
                         return
 
                     self.on_open()
                     self._process_stream(response)
+                    retry_count = 0  # 成功后重置重试计数
 
             except Exception as e:
                 self.on_error(str(e))
+                retry_count += 1
+                # 应用层自动重连, 重试self.max_retries次
+                if retry_count > self.max_retries:
+                    logger.error("超过最大重试次数，停止连接")
+                    self.stop()
+                    return
+                # 指数退避
+                delay = min(self.delay * (2 ** retry_count), 30)
+                logger.info(f"将在 {delay} 秒后尝试重连...")
+                time.sleep(delay)
 
     def _process_stream(self, response):
         """解析事件流"""

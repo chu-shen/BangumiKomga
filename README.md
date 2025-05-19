@@ -65,7 +65,7 @@
 
 ## 先决条件
 
-- 一个有 admin 权限的 Komga 实例
+- 一个有 ADMIN 权限的 Komga 用户，最低版本[1.19.0](https://github.com/gotson/komga/releases/tag/1.19.0)
 - 使用 Windows/Linux/MAc 等主流操作系统, 也可在其上使用 Docker
 - 如需在 Windows, Linux 或 Mac 上直接执行脚本, 应安装有Python
 

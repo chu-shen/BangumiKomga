@@ -27,9 +27,7 @@ RefreshEventType = ["SeriesAdded",
 class KomgaSseClient:
     def __init__(self, base_url, username, password, api_key=None, timeout=30, retries=5):
         self.url = f"{base_url}/sse/v1/events"
-        self.auth = {}
-        self.auth["username"] = username
-        self.auth["password"] = password
+        self.auth = (username, password)
         self.running = False
         self.timeout = timeout
         self.thread = None
@@ -69,7 +67,7 @@ class KomgaSseClient:
         # 使用账号凭据
         else:
             # 构建认证字符串
-            credentials = f"{self.auth["username"]}:{self.auth["password"]}"
+            credentials = f"{self.auth[0]}:{self.auth[1]}"
             encoded = base64.b64encode(
                 credentials.encode("utf-8")).decode("utf-8")
             auth_text = f"Basic {encoded}"
@@ -235,8 +233,8 @@ class KomgaSseApi:
         try:
             json_data = json.loads(data)
         except json.JSONDecodeError as e:
-            logger.error("message JSON解析失败:", e)
-        logger.info("收到消息:", json_data)
+            logger.error(f"message JSON解析失败: {e}")
+        logger.debug(f"收到消息: {data}")
 
     def on_error(self, e: Exception):
         """错误事件回调函数"""

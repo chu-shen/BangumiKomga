@@ -13,7 +13,6 @@ import requests
 from requests.adapters import HTTPAdapter
 from threading import Thread, Lock
 import base64
-import queue
 
 # 可配置的订阅事件类型
 RefreshEventType = ["SeriesAdded",
@@ -113,6 +112,7 @@ class KomgaSseClient:
 
     def _connect(self):
         """建立 SSE 连接"""
+        retry_count = 0
         while self.running:
             try:
                 with self.session.get(self.url,
@@ -128,7 +128,8 @@ class KomgaSseClient:
                     retry_count = 0  # 成功后重置重试计数
 
             except Exception as e:
-                self.on_error(str(e))
+                logger.error(f"Komga SSE 连接出错: {e}")
+                self.on_error(e)
                 retry_count += 1
                 # 应用层自动重连, 重试self.max_retries次
                 if retry_count > self.max_retries:
@@ -189,45 +190,52 @@ class KomgaSseApi:
         # 实例化 KomgaSseApi 对象
         self.sse_client = KomgaSseClient(
             base_url, username, password, api_key, timeout, retries)
+
+        self.series_modified_callbacks = []
+        self.series_callback_lock = Lock()
+
         # 绑定回调
         self.sse_client.on_message = self.on_message
         self.sse_client.on_error = self.on_error
         self.sse_client.on_event = self.on_event
 
+        # 使用守护线程启动SSE客户端
+        self.sse_thread = Thread(target=self._start_client, daemon=True)
         self.series_modified_callbacks = []
         self.series_callback_lock = Lock()
-        # 启动 SSE 监听
-        self._start_client()
+        self.sse_thread.start()  # 立即启动线程
 
     def _start_client(self):
         try:
             self.sse_client.start()
             while True:
-                time.sleep(1)  # 保持主线程运行
+                time.sleep(5)  # 保持主线程运行
         except KeyboardInterrupt:
             logger.warning("正在关闭SSE连接...")
             self.sse_client.stop()
 
     def register_series_update_callback(self, callback):
         """注册系列更新回调函数"""
-        with self.series_callback_lock:
-            if callback not in self.series_modified_callbacks:
-                self.series_modified_callbacks.append(callback)
+        # with self.series_callback_lock:
+        if callback not in self.series_modified_callbacks:
+            self.series_modified_callbacks.append(callback)
+            logger.info(f"已注册回调函数: {callback.__name__}")
 
     def unregister_series_update_callback(self, callback):
         """取消注册回调函数"""
         with self.series_callback_lock:
             if callback in self.series_modified_callbacks:
                 self.series_modified_callbacks.remove(callback)
+                logger.info(f"已取消回调函数注册: {callback.__name__}")
 
-    def _notify_callbacks(self, **series_info):
+    def _notify_callbacks(self, series_info):
         """通告所有已注册的回调函数"""
         with self.series_callback_lock:
             for callback in self.series_modified_callbacks:
                 try:
                     callback(series_info)
                 except Exception as e:
-                    logger.error(f"回调函数执行失败: {str(e)}", exc_info=True)
+                    logger.error(f"回调函数执行失败: {e}", exc_info=True)
 
     def on_message(self, data):
         try:
@@ -249,18 +257,14 @@ class KomgaSseApi:
             parsed_data = json.loads(event_data)
             # 在配置了KOMGA_LIBRARY_LIST时, 不通告 KOMGA_LIBRARY_LIST 外的库更改
             if parsed_data.get('libraryId') not in KOMGA_LIBRARY_LIST and len(KOMGA_LIBRARY_LIST) > 0:
+                logger.info(
+                    f"libraryId: {parsed_data.get('libraryId')} 不在 KOMGA_LIBRARY_LIST 中，跳过")
                 return
-            # 似乎应该使用线程池?
-            notify_thread = Thread(
-                target=self._notify_callbacks,
-                args=(
-                    {
-                        "event_type": event_type,
-                        "event_data": event_data
-                    }
-                ),
-                daemon=True
-            )
-            notify_thread.start()
+            # 要不要在这里用多线程来 _notify_callbacks 呢?
+            arg = {
+                "event_type": event_type,
+                "event_data": event_data
+            }
+            self._notify_callbacks(arg)
         else:
-            logger.debug(f"捕获无关事件 [{event_type}]:", event_data)
+            logger.info(f"捕获无关事件 [{event_type}]:", event_data)

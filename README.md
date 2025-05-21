@@ -17,6 +17,7 @@
   - [同步阅读进度](#同步阅读进度)
   - [命名建议](#命名建议)
   - [Issues \& Pull Requests](#issues--pull-requests)
+  - [Contributors](#contributors)
   - [致谢](#致谢)
 
 > [!WARNING]
@@ -262,6 +263,14 @@ _命名建议修改自某喵_
 ## Issues & Pull Requests
 
 欢迎提交新规则、问题、功能……
+
+## Contributors
+
+<a href="https://github.com/chu-shen/BangumiKomga/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=chu-shen/BangumiKomga" />
+</a>
+
+Made with [contrib.rocks](https://contrib.rocks).
 
 ## 致谢
 

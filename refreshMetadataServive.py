@@ -8,7 +8,7 @@ from config.config import (
     SERVICE_REFRESH_ALL_METADATA_INTERVAL,
     KOMGA_LIBRARY_LIST
 )
-from refreshMetadata import refresh_metadata, refresh_partial_metadata
+from refreshMetadata import refresh_metadata, refresh_partial_metadata, komga
 from api.komgaSseApi import KomgaSseApi
 import threading
 import json
@@ -93,10 +93,23 @@ def PollService():
 
 def series_update_sse_handler(data):
     event_data = json.loads(data["event_data"])
+    series_id = event_data["seriesId"]
+    library_id = event_data["libraryId"]
+    # 筛选有效的 SeriesChanged 事件
+    if data["event_type"] == "SeriesChanged":
+        # 获取指定系列的信息
+        series_detail = komga.getSpecificSeries(series_id)
+        # 判断 SeriesChanged 是否为CBL更改
+        for link in series_detail["metadata"]["links"]:
+            if link["label"].lower() == "cbl":
+                continue
+            else:
+                # 无视其他 SeriesChanged 事件
+                return
     recent_modified_series = []
     # 仅刷新指定 LIBRARY_ID
-    if KOMGA_LIBRARY_LIST and (event_data["libraryId"] in KOMGA_LIBRARY_LIST):
-        recent_modified_series.extend(event_data["seriesId"])
+    if KOMGA_LIBRARY_LIST and (library_id in KOMGA_LIBRARY_LIST):
+        recent_modified_series.extend(series_id)
 
     if recent_modified_series:
         refresh_metadata(recent_modified_series)

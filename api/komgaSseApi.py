@@ -16,11 +16,19 @@ import base64
 
 # 可配置的订阅事件类型
 RefreshEventType = ["SeriesAdded",
-                    # 扫描库文件和扫描库文件(深度)两个选项会触发全库系列的SERIES_CHANGED事件
+                    # 扫描库文件(深度)会触发全库系列的 `SeriesChanged` 事件, 需要结合CBL判断是否实际需要刷新
+                    # 在系列添加时只需关注 `SeriesAdded` 事件即可
                     "SeriesChanged",
-                    # 大量的 [TaskQueueStatus]: {"count":0,"countByType":{}} 触发
+                    # [TaskQueueStatus]: {"count":0,"countByType":{}} 会自动定时触发, 应该忽略
                     #  "TaskQueueStatus",
-                    "BookAdded", "BookChanged", "BookImported"]
+                    # `BookAdded`是在系列中更新新章节时(e.g.追连载)应关注的事件
+                    "BookAdded",
+                    # `BookChanged`是在系列中更新新一个章节时会多次触发的事件, 感觉应该无视它
+                    # "BookChanged",
+
+                    # `BookImported` 我还没见过, 可能是我从来不用导入功能
+                    # "BookImported"
+                    ]
 
 
 class KomgaSseClient:
@@ -253,7 +261,7 @@ class KomgaSseApi:
         """订阅事件回调函数"""
         # 仅通知在 RefreshEventType 类型的事件
         if event_type in RefreshEventType:
-            logger.debug(f"捕获订阅事件 [{event_type}]:", event_data)
+            logger.info(f"捕获订阅事件 [{event_type}]:{event_data}")
             parsed_data = json.loads(event_data)
             # 在配置了KOMGA_LIBRARY_LIST时, 不通告 KOMGA_LIBRARY_LIST 外的库更改
             if parsed_data.get('libraryId') not in KOMGA_LIBRARY_LIST and len(KOMGA_LIBRARY_LIST) > 0:
@@ -267,4 +275,4 @@ class KomgaSseApi:
             }
             self._notify_callbacks(arg)
         else:
-            logger.info(f"捕获无关事件 [{event_type}]:", event_data)
+            logger.info(f"捕获无关事件 [{event_type}]:{event_data}")

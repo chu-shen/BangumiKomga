@@ -252,6 +252,10 @@ def getSeries():
     return series_list
 
 
+def getSpecificSeries(series_id):
+    return komga.get_specific_series(series_id)
+
+
 def _filter_new_modified_series(library_id=None):
     """
     过滤出新更改系列元数据

@@ -98,7 +98,7 @@ def series_update_sse_handler(data):
     # 筛选有效的 SeriesChanged 事件
     if data["event_type"] == "SeriesChanged":
         # 获取指定系列的信息
-        series_detail = komga.getSpecificSeries(series_id)
+        series_detail = komga.getSeries([series_id])
         # 判断 SeriesChanged 是否为CBL更改
         for link in series_detail["metadata"]["links"]:
             if link["label"].lower() == "cbl":

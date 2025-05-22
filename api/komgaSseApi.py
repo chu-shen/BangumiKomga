@@ -227,14 +227,14 @@ class KomgaSseApi:
         # with self.series_callback_lock:
         if callback not in self.series_modified_callbacks:
             self.series_modified_callbacks.append(callback)
-            logger.info(f"已注册回调函数: {callback.__name__}")
+            logger.debug(f"已注册回调函数: {callback.__name__}")
 
     def unregister_series_update_callback(self, callback):
         """取消注册回调函数"""
         with self.series_callback_lock:
             if callback in self.series_modified_callbacks:
                 self.series_modified_callbacks.remove(callback)
-                logger.info(f"已取消回调函数注册: {callback.__name__}")
+                logger.debug(f"已取消回调函数注册: {callback.__name__}")
 
     def _notify_callbacks(self, series_info):
         """通告所有已注册的回调函数"""
@@ -243,25 +243,26 @@ class KomgaSseApi:
                 try:
                     callback(series_info)
                 except Exception as e:
-                    logger.error(f"回调函数执行失败: {e}", exc_info=True)
+                    self.on_error(e)
 
     def on_message(self, data):
         try:
             json_data = json.loads(data)
         except json.JSONDecodeError as e:
-            logger.error(f"message JSON解析失败: {e}")
-        logger.debug(f"收到消息: {data}")
+            self.on_error(e)
+        logger.debug(f"收到非订阅 SSE 消息: {data}")
 
     def on_error(self, e: Exception):
         """错误事件回调函数"""
         # 错误处理行为
+        logger.error(f"遇到 SSE 错误: {e} ", exc_info=True)
         return
 
     def on_event(self, event_type, event_data):
         """订阅事件回调函数"""
         # 仅通知在 RefreshEventType 类型的事件
         if event_type in RefreshEventType:
-            logger.info(f"捕获订阅事件 [{event_type}]:{event_data}")
+            logger.debug(f"捕获订阅事件 [{event_type}]:{event_data}")
             parsed_data = json.loads(event_data)
             # 在配置了KOMGA_LIBRARY_LIST时, 不通告 KOMGA_LIBRARY_LIST 外的库更改
             if parsed_data.get('libraryId') not in KOMGA_LIBRARY_LIST and len(KOMGA_LIBRARY_LIST) > 0:
@@ -275,4 +276,4 @@ class KomgaSseApi:
             }
             self._notify_callbacks(arg)
         else:
-            logger.info(f"捕获无关事件 [{event_type}]:{event_data}")
+            logger.debug(f"捕获无关事件 [{event_type}]:{event_data}")

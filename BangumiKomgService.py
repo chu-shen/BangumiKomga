@@ -157,39 +157,6 @@ class SseService(BaseBangumiKomgService):
         super().stop()
 
 
-class BangumiKomgaServiceFactory:
-    def __init__(self):
-        self.services = []
-        self.config = load_config()
-
-    def start_services(self):
-        if self.config.USE_POLL:
-            self._start_polling_service()
-        if self.config.USE_SSE:
-            self._start_sse_service()
-
-        # 阻塞主线程
-        try:
-            while True:
-                time.sleep(60)
-        except KeyboardInterrupt:
-            self.stop_services()
-
-    def _start_polling_service(self):
-        svc = PollingService()
-        svc.start()
-        self.services.append(svc)
-
-    def _start_sse_service(self):
-        svc = SseService()
-        svc.start()
-        self.services.append(svc)
-
-    def stop_services(self):
-        for svc in self.services:
-            svc.stop()
-
-
 # class PollingCaller:
 #     def __init__(self):
 #         self.is_refreshing = False

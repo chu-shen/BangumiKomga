@@ -3,6 +3,8 @@ import api.komgaApi as komgaApi
 from config.config import *
 from tools.log import logger
 import threading
+from tools.db import initSqlite3, record_series_status, record_book_status
+from processMetadata import setKomangaSeriesMetadata, setKomangaBookMetadatat
 
 
 class InitEnv:
@@ -18,35 +20,39 @@ class InitEnv:
             KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD
         )
 
-# 也许应该使用抽象类?
-
 
 class BaseBangumiKomgService:
     def __init__(self):
         # 初始化共享资源
-        self.komga = init_komga_client()
-        self.bgm = init_bangumi_client()
-        self.conn, self.cursor = init_sqlite3()
+        env = InitEnv()
+        self.komga = env.komga
+        self.bgm = env.bgm
+        self.conn, self.cursor = initSqlite3()
         self.lock = threading.Lock()
         self.log = logger
         # 共享配置参数
         self.use_thumbnail = USE_BANGUMI_THUMBNAIL
         self.failed_collection = CREATE_FAILED_COLLECTION
 
-    def _get_series_record_db(self, series_id, success, message):
+    def _get_series_record_db(self, series_ids, success, message):
         with self.lock:
-            self.cursor.execute()
-            self.conn.commit()
+            reuslt = self.cursor.execute("SELECT * FROM refreshed_series WHERE series_id IN ({})".format(
+                ",".join("?" for _ in series_ids)), series_ids).fetchall()
+        return reuslt
+
+    def _get_series_metadata(self, series, subject_id):
+        # 获取元数据
+        metadata = self.bgm.get_subject_metadata(subject_id)
 
     def _update_series_metadata(self, series, subject_id):
-        # 获取元数据并验证
+        # 更新元数据
         metadata = self.bgm.get_subject_metadata(subject_id)
         if not metadata.isvalid:
             self._record_series_status(series["id"], False, "无效元数据")
             return False
 
         # 构建Komga元数据对象
-        komga_data = processMetadata.setKomangaSeriesMetadata(
+        komga_data = setKomangaSeriesMetadata(
             metadata, series["name"], self.bgm)
 
         # 更新封面
@@ -71,10 +77,29 @@ class BaseBangumiKomgService:
 class PollingService(BaseBangumiKomgService):
     def __init__(self):
         super().__init__()
+        self.is_refreshing = False
         self.interval = SERVICE_POLL_INTERVAL
         self.refresh_counter = 0
         self.full_refresh_interval = SERVICE_REFRESH_ALL_METADATA_INTERVAL
         self.lock = threading.Lock()
+
+    def _safe_refresh(self, refresh_func, *args, **kwargs):
+        """封装安全刷新操作"""
+        with self.lock:
+            if self.is_refreshing:
+                logger.warning("已有元数据刷新任务在运行")
+                return False
+            self.is_refreshing = True
+
+        try:
+            refresh_func(*args, **kwargs)
+            return True
+        except Exception as e:
+            logger.error(f"刷新失败: {str(e)}", exc_info=True)
+            return False
+        finally:
+            with self.lock:
+                self.is_refreshing = False
 
     def _run_partial_refresh(self):
         """增量刷新逻辑"""
@@ -95,7 +120,7 @@ class PollingService(BaseBangumiKomgService):
         if not subject_id:
             self.log.error(f"无法获取{series['name']}的Bangumi ID")
             return
-        self._update_series_metadata(series, subject_id)
+        self._safe_refresh(self._update_series_metadata(series, subject_id))
 
     def _get_modified_series(self):
         """获取修改过的系列"""
@@ -111,14 +136,23 @@ class PollingService(BaseBangumiKomgService):
                 try:
                     with self.lock:
                         if self.refresh_counter % self.full_refresh_interval == 0:
-                            self._run_full_refresh()
+                            success = self._run_full_refresh()
                         else:
-                            self._run_partial_refresh()
+                            success = self._run_partial_refresh()
+                        if not success:
+                            retry_delay = min(2**self.interval, 60)
+                            time.sleep(retry_delay)
                         self.refresh_counter += 1
                 except Exception as e:
-                    self.log.error(f"轮询错误: {str(e)}", exc_info=True)
-                time.sleep(self.interval)
-
+                    logger.error(f"轮询失败: {str(e)}", exc_info=True)
+                    # 指数退避重试
+                    retry_delay = min(2**self.interval, 60)
+                    # 固定值重试
+                    # retry_delay = self.interval
+                    logger.warning(f"{retry_delay}秒后重试...")
+                    time.sleep(retry_delay)
+                    continue
+        # 使用守护线程启动轮询
         threading.Thread(target=polling_task, daemon=True).start()
 
 
@@ -155,79 +189,3 @@ class SseService(BaseBangumiKomgService):
         """优雅关闭"""
         self.sse_client.stop()
         super().stop()
-
-
-# class PollingCaller:
-#     def __init__(self):
-#         self.is_refreshing = False
-#         self.interval = SERVICE_POLL_INTERVAL
-#         # 多少次轮询后执行一次全量刷新
-#         self.refresh_all_metadata_interval = SERVICE_REFRESH_ALL_METADATA_INTERVAL
-#         self.refresh_counter = 0
-#         # 添加锁对象
-#         self.lock = threading.Lock()
-
-#     def _safe_refresh(self, refresh_func):
-#         """
-#         封装安全刷新操作
-#         """
-#         with self.lock:
-#             if self.is_refreshing:
-#                 logger.warning("已有元数据刷新任务在运行")
-#                 return False
-#             self.is_refreshing = True
-
-#         try:
-#             refresh_func()
-#             return True
-#         except Exception as e:
-#             logger.error(f"刷新失败: {str(e)}", exc_info=True)
-#             return False
-#         finally:
-#             with self.lock:
-#                 self.is_refreshing = False
-
-#     def start_polling(self):
-#         """
-#         启动服务
-#         """
-
-#         def poll():
-#             while True:
-#                 try:
-#                     if self.refresh_counter >= self.refresh_all_metadata_interval:
-#                         success = self._safe_refresh(refresh_metadata)
-#                         self.refresh_counter = 0
-#                     else:
-#                         success = self._safe_refresh(refresh_partial_metadata)
-
-#                     if not success:
-#                         retry_delay = min(2**self.interval, 60)
-#                         time.sleep(retry_delay)
-
-#                     self.refresh_counter += 1
-#                     # 等待一个预设时间间隔
-#                     time.sleep(self.interval)
-
-#                 except Exception as e:
-#                     logger.error(f"轮询失败: {str(e)}", exc_info=True)
-#                     # 指数退避重试
-#                     retry_delay = min(2**self.interval, 60)
-#                     # 固定值重试
-#                     # retry_delay = self.interval
-#                     logger.warning(f"{retry_delay}秒后重试...")
-#                     time.sleep(retry_delay)
-#                     continue
-
-#         # 使用守护线程启动轮询
-#         threading.Thread(target=poll, daemon=True).start()
-
-
-# def main():
-#     PollingCaller().start_polling()
-
-#     # 防止服务主线程退出
-#     try:
-#         threading.Event().wait()
-#     except KeyboardInterrupt:
-#         logger.warning("服务手动终止: 退出 BangumiKomga 服务")

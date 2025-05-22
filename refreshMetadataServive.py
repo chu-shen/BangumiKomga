@@ -14,15 +14,17 @@ from tools.log import logger  # 假设已创建日志系统
 
 
 def start_services():
-    services = []
+    services = None
     if config.USE_BANGUMI_KOMGA_SERVICE_POLL:
-        services.append(PollingService())
+        services = PollingService()
     if config.USE_BANGUMI_KOMGA_SERVICE_SSE:
-        services.append(SseService())
-
-    for svc in services:
-        svc.start()
-
+        services = SseService()
+    if services:
+        # 改为仅启动一种服务
+        services.start()
+    else:
+        logger.error(f"无法启动服务, 未指定服务配置项")
+        return
     try:
         while True:
             threading.Event().wait()

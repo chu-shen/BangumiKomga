@@ -122,7 +122,7 @@ class PollingService(BaseBangumiKomgService):
         threading.Thread(target=polling_task, daemon=True).start()
 
 
-class SseService(BaseKomgaService):
+class SseService(BaseBangumiKomgService):
     def __init__(self):
         super().__init__()
         self.sse_client = KomgaSseClient(

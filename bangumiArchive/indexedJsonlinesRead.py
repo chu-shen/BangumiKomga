@@ -63,28 +63,27 @@ class IndexedDataReader:
         根据ID从数据文件中快速获取对应行内容
         """
         # 检查ID是否存在
-        if targetID in self.id_offsets:
-            offsets = self.id_offsets[targetID]
-        else:
+        if targetID not in self.id_offsets:
             logger.warning(f"未在索引中找到 ID: {targetID}")
             return {}
 
-        if len(offsets) < 1:
+        offsets = self.id_offsets[targetID]
+
+        if not offsets:
             logger.warning(f"索引数据 {self.file_path} 中缺失 {str(targetID)} 数据")
             return []
         results = []
         # 根据偏移量定位并读取行
         try:
-            for offset in offsets:
-                with open(self.file_path, 'rb') as f:
-                    f.seek(offsets)
+            with open(self.file_path, 'rb') as f:
+                for offset in offsets:
+                    f.seek(offset)
                     line = f.readline().decode('utf-8')
                     item = json.loads(line)
                     if item.get(targetFiled, 0) == targetID:
                         results.append(item)
                     else:
                         logger.warning(f"在Archive数据中缺失 {str(targetID)} 行")
-                        continue
             return results
         except Exception as e:
             logger.error(f"通过索引读取Archive时发生错误: {str(e)}")

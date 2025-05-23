@@ -44,8 +44,8 @@ def file_integrity_verifier(file_path, expected_hash=None, expected_size=None):
     return True
 
 
-def get_latest_url_and_time():
-    """获取最新Archive文件下载地址"""
+def get_latest_url_update_time_and_size():
+    """获取最新Archive文件下载地址, 更新时间和文件尺寸"""
     try:
         response = requests.get(
             "https://raw.githubusercontent.com/bangumi/Archive/master/aux/latest.json",
@@ -53,12 +53,12 @@ def get_latest_url_and_time():
         )
         response.raise_for_status()
         data = response.json()
-        return data.get("browser_download_url"), data.get("updated_at")
+        return data.get("browser_download_url"), data.get("updated_at"), data.get("size")
     except requests.exceptions.RequestException as e:
         logger.warning(f"Bangumi Archive JSON 获取失败: {str(e)}")
     except json.JSONDecodeError as e:
         logger.warning(f"Bangumi Archive JSON 解析失败: {str(e)}")
-    return "", ""
+    return "", "", ""
 
 
 def update_index():
@@ -75,7 +75,7 @@ def update_index():
     return
 
 
-def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
+def update_archive(url, target_dir=ARCHIVE_FILES_DIR, expected_size=None):
     """下载并解压文件"""
     temp_zip_path = os.path.join(target_dir, "temp_archive.zip")
     # 也许应该加个下载进度条?
@@ -85,7 +85,8 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
         response = requests.get(url, stream=True, timeout=10)
         response.raise_for_status()
         # 获取文件尺寸
-        expected_size = int(response.headers.get('content-length', 0))
+        if not expected_size:
+            expected_size = int(response.headers.get('content-length', 0))
         with open(temp_zip_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
@@ -111,7 +112,7 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
 def check_archive():
     os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
 
-    download_url, latest_update_time = get_latest_url_and_time()
+    download_url, latest_update_time, zip_file_size = get_latest_url_update_time_and_size()
     if download_url == "":
         logger.warning("无法获取 Bangumi Archive 下载链接, 跳过Archive更新")
         return
@@ -124,7 +125,8 @@ def check_archive():
         latest_update_time)
     if remote_update_time > local_update_time:
         logger.info("检测到新版本 Bangumi Archive, 开始更新...")
-        if update_archive(download_url, ARCHIVE_FILES_DIR):
+        if update_archive(download_url, ARCHIVE_FILES_DIR, zip_file_size):
+            # 更新索引文件
             update_index()
             TimeCacheManager.save_time(
                 UpdateTimeCacheFilePath, latest_update_time)

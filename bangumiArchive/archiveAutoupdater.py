@@ -6,11 +6,42 @@ from config.config import ARCHIVE_FILES_DIR
 from tools.log import logger
 from bangumiArchive.indexedJsonlinesRead import IndexedDataReader
 from tools.cacheTime import TimeCacheManager
+import hashlib
 
 # TODO: 加入Archive更新定时检查功能
 
 UpdateTimeCacheFilePath = os.path.join(
     ARCHIVE_FILES_DIR, "archive_update_time.json")
+
+
+def file_integrity_verifier(file_path, expected_hash=None, expected_size=None):
+    """文件完整性验证工具"""
+    # 分块哈希校验
+    if expected_hash:
+        sha256_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(chunk)
+        if sha256_hash.hexdigest() != expected_hash:
+            logger.error("哈希校验失败: 文件 {file_path} 可能损坏或被篡改")
+            return False
+        else:
+            return True
+
+    # 验证文件大小
+    if expected_size and os.path.getsize(file_path) != expected_size:
+        logger.error(
+            f"文件大小验证失败: 预期 {expected_size} 字节, 实际 {os.path.getsize(file_path)} 字节")
+        return False
+
+    # 实际解压zip试试
+    if file_path.lower().endswith('.zip'):
+        with zipfile.ZipFile(file_path) as zip_ref:
+            if zip_ref.testzip() is not None:
+                logger.error(f"压缩包CRC校验失败: {file_path}文件损坏")
+                return False
+
+    return True
 
 
 def get_latest_url_and_time():
@@ -53,9 +84,13 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
         # 下载文件
         response = requests.get(url, stream=True, timeout=10)
         response.raise_for_status()
+        # 获取文件尺寸
+        expected_size = int(response.headers.get('content-length', 0))
         with open(temp_zip_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
+        if not file_integrity_verifier(file_path=temp_zip_path, expected_size=expected_size):
+            raise Exception("下载的Archive文件不完整")
         logger.info(f"Bangumi Archive 压缩包下载成功: {temp_zip_path}")
 
         # 解压文件

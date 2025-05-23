@@ -23,22 +23,21 @@ def file_integrity_verifier(file_path, expected_hash=None, expected_size=None):
             for chunk in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(chunk)
         if sha256_hash.hexdigest() != expected_hash:
-            logger.error("哈希校验失败: 文件 {file_path} 可能损坏或被篡改")
+            logger.error(f"哈希校验失败: 文件 {file_path} 可能损坏或被篡改")
             return False
-        else:
-            return True
 
     # 验证文件大小
     if expected_size and os.path.getsize(file_path) != expected_size:
         logger.error(
-            f"文件大小验证失败: 预期 {expected_size} 字节, 实际 {os.path.getsize(file_path)} 字节")
+            f"文件大小验证失败: 预期 {expected_size} 字节, 实际 {os.path.getsize(file_path)} 字节"
+        )
         return False
 
-    # 实际解压zip试试
-    if file_path.lower().endswith('.zip'):
+    # ZIP 完整性自检
+    if file_path.lower().endswith(".zip"):
         with zipfile.ZipFile(file_path) as zip_ref:
             if zip_ref.testzip() is not None:
-                logger.error(f"压缩包CRC校验失败: {file_path}文件损坏")
+                logger.error(f"压缩包 CRC 校验失败: {file_path} 文件损坏")
                 return False
 
     return True
@@ -53,7 +52,11 @@ def get_latest_url_update_time_and_size():
         )
         response.raise_for_status()
         data = response.json()
-        return data.get("browser_download_url"), data.get("updated_at"), data.get("size")
+        return (
+            data.get("browser_download_url"),
+            data.get("updated_at"),
+            data.get("size"),
+        )
     except requests.exceptions.RequestException as e:
         logger.warning(f"Bangumi Archive JSON 获取失败: {str(e)}")
     except json.JSONDecodeError as e:
@@ -86,11 +89,13 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR, expected_size=None):
         response.raise_for_status()
         # 获取文件尺寸
         if not expected_size:
-            expected_size = int(response.headers.get('content-length', 0))
+            expected_size = int(response.headers.get("content-length", 0))
         with open(temp_zip_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
-        if not file_integrity_verifier(file_path=temp_zip_path, expected_size=expected_size):
+        if not file_integrity_verifier(
+            file_path=temp_zip_path, expected_size=expected_size
+        ):
             raise Exception("下载的Archive文件不完整")
         logger.info(f"Bangumi Archive 压缩包下载成功: {temp_zip_path}")
 
@@ -112,7 +117,9 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR, expected_size=None):
 def check_archive():
     os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
 
-    download_url, latest_update_time, zip_file_size = get_latest_url_update_time_and_size()
+    download_url, latest_update_time, zip_file_size = (
+        get_latest_url_update_time_and_size()
+    )
     if download_url == "":
         logger.warning("无法获取 Bangumi Archive 下载链接, 跳过Archive更新")
         return

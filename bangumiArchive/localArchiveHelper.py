@@ -13,7 +13,7 @@ def search_line_with_index(file_path: str, subject_id: int, target_field: str):
         result = indexed_data.get_data_by_id(
             targetID=subject_id, targetFiled=target_field)
         if len(result) < 1:
-            logger.error(f"Archive文件: {file_path} 中不包含 {subject_id} 相关数据")
+            logger.warning(f"Archive文件: {file_path} 中不包含 {subject_id} 相关数据")
             return None
         else:
             return result[0]
@@ -64,7 +64,7 @@ def search_line_batch_optimized(
     except Exception as e:
         logger.error(f"读取Archive发生错误: {str(e)}")
     # 没有找到任何结果
-    logger.error(f"Archive中不包含Subject_ID: {subject_id} 的元数据.")
+    logger.warning(f"Archive中不包含Subject_ID: {subject_id} 的元数据.")
     return None
 
 
@@ -79,11 +79,10 @@ def search_list_with_index(
         results = indexed_data.get_data_by_id(
             targetID=subject_id, targetFiled=target_field)
         if len(results) < 1:
-            logger.error(f"Archive文件: {file_path} 中不包含 {subject_id} 相关数据")
+            logger.warning(f"Archive文件: {file_path} 中不包含 {subject_id} 相关数据")
             return None
         else:
             return results
-        return
     except FileNotFoundError:
         logger.error(f"Archive文件未找到: {file_path}")
     except Exception as e:

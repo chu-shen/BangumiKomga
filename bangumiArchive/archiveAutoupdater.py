@@ -6,6 +6,7 @@ from config.config import ARCHIVE_FILES_DIR
 from tools.log import logger
 from bangumiArchive.indexedJsonlinesRead import IndexedDataReader
 from tools.cacheTime import TimeCacheManager
+import hashlib
 
 # TODO: 加入Archive更新定时检查功能
 
@@ -13,8 +14,37 @@ UpdateTimeCacheFilePath = os.path.join(
     ARCHIVE_FILES_DIR, "archive_update_time.json")
 
 
-def get_latest_url_and_time():
-    """获取最新Archive文件下载地址"""
+def file_integrity_verifier(file_path, expected_hash=None, expected_size=None):
+    """文件完整性验证工具"""
+    # 分块哈希校验
+    if expected_hash:
+        sha256_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(chunk)
+        if sha256_hash.hexdigest() != expected_hash:
+            logger.error(f"哈希校验失败: 文件 {file_path} 可能损坏或被篡改")
+            return False
+
+    # 验证文件大小
+    if expected_size and os.path.getsize(file_path) != expected_size:
+        logger.error(
+            f"文件大小验证失败: 预期 {expected_size} 字节, 实际 {os.path.getsize(file_path)} 字节"
+        )
+        return False
+
+    # ZIP 完整性自检
+    if file_path.lower().endswith(".zip"):
+        with zipfile.ZipFile(file_path) as zip_ref:
+            if zip_ref.testzip() is not None:
+                logger.error(f"压缩包 CRC 校验失败: {file_path} 文件损坏")
+                return False
+
+    return True
+
+
+def get_latest_url_update_time_and_size():
+    """获取最新Archive文件下载地址, 更新时间和文件尺寸"""
     try:
         response = requests.get(
             "https://raw.githubusercontent.com/bangumi/Archive/master/aux/latest.json",
@@ -22,12 +52,16 @@ def get_latest_url_and_time():
         )
         response.raise_for_status()
         data = response.json()
-        return data.get("browser_download_url"), data.get("updated_at")
+        return (
+            data.get("browser_download_url"),
+            data.get("updated_at"),
+            data.get("size"),
+        )
     except requests.exceptions.RequestException as e:
         logger.warning(f"Bangumi Archive JSON 获取失败: {str(e)}")
     except json.JSONDecodeError as e:
         logger.warning(f"Bangumi Archive JSON 解析失败: {str(e)}")
-    return "", ""
+    return "", "", ""
 
 
 def update_index():
@@ -44,7 +78,7 @@ def update_index():
     return
 
 
-def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
+def update_archive(url, target_dir=ARCHIVE_FILES_DIR, expected_size=None):
     """下载并解压文件"""
     temp_zip_path = os.path.join(target_dir, "temp_archive.zip")
     # 也许应该加个下载进度条?
@@ -53,9 +87,16 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
         # 下载文件
         response = requests.get(url, stream=True, timeout=10)
         response.raise_for_status()
+        # 获取文件尺寸
+        if not expected_size:
+            expected_size = int(response.headers.get("content-length", 0))
         with open(temp_zip_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
+        if not file_integrity_verifier(
+            file_path=temp_zip_path, expected_size=expected_size
+        ):
+            raise Exception("下载的Archive文件不完整")
         logger.info(f"Bangumi Archive 压缩包下载成功: {temp_zip_path}")
 
         # 解压文件
@@ -76,7 +117,9 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR):
 def check_archive():
     os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
 
-    download_url, latest_update_time = get_latest_url_and_time()
+    download_url, latest_update_time, zip_file_size = (
+        get_latest_url_update_time_and_size()
+    )
     if download_url == "":
         logger.warning("无法获取 Bangumi Archive 下载链接, 跳过Archive更新")
         return
@@ -89,7 +132,8 @@ def check_archive():
         latest_update_time)
     if remote_update_time > local_update_time:
         logger.info("检测到新版本 Bangumi Archive, 开始更新...")
-        if update_archive(download_url, ARCHIVE_FILES_DIR):
+        if update_archive(download_url, ARCHIVE_FILES_DIR, zip_file_size):
+            # 更新索引文件
             update_index()
             TimeCacheManager.save_time(
                 UpdateTimeCacheFilePath, latest_update_time)

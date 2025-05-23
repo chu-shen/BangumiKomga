@@ -247,6 +247,8 @@ class BangumiArchiveDataSource(DataSource):
         离线数据源获取条目元数据
         """
         data = self._get_metadata_from_archive(subject_id)
+        if not data:
+            return {}
         try:
             result = {
                 "date": data.get("date"),

@@ -17,6 +17,7 @@
   - [同步阅读进度](#同步阅读进度)
   - [命名建议](#命名建议)
   - [Issues \& Pull Requests](#issues--pull-requests)
+  - [Contributors](#contributors)
   - [致谢](#致谢)
 
 > [!WARNING]
@@ -65,7 +66,7 @@
 
 ## 先决条件
 
-- 一个有 admin 权限的 Komga 实例
+- 一个有 ADMIN 权限的 Komga 用户，最低版本[1.19.0](https://github.com/gotson/komga/releases/tag/1.19.0)
 - 使用 Windows/Linux/MAc 等主流操作系统, 也可在其上使用 Docker
 - 如需在 Windows, Linux 或 Mac 上直接执行脚本, 应安装有Python
 
@@ -262,6 +263,14 @@ _命名建议修改自某喵_
 ## Issues & Pull Requests
 
 欢迎提交新规则、问题、功能……
+
+## Contributors
+
+<a href="https://github.com/chu-shen/BangumiKomga/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=chu-shen/BangumiKomga" />
+</a>
+
+Made with [contrib.rocks](https://contrib.rocks).
 
 ## 致谢
 

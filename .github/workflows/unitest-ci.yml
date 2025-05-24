@@ -20,16 +20,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install requirement
+      - name: Install Requirements And Test-only Package
         run: |
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
-          
+          pip install coverage
+
       - name: Run Unittest
         run: |
           python run_unittests.py
 
-      - name: 上传测试结果
+      - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
           name: test-results

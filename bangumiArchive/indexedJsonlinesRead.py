@@ -58,7 +58,7 @@ class IndexedDataReader:
             return {}
         return id_offsets
 
-    def get_data_by_id(self, targetID: str, targetFiled: str) -> dict:
+    def get_data_by_id(self, targetID: str, targetFiled: str) -> list:
         """
         根据ID从数据文件中快速获取对应行内容
         """

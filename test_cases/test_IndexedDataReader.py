@@ -16,11 +16,11 @@ class TestIndexedDataReader(unittest.TestCase):
             os.path.join(ARCHIVE_FILES_DIR, "subject-relations.jsonlines"))
 
     def test_date_by_index_str(self):
-        result = self.subject_reader.get_data_by_id("104227", "id")
+        result = self.subject_reader.get_data_by_id("104227", "id")[0]
         self.assertEqual(result["name_cn"], "我喜欢的人—高桥真短篇集")
 
     def test_date_by_index_int(self):
-        result = self.subject_reader.get_data_by_id(104227, "id")
+        result = self.subject_reader.get_data_by_id(104227, "id")[0]
         self.assertEqual(result["name_cn"], "我喜欢的人—高桥真短篇集")
 
     def tearDown(self):

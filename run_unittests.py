@@ -1,0 +1,59 @@
+import os
+import sys
+import unittest
+from datetime import datetime
+import xml.etree.ElementTree as ET
+
+# 添加源代码路径（根据实际项目结构调整）
+sys.path.insert(0, os.path.abspath('src'))
+
+
+def write_junit_xml(result, filename):
+    testsuite = ET.Element("testsuite", name="MyTests",
+                           tests=str(result.testsRun))
+    for test, exc in result.failures + result.errors:
+        testcase = ET.SubElement(testsuite, "testcase", name=str(test))
+        failure = ET.SubElement(testcase, "failure")
+        failure.text = exc
+    tree = ET.ElementTree(testsuite)
+    tree.write(filename, encoding="utf-8", xml_declaration=True)
+
+
+def run_unit_tests():
+    # 创建测试报告目录
+    report_dir = "test_results"
+    os.makedirs(report_dir, exist_ok=True)
+
+    # 发现测试用例
+    loader = unittest.TestLoader()
+    suite = loader.discover(
+        start_dir='test_case',
+        pattern='test_*.py'
+    )
+
+    # 生成带时间戳的报告文件名
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_file = os.path.join(report_dir, f"test_report_{timestamp}.html")
+
+    # 使用标准库的 TextTestRunner 执行测试并输出到文件
+    with open(report_file, 'w', encoding='utf-8') as f:
+        runner = unittest.TextTestRunner(stream=f, verbosity=2)
+        result = runner.run(suite)
+
+    # xml_report_file = os.path.join(report_dir, f"test_report_{timestamp}.xml")
+    # write_junit_xml(result, xml_report_file)
+    # print(f"JUnit XML 报告已生成: {xml_report_file}")
+
+    # 输出简要结果到控制台
+    print(f"\n测试执行完成，报告已保存至: {report_file}")
+    print(f"测试用例总数: {result.testsRun}")
+    print(f"失败用例数: {len(result.failures)}")
+    print(f"错误用例数: {len(result.errors)}")
+
+    # 返回失败用例数量作为退出码（CI友好）
+    return len(result.failures) + len(result.errors)
+
+
+if __name__ == '__main__':
+    exit_code = run_unit_tests()
+    sys.exit(exit_code)

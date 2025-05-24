@@ -4,6 +4,9 @@ import unittest
 from datetime import datetime
 import xml.etree.ElementTree as ET
 
+# TODO: 覆盖率?
+
+
 # 添加源代码路径（根据实际项目结构调整）
 sys.path.insert(0, os.path.abspath('src'))
 
@@ -24,22 +27,23 @@ def run_unit_tests():
     report_dir = "test_results"
     os.makedirs(report_dir, exist_ok=True)
 
-    # 发现测试用例
     loader = unittest.TestLoader()
+    # 自动发现 test_cases 下的所有 test_ 开头的测试用例
     suite = loader.discover(
-        start_dir='test_case',
+        start_dir='test_cases',
         pattern='test_*.py'
     )
 
     # 生成带时间戳的报告文件名
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_file = os.path.join(report_dir, f"test_report_{timestamp}.html")
+    report_file = os.path.join(report_dir, f"test_report_{timestamp}.txt")
 
-    # 使用标准库的 TextTestRunner 执行测试并输出到文件
+    # 使用 TextTestRunner 执行测试并输出到文件
     with open(report_file, 'w', encoding='utf-8') as f:
         runner = unittest.TextTestRunner(stream=f, verbosity=2)
         result = runner.run(suite)
 
+    # 输出 JUnit XML 格式报告
     # xml_report_file = os.path.join(report_dir, f"test_report_{timestamp}.xml")
     # write_junit_xml(result, xml_report_file)
     # print(f"JUnit XML 报告已生成: {xml_report_file}")
@@ -50,7 +54,7 @@ def run_unit_tests():
     print(f"失败用例数: {len(result.failures)}")
     print(f"错误用例数: {len(result.errors)}")
 
-    # 返回失败用例数量作为退出码（CI友好）
+    # 返回失败用例数量作为退出码
     return len(result.failures) + len(result.errors)
 
 

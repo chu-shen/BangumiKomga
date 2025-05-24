@@ -117,16 +117,28 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR, expected_size=None):
 
 def check_archive():
     os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
+    # 读取本地缓存时间
+    local_update_time = TimeCacheManager.convert_to_datetime(
+        TimeCacheManager.read_time(UpdateTimeCacheFilePath))
+
+    if ARCHIVE_CHECK_INTERVAL:
+        # 转换 ARCHIVE_CHECK_INTERVAL
+        check_interval = TimeCacheManager.convert_to_timedelta(
+            ARCHIVE_CHECK_INTERVAL)
+
+        # 判断当前是否在 ARCHIVE_CHECK_INTERVAL 内
+        if (datetime.datetime.now() - local_update_time) < check_interval:
+            logger.info("依设置跳过 Bangumi Archive 更新步骤")
+            return
 
     download_url, latest_update_time, zip_file_size = (
         get_latest_url_update_time_and_size()
     )
     if download_url == "":
-        logger.warning("无法获取 Bangumi Archive 下载链接, 跳过Archive更新")
+        logger.warning("无法获取 Bangumi Archive 下载链接, 跳过Archive更新步骤")
         return
-    # 读取本地缓存时间
-    local_update_time = TimeCacheManager.convert_to_datetime(
-        TimeCacheManager.read_time(UpdateTimeCacheFilePath))
+
+    # 获取Archive最新更新时间
     remote_update_time = TimeCacheManager.convert_to_datetime(
         latest_update_time)
     if remote_update_time > local_update_time:

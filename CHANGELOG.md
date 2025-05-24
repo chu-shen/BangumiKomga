@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.17.0](https://github.com/chu-shen/BangumiKomga/compare/v0.16.1...v0.17.0) (2025-05-24)
+
+
+### Features
+
+* 添加`file_integrity_verifier()`并改进`update_archive()`的下载 ([#86](https://github.com/chu-shen/BangumiKomga/issues/86)) ([1ea5e1c](https://github.com/chu-shen/BangumiKomga/commit/1ea5e1c0b9c4f0dd2cbc24288655433998f46ccb))
+
+
+### Bug Fixes
+
+* 修复`get_data_by_id()`的ID类型错误 ([#87](https://github.com/chu-shen/BangumiKomga/issues/87)) ([75a2d76](https://github.com/chu-shen/BangumiKomga/commit/75a2d7660ef57383ab5ab281d5d1630700ad0062))
+* 修复偏移量读取错误 ([90050a1](https://github.com/chu-shen/BangumiKomga/commit/90050a1f16ef1a51d1d9a2183269fcf20ef58f3c))
+
+
+### Documentation
+
+* add Contributors ([ec1b1d9](https://github.com/chu-shen/BangumiKomga/commit/ec1b1d9054ff284178caf2b757e062b41dd2698c))
+* 更新 Komga 最低版本要求 ([af066e8](https://github.com/chu-shen/BangumiKomga/commit/af066e8e8a74ef9ad8db31bad39d1662df7182d0))
+
 ## [0.16.1](https://github.com/chu-shen/BangumiKomga/compare/v0.16.0...v0.16.1) (2025-05-09)
 
 

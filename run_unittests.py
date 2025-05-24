@@ -3,11 +3,13 @@ import sys
 import unittest
 from datetime import datetime
 import xml.etree.ElementTree as ET
+# coverage 不应纳入 requirements.txt, 仅在GithubAction中使用
+import coverage
 
-# TODO: 覆盖率?
+# 需要测试钩子吗?
 
 
-# 添加源代码路径（根据实际项目结构调整）
+# 添加源代码路径
 sys.path.insert(0, os.path.abspath('src'))
 
 
@@ -23,6 +25,14 @@ def write_junit_xml(result, filename):
 
 
 def run_unit_tests():
+    # 初始化覆盖率收集
+    cov = coverage.Coverage(
+        include=['*.py'],
+        omit=['*__pycache__*', '*test_cases*',
+              '*test_results*', '*archivedata*', '*logs*']
+    )
+    cov.start()
+
     # 创建测试报告目录
     report_dir = "test_results"
     os.makedirs(report_dir, exist_ok=True)
@@ -48,11 +58,22 @@ def run_unit_tests():
     # write_junit_xml(result, xml_report_file)
     # print(f"JUnit XML 报告已生成: {xml_report_file}")
 
+    # 停止覆盖率收集
+    cov.stop()
+    cov.save()
+
+    # 输出覆盖率报告
+    coverage_report_file = os.path.join(
+        report_dir, f"coverage_report_{timestamp}.txt")
+    with open(os.path.join(report_dir, coverage_report_file), "w") as f:
+        cov.report(file=f)
+
     # 输出简要结果到控制台
     print(f"\n测试执行完成，报告已保存至: {report_file}")
     print(f"测试用例总数: {result.testsRun}")
     print(f"失败用例数: {len(result.failures)}")
     print(f"错误用例数: {len(result.errors)}")
+    print(f"\n代码覆盖率：{cov.report():.1f}%")
 
     # 返回失败用例数量作为退出码
     return len(result.failures) + len(result.errors)

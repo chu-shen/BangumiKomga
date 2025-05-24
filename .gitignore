@@ -5,3 +5,4 @@ __pycache__/
 .vscode
 *.json*
 *.jsonlines*
+test_results/

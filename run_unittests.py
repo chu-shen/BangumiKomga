@@ -65,7 +65,7 @@ def run_unit_tests():
     # 输出覆盖率报告
     coverage_report_file = os.path.join(
         report_dir, f"coverage_report_{timestamp}.txt")
-    with open(os.path.join(report_dir, coverage_report_file), "w") as f:
+    with open(coverage_report_file, "w") as f:
         cov.report(file=f)
 
     # 输出简要结果到控制台

@@ -1,8 +1,9 @@
 name: Unittest CI
 
 on:
-  push:
-    branches: [ "main" ]
+  # 没啥必要
+  # push:
+  #   branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 jobs:

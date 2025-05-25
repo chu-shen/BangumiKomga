@@ -32,10 +32,16 @@ def write_junit_xml(result, filename):
 def run_unit_tests():
     # 初始化覆盖率收集
     cov = coverage.Coverage(
-        include=['*.py'],
-        omit=['*__pycache__*', '*test_cases*', '*test_results*', '*archivedata*', '*logs*',
-              # 排除标准库和第三方库
-              '*/lib/*']
+        include=["*.py"],
+        omit=[
+            "*__pycache__*",
+            "*tests*",
+            "*test_results*",
+            "*archivedata*",
+            "*logs*",
+            # 排除标准库和第三方库
+            "*/lib/*",
+        ],
     )
     cov.start()
 
@@ -44,9 +50,9 @@ def run_unit_tests():
     os.makedirs(report_dir, exist_ok=True)
 
     loader = unittest.TestLoader()
-    # 自动发现 test_cases 下的所有 test_ 开头的测试用例
+    # 自动发现 tests 下的所有 test_ 开头的测试用例
     suite = loader.discover(
-        start_dir='test_cases',
+        start_dir='tests',
         pattern='test_*.py'
     )
 

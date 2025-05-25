@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch, call
 import json
 import threading
 import time
+from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD
 from api.komgaSseApi import KomgaSseClient, KomgaSseApi, RefreshEventType
 
 
@@ -10,10 +11,10 @@ class TestKomgaIntegration(unittest.TestCase):
     """基于Mock的Komga SSE测试"""
 
     def setUp(self):
-        # 模拟配置
-        self.base_url = "http://mock.komga.test"
-        self.username = "mock_user"
-        self.password = "mock_pass"
+        # 模拟配置, 与config.template.py内容一致
+        self.base_url = KOMGA_BASE_URL
+        self.username = KOMGA_EMAIL
+        self.password = KOMGA_EMAIL_PASSWORD
 
         # 模拟日志系统
         self.mock_logger = MagicMock()
@@ -53,7 +54,7 @@ class TestKomgaIntegration(unittest.TestCase):
         patch.stopall()
 
     def test_full_sse_lifecycle(self):
-        """测试完整的SSE生命周期（模拟）"""
+        """模拟测试完整的SSE生命周期"""
         # 创建客户端
         client = KomgaSseClient(
             self.base_url, self.username, self.password,
@@ -101,7 +102,7 @@ class TestKomgaIntegration(unittest.TestCase):
         self.assertEqual(received_events[4][0], "UnknownEvent")
 
     def test_authentication_flow(self):
-        """测试认证流程（模拟）"""
+        """模拟测试认证流程"""
         # 测试API Key认证
         api_key_client = KomgaSseClient(
             self.base_url, self.username, self.password,
@@ -186,10 +187,18 @@ class TestKomgaIntegration(unittest.TestCase):
 class TestErrorHandling(unittest.TestCase):
     """错误处理测试"""
 
+    def setUp(self):
+        # 模拟配置, 与config.template.py内容一致
+        self.base_url = KOMGA_BASE_URL
+        self.username = KOMGA_EMAIL
+        self.password = KOMGA_EMAIL_PASSWORD
+        self.client = KomgaSseClient(
+            self.base_url, self.username, self.password)
+
     def test_invalid_json_handling(self):
         """测试无效JSON数据处理"""
         # 创建客户端
-        client = KomgaSseClient("http://test", "user", "pass")
+        client = self.client
 
         # 模拟无效JSON数据
         invalid_data = '{"invalid": true'
@@ -200,7 +209,7 @@ class TestErrorHandling(unittest.TestCase):
     def test_network_errors(self):
         """测试网络错误处理"""
         # 创建客户端
-        client = KomgaSseClient("http://test", "user", "pass", retries=1)
+        client = self.client
 
         # 模拟网络错误
         self.response_mock.iter_content.side_effect = Exception(

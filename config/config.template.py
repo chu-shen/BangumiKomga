@@ -9,7 +9,9 @@ KOMGA_LIBRARY_LIST = []
 KOMGA_COLLECTION_LIST = []
 
 # bangumi/Archive 离线元数据
+# 指定是否启用本地离线元数据
 USE_BANGUMI_ARCHIVE = False
+# 本地离线元数据存储目录
 ARCHIVE_FILES_DIR = "./archivedata/"
 
 # 指定是否以服务方式启动 BangumiKomga
@@ -17,7 +19,7 @@ USE_BANGUMI_KOMGA_SERVICE = False
 # 轮询间隔，单位秒
 SERVICE_POLL_INTERVAL = 20
 # 多少次轮询后执行一次全量刷新
-SERVICE_REFRESH_ALL_METADATA_INTERVAL= 10000
+SERVICE_REFRESH_ALL_METADATA_INTERVAL = 10000
 
 # Misc
 # 海报

@@ -1,4 +1,3 @@
-# 是否需要升级python版本?
 FROM python:3.7 AS builder
 WORKDIR /app
 COPY install/requirements.txt install/requirements.txt

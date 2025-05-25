@@ -25,6 +25,10 @@ jobs:
         run: |
           pip install -r install/requirements.txt
           pip install coverage
+          
+      # 便于测试代码导入config.config
+      - name: Copy config.template.py to config.py
+        run: cp config/config.template.py config/config.py
 
       - name: Run Unittest
         # 强制返回 0 避免流水线中断

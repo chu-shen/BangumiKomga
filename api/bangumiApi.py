@@ -150,24 +150,27 @@ class BangumiApiDataSource(DataSource):
         url = f"{self.BASE_URL}/v0/users/-/collections/{subject_id}"
         payload = {"vol_status": progress}
         try:
-            response = self.r.patch(url, headers=self._get_headers(), json=payload)
+            response = self.r.patch(
+                url, headers=self._get_headers(), json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
         return response.status_code == 204
 
     @SlideWindowRateLimiter()
-    def get_subject_thumbnail(self, subject_metadata):
+    def get_subject_thumbnail(self, subject_metadata, image_size="large"):
         """
         获取漫画封面
+
+        image_size可选值:
+        large, common, medium,small, grid
         """
         try:
             if subject_metadata["images"]:
-                image = subject_metadata["images"]["large"]
+                image = subject_metadata["images"][image_size]
             else:
-                image = self.get_subject_metadata(subject_metadata["id"])["images"][
-                    "large"
-                ]
+                image = self.get_subject_metadata(subject_metadata["id"])[
+                    "images"][image_size]
             thumbnail = self.r.get(image).content
         except Exception as e:
             logger.error(f"出现错误: {e}")
@@ -247,6 +250,8 @@ class BangumiArchiveDataSource(DataSource):
         离线数据源获取条目元数据
         """
         data = self._get_metadata_from_archive(subject_id)
+        if not data:
+            return {}
         try:
             result = {
                 "date": data.get("date"),
@@ -345,7 +350,8 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get("access_token"))
 
         if config.get("use_local_archive", False):
-            offline = BangumiArchiveDataSource(config.get("local_archive_folder"))
+            offline = BangumiArchiveDataSource(
+                config.get("local_archive_folder"))
             return FallbackDataSource(offline, online)
 
         return online
@@ -366,6 +372,11 @@ class FallbackDataSource(DataSource):
 
         # 如果结果为空/False（根据业务逻辑判断），则尝试 secondary 数据源
         if not result:
+            logger.warning(
+                "主数据源: %s 失败，尝试备用数据源: %s",
+                self.primary.__class__.__name__,
+                self.secondary.__class__.__name__,
+            )
             result = getattr(self.secondary, method_name)(*args, **kwargs)
         return result
 

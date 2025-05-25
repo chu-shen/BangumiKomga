@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Requirements And Test-only Package
         run: |
-          pip install -r install\requirements.txt
+          pip install -r install/requirements.txt
           pip install coverage
 
       - name: Run Unittest

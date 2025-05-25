@@ -37,6 +37,11 @@ jobs:
           echo "INFO: Test log content" > logs/refreshMetadata.log
           touch recordsRefreshed.db
           sqlite3 recordsRefreshed.db "CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, message TEXT);"
+
+      - name: Prepare archivedata directory
+        run: |
+          mkdir -p archivedata
+          
       
       - name: Run Unittest
         # 强制返回 0 避免流水线中断

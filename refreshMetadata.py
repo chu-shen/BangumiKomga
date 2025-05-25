@@ -167,7 +167,7 @@ def refresh_metadata(series_list=None):
                 USE_BANGUMI_THUMBNAIL
                 and len(komga.get_series_thumbnails(series_id)) == 0
             ):
-                # 用for-else尝试多尺寸海报上传
+                # 尝试多尺寸海报上传
                 for thumbnail_size in ['large', 'common', 'medium']:
                     # 获取当前尺寸的封面
                     thumbnail = bgm.get_subject_thumbnail(
@@ -178,15 +178,18 @@ def refresh_metadata(series_list=None):
                         series_id, thumbnail)
 
                     if replace_thumbnail_result:
-                        logger.debug(f"成功替换系列 {series_name} 的海报")
+                        logger.debug("成功替换系列: %s 的海报", series_name)
                         # 成功则跳出海报更新循环
                         break
                     else:
                         logger.debug(
-                            "以尺寸 {thumbnail_size} 替换系列: {series_name} 的海报失败，正在尝试下一个尺寸...")
+                            "以尺寸 %s 替换系列: %s 的海报失败，正在尝试下一个尺寸...",
+                            thumbnail_size,
+                            series_name,
+                        )
                 # 所有尺寸都失败时
                 else:
-                    logger.warning(f"替换系列: {series_name} 的海报失败, 无可用尺寸")
+                    logger.warning("替换系列: %s 的海报失败", series_name)
         else:
             failed_count, failed_comic = record_series_status(
                 conn,

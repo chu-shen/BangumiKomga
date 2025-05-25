@@ -150,24 +150,24 @@ class BangumiApiDataSource(DataSource):
         url = f"{self.BASE_URL}/v0/users/-/collections/{subject_id}"
         payload = {"vol_status": progress}
         try:
-            response = self.r.patch(url, headers=self._get_headers(), json=payload)
+            response = self.r.patch(
+                url, headers=self._get_headers(), json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
         return response.status_code == 204
 
     @SlideWindowRateLimiter()
-    def get_subject_thumbnail(self, subject_metadata):
+    def get_subject_thumbnail(self, subject_metadata, image_size="large"):
         """
         获取漫画封面
         """
         try:
             if subject_metadata["images"]:
-                image = subject_metadata["images"]["large"]
+                image = subject_metadata["images"][image_size]
             else:
-                image = self.get_subject_metadata(subject_metadata["id"])["images"][
-                    "large"
-                ]
+                image = self.get_subject_metadata(subject_metadata["id"])[
+                    "images"][image_size]
             thumbnail = self.r.get(image).content
         except Exception as e:
             logger.error(f"出现错误: {e}")
@@ -347,7 +347,8 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get("access_token"))
 
         if config.get("use_local_archive", False):
-            offline = BangumiArchiveDataSource(config.get("local_archive_folder"))
+            offline = BangumiArchiveDataSource(
+                config.get("local_archive_folder"))
             return FallbackDataSource(offline, online)
 
         return online

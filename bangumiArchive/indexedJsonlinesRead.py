@@ -58,10 +58,16 @@ class IndexedDataReader:
             return {}
         return id_offsets
 
-    def get_data_by_id(self, targetID: str, targetFiled: str) -> dict:
+    def get_data_by_id(self, targetID: str, targetFiled: str) -> list:
         """
         根据ID从数据文件中快速获取对应行内容
         """
+        try:
+            targetID = int(targetID)
+        except Exception as e:
+            logger.debug(f"无法将传入值视为 ID: {targetID}, {e}")
+            return {}
+
         # 检查ID是否存在
         if targetID not in self.id_offsets:
             logger.debug(f"未在索引中找到 ID: {targetID}")

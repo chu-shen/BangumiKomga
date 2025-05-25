@@ -27,9 +27,10 @@ def write_junit_xml(result, filename):
 def run_unit_tests():
     # 初始化覆盖率收集
     cov = coverage.Coverage(
-        include=['*.py'],
-        omit=['*__pycache__*', '*test_cases*',
-              '*test_results*', '*archivedata*', '*logs*']
+        include=['./'],
+        omit=['*__pycache__*', '*test_cases*', '*test_results*', '*archivedata*', '*logs*',
+              # 排除标准库和第三方库
+              '*/lib/*']
     )
     cov.start()
 

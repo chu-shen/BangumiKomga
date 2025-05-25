@@ -1,10 +1,6 @@
 name: Unittest CI
 
-
 on:
-  # 没啥必要
-  # push:
-  #   branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 jobs:
@@ -12,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.13"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,14 +44,9 @@ jobs:
         run: |
           python run_unittests.py || exit 0  
         continue-on-error: true
-      # 输出一个时间戳
-      - name: Generate Timestamp
-        id: timestamp
-        run: echo "timestamp=$(date +%Y%m%d%H%M%S%3N)" >> $GITHUB_ENV
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
-        # 生成唯一 artifact 名称
-          name: test-results-${{ github.run_id }}-${{ github.job }}-${{ env.timestamp }}
+          name: python${{ matrix.python-version }}-test-results
           path: test_results/

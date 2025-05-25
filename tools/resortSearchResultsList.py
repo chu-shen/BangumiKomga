@@ -34,6 +34,7 @@ def resort_search_list(query, results, threshold, DataSource):
         # bangumi书籍系列包括：系列、单行本
         # 此处需去除漫画系列的单行本，避免干扰，官方 API 已添加 series 字段（是否系列，仅对书籍类型的条目有效）
         # bangumi数据中存在单行本与系列未建立联系的情况
+        # FIXME: 单本漫画可能被归类为`漫画`而不是`漫画系列`，导致 series 字段为 False，匹配不到，比如：40152
         if not manga_metadata["series"]:
             continue
         # bangumi书籍类型包括：漫画、小说、画集、其他

@@ -58,19 +58,25 @@ class IndexedDataReader:
             return {}
         return id_offsets
 
-    def get_data_by_id(self, targetID: str, targetFiled: str) -> dict:
+    def get_data_by_id(self, targetID: str, targetFiled: str) -> list:
         """
         根据ID从数据文件中快速获取对应行内容
         """
+        try:
+            targetID = int(targetID)
+        except Exception as e:
+            logger.debug(f"无法将传入值视为 ID: {targetID}, {e}")
+            return {}
+
         # 检查ID是否存在
         if targetID not in self.id_offsets:
-            logger.warning(f"未在索引中找到 ID: {targetID}")
+            logger.debug(f"未在索引中找到 ID: {targetID}")
             return {}
 
         offsets = self.id_offsets[targetID]
 
         if not offsets:
-            logger.warning(f"索引数据 {self.file_path} 中缺失 {str(targetID)} 数据")
+            logger.debug(f"索引数据 {self.file_path} 中缺失 {str(targetID)} 数据")
             return []
         results = []
         # 根据偏移量定位并读取行
@@ -83,8 +89,8 @@ class IndexedDataReader:
                     if item.get(targetFiled, 0) == targetID:
                         results.append(item)
                     else:
-                        logger.warning(f"在Archive数据中缺失 {str(targetID)} 行")
+                        logger.debug(f"在 Archive 数据中缺失 {str(targetID)} 行")
             return results
         except Exception as e:
-            logger.error(f"通过索引读取Archive时发生错误: {str(e)}")
+            logger.error(f"通过索引读取 Archive 时发生错误: {str(e)}")
             return results

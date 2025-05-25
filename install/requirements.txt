@@ -1,5 +1,4 @@
-zhconv
-thefuzz
-requests
-pysqlite3
-pypinyin
+pypinyin==0.53.0
+Requests==2.32.3
+thefuzz==0.22.1
+zhconv==1.4.3

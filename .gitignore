@@ -1,8 +1,9 @@
 config.py
 recordsRefreshed.db
 refreshMetadata.log
-archive_update_time.json
-komga_last_modified_time.json
 __pycache__/
 .vscode
+*.json*
 *.jsonlines*
+.coverage
+test_results/

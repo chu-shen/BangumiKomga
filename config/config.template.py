@@ -9,7 +9,9 @@ KOMGA_LIBRARY_LIST = []
 KOMGA_COLLECTION_LIST = []
 
 # bangumi/Archive 离线元数据
+# 指定是否启用本地离线元数据
 USE_BANGUMI_ARCHIVE = False
+# 本地离线元数据存储目录
 ARCHIVE_FILES_DIR = "./archivedata/"
 
 # 指定是否以轮询服务方式启动 BangumiKomga

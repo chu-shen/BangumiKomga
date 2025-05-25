@@ -25,7 +25,7 @@ jobs:
         run: |
           pip install -r install/requirements.txt
           pip install coverage
-          
+
       # 便于测试代码导入config.config
       - name: Copy config.template.py to config.py
         run: cp config/config.template.py config/config.py
@@ -35,9 +35,14 @@ jobs:
         run: |
           python run_unittests.py || exit 0  
         continue-on-error: true
+      # 输出一个时间戳
+      - name: Generate Timestamp
+        id: timestamp
+        run: echo "timestamp=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
-          name: 测试结果报告
+        # 生成唯一 artifact 名称
+          name: test-results-${{ github.run_id }}-${{ github.job }}-${{ env.timestamp }}
           path: test_results/

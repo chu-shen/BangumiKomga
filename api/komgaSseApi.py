@@ -185,6 +185,8 @@ class KomgaSseClient:
     def _process_stream(self, response):
         """事件流解析器"""
         buffer = ""
+        # iter_lines() 没有线程安全, 应配合 self.running 使用
+        # https://tedboy.github.io/requests/generated/generated/requests.Response.iter_lines.html
         for line in response.iter_lines(decode_unicode=True):
             if not self.running:
                 break

@@ -1,3 +1,6 @@
+# pip install pipreqs
+# pipreqs --force
+
 zhconv
 thefuzz
 requests

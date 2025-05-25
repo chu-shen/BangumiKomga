@@ -1,7 +1,0 @@
-# pip install pipreqs
-# pipreqs --force
-
-pypinyin==0.54.0
-Requests==2.32.3
-thefuzz==0.22.1
-zhconv==1.4.3

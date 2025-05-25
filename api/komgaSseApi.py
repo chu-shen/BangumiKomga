@@ -40,6 +40,8 @@ class KomgaSseClient:
         self.thread = None
         self.delay = 1
         self.max_retries = retries
+        self._current_event = ""
+        self._current_data = ""
 
         # 用于Debug的默认回调函数
         self.on_open = lambda: logger.info("成功连接 Komga SSE 服务端点")
@@ -70,7 +72,14 @@ class KomgaSseClient:
         if api_key:
             self.session.headers["X-API-Key"] = api_key
             test_url = f"{base_url}/api/v2/users/me"
-            response = self.session.get(test_url)
+            try:
+                response = self.session.get(test_url)
+                if response.status_code != 200:
+                    raise Exception(
+                        f"Komga SSE API_KEY 验证失败: {response.status_code}")
+            except requests.exceptions.RequestException as e:
+                logger.error(f"API_KEY 身份验证失败: {e}")
+                return
         # 使用账号凭据
         else:
             # 构建认证字符串
@@ -91,14 +100,17 @@ class KomgaSseClient:
                     stream=True,
                     timeout=self.timeout
                 )
+            # 防止取不到response.status_code
+            except requests.exceptions.ConnectionError as e:
+                logger.error(f"Komga SSE 连接错误: {e}")
             except Exception as e:
                 logger.error(
-                    f"Komga SSE 连接失败, HTTP {response.status_code}: {response.reason}")
+                    f"Komga SSE HTTP错误, HTTP {response.status_code}: {response.reason}")
                 self.on_error(e)
                 exit(1)
-        if response.status_code != 200:
-            logger.error("Komga 身份验证失败!")
-            return
+            if response.status_code != 200:
+                logger.error("Komga 账户凭据验证失败!")
+                return
 
     def start(self):
         """启动 SSE 监听"""
@@ -150,39 +162,51 @@ class KomgaSseClient:
                 time.sleep(delay)
                 self.on_retry()
 
+    def _parse_message_line(self, line):
+        """事件行消息解析器"""
+        if not line:
+            # 空行表示事件结束, 分发事件
+            self._dispatch_event(self._current_event, self._current_data)
+            self._current_event = ""
+            self._current_data = ""
+            return
+        # 解析事件类型
+        if line.startswith("event:"):
+            self._current_event = line[6:].strip()
+        # 解析数据
+        elif line.startswith("data:"):
+            data_part = line[5:].strip()
+            if self._current_data is None:
+                self._current_data = data_part
+            else:
+                # 处理多行data
+                self._current_data += "\n" + data_part
+
     def _process_stream(self, response):
-        """解析事件流"""
+        """事件流解析器"""
         buffer = ""
-        for chunk in response.iter_content(chunk_size=1024, decode_unicode=True):
+        for line in response.iter_lines(decode_unicode=True):
             if not self.running:
                 break
-
-            buffer += chunk
-            lines = buffer.split("\n")
-
-            # 保留未完整行
-            if buffer.endswith("\n"):
-                buffer = ""
+            # 非空行
+            if line:
+                # 处理可能的多行数据
+                buffer += line + "\n"  # 确保每行以换行符结尾
+                # 分割完整行（以换行符结束）
+                lines = buffer.split("\n")
+                # 保留最后一个未完成的行（如果有的话）
+                if lines and lines[-1] == "":  # 完整行结束
+                    buffer = ""
+                    lines = lines[:-1]
+                else:
+                    buffer = lines[-1]  # 保留未完成行
+                    lines = lines[:-1]
+                # 处理所有完整行
+                for line in lines:
+                    self._parse_message_line(line.strip())
             else:
-                buffer = lines[-1]
-                lines = lines[:-1]
-
-            for line in lines:
-                if not line.strip():
-                    continue
-
-                # 解析事件类型
-                if line.startswith("event:"):
-                    current_event = line[6:].strip()
-                    continue
-
-                # 解析数据
-                if line.startswith("data:"):
-                    data = line[5:].strip()
-                    if data:
-                        self._dispatch_event(current_event, data)
-                        # 重置为空
-                        current_event = ""
+                # 空行表示事件分隔符
+                self._parse_message_line("")  # 触发事件分隔处理
 
     def _dispatch_event(self, event_type, data):
         """分发事件到对应处理器"""
@@ -215,11 +239,13 @@ class KomgaSseApi:
 
     def _start_client(self):
         try:
+            # 改为依赖主线程的保持
             self.sse_client.start()
-            while True:
-                time.sleep(5)  # 保持主线程运行
         except KeyboardInterrupt:
             logger.warning("正在关闭SSE连接...")
+            self.sse_client.stop()
+        except Exception as e:
+            logger.error(f"启动SSE客户端失败: {e}")
             self.sse_client.stop()
 
     def register_series_update_callback(self, callback):
@@ -241,7 +267,9 @@ class KomgaSseApi:
         with self.series_callback_lock:
             for callback in self.series_modified_callbacks:
                 try:
-                    callback(series_info)
+                    # 将回调函数放在独立线程中执行, 避免阻塞事件处理
+                    Thread(target=callback, args=(
+                        series_info), daemon=True).start()
                 except Exception as e:
                     self.on_error(e)
 
@@ -264,8 +292,11 @@ class KomgaSseApi:
         if event_type in RefreshEventType:
             logger.debug(f"捕获订阅事件 [{event_type}]:{event_data}")
             parsed_data = json.loads(event_data)
+            # 判断 KOMGA_LIBRARY_LIST 是否为空
+            if not KOMGA_LIBRARY_LIST:
+                pass
             # 在配置了KOMGA_LIBRARY_LIST时, 不通告 KOMGA_LIBRARY_LIST 外的库更改
-            if parsed_data.get('libraryId') not in KOMGA_LIBRARY_LIST and len(KOMGA_LIBRARY_LIST) > 0:
+            elif parsed_data.get('libraryId') not in KOMGA_LIBRARY_LIST:
                 logger.info(
                     f"libraryId: {parsed_data.get('libraryId')} 不在 KOMGA_LIBRARY_LIST 中，跳过")
                 return

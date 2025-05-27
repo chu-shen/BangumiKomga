@@ -42,7 +42,7 @@ jobs:
       - name: Run Unittest
         # 强制返回 0 避免流水线中断
         run: |
-          python run_unittests.py || exit 0  
+          python run_unittests.py  
         continue-on-error: true
 
       - name: Upload Test Results

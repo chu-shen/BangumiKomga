@@ -7,12 +7,6 @@ from bangumiArchive.archiveAutoupdater import check_archive
 # coverage 不应纳入 requirements.txt, 仅在GithubAction中使用
 import coverage
 
-# 需要测试钩子吗?
-
-
-# 添加源代码路径
-sys.path.insert(0, os.path.abspath('src'))
-
 
 def prepare_archive():
     check_archive()

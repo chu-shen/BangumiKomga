@@ -276,6 +276,7 @@ def _filter_new_modified_series(library_id=None, collection_id=None):
     """
     过滤出新更改系列元数据
     """
+    # 实现了 CBL筛选， 但每次增量刷新都会遍历整个 /series/latest, 那么 refreshMetadataServive.py 中的定时全量刷新还有必要存在吗?
     os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
     # 读取上次修改时间
     LastModifiedCacheFilePath = os.path.join(
@@ -284,25 +285,30 @@ def _filter_new_modified_series(library_id=None, collection_id=None):
     local_last_modified = TimeCacheManager.convert_to_datetime(
         TimeCacheManager.read_time(LastModifiedCacheFilePath)
     )
-    page_index = 0
+    # 暂存需要刷新的系列
     new_series = []
+
+    page_index = 0
     series_id_in_collection = [
         item["id"] for item in komga.get_series_with_collection(collection_id)["content"]]
     stop_paging_flag = False
     while not stop_paging_flag:
         if library_id:
             temp_series = komga.get_latest_series(
-                library_id=library_id, page=page_index)
+                library_id=library_id, page=page_index)["content"]
         else:
-            temp_series = komga.get_latest_series(page=page_index)
+            temp_series = komga.get_latest_series(page=page_index)["content"]
 
-        if not temp_series:
+        if not temp_series or temp_series == []:
+            # 如果没有新更改的系列，停止分页
+            stop_paging_flag = True
             break
 
-        for item in temp_series["content"]:
+        for item in temp_series:
             komga_modified_time = TimeCacheManager.convert_to_datetime(
                 item["lastModified"]
             )
+            # 有新更改的系列
             if komga_modified_time > local_last_modified:
                 if not collection_id:
                     new_series.append(item)
@@ -310,9 +316,10 @@ def _filter_new_modified_series(library_id=None, collection_id=None):
                     if item["id"] in series_id_in_collection:
                         new_series.append(item)
             else:
-                # 如果没有新更改的系列，停止分页
-                stop_paging_flag = True
-                break
+                # 如果包含 CBL 连接则加入待刷新列表
+                is_cbl, _ = _is_series_contain_cbl_link(item)
+                if is_cbl:
+                    new_series.append(item)
 
         if not stop_paging_flag and (page_index + 1) < temp_series["totalPages"]:
             page_index += 1
@@ -326,19 +333,20 @@ def refresh_partial_metadata():
     """
     刷新部分书籍系列元数据
     """
-    # TODO: 得想想怎么不用遍历所有 `/series/latest` 就能用 _is_series_contain_cbl_link() 找到全部CBL项
     recent_modified_series = []
-    # 指定了 LIBRARY_ID
+    # 指定了 LIBRARY_LIST
     if KOMGA_LIBRARY_LIST:
         for library_id in KOMGA_LIBRARY_LIST:
             recent_modified_series.extend(
                 _filter_new_modified_series(library_id=library_id)
             )
+    # 指定了 COLLECTION_LIST
     if KOMGA_COLLECTION_LIST:
         for collection_id in KOMGA_COLLECTION_LIST:
             recent_modified_series.extend(
                 _filter_new_modified_series(collection_id=collection_id)
             )
+    # 啥都没指定
     else:
         recent_modified_series.extend(_filter_new_modified_series())
 

@@ -14,8 +14,10 @@ USE_BANGUMI_ARCHIVE = False
 # 本地离线元数据存储目录
 ARCHIVE_FILES_DIR = "./archivedata/"
 
-# 指定是否以服务方式启动 BangumiKomga
-USE_BANGUMI_KOMGA_SERVICE = False
+# 指定是否以轮询服务方式启动 BangumiKomga
+USE_BANGUMI_KOMGA_SERVICE_POLL = False
+# 指定是否以事件服务方式启动 BangumiKomga
+USE_BANGUMI_KOMGA_SERVICE_SSE = False
 # 轮询间隔，单位秒
 SERVICE_POLL_INTERVAL = 20
 # 多少次轮询后执行一次全量刷新

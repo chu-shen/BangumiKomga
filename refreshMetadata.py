@@ -48,14 +48,11 @@ def refresh_metadata(series_list=None):
         # Get the subject id from the Correct Bgm Link (CBL) if it exists
         subject_id = None
         force_refresh_flag = False
-        for link in series["metadata"]["links"]:
-            if link["label"].lower() == "cbl":
-                subject_id = int(link["url"].split("/")[-1])
-                logger.debug("将 cbl %s 匹配于 %s", subject_id, series_name)
-                # Get the metadata for the series from bangumi
-                metadata = bgm.get_subject_metadata(subject_id)
-                force_refresh_flag = True
-                break
+        is_cbl, cbl_subject_id = _is_series_contain_cbl_link(series)
+        if is_cbl:
+            logger.debug("将 cbl %s 匹配于 %s", cbl_subject_id, series_name)
+            metadata = bgm.get_subject_metadata(cbl_subject_id)
+            force_refresh_flag = True
 
         if not force_refresh_flag:
             # 找到对应的series_record
@@ -266,7 +263,16 @@ def getSeries():
     return series_list
 
 
-def _filter_new_modified_series(library_id=None):
+def _is_series_contain_cbl_link(series):
+    if not series:
+        return False, ""
+    for link in series["metadata"]["links"]:
+        if link["label"].lower() == "cbl":
+            subject_id = int(link["url"].split("/")[-1])
+            return True, subject_id
+
+
+def _filter_new_modified_series(library_id=None, collection_id=None):
     """
     过滤出新更改系列元数据
     """
@@ -280,10 +286,15 @@ def _filter_new_modified_series(library_id=None):
     )
     page_index = 0
     new_series = []
+    series_id_in_collection = [
+        item["id"] for item in komga.get_series_with_collection(collection_id)["content"]]
     stop_paging_flag = False
     while not stop_paging_flag:
-        temp_series = komga.get_latest_series(
-            library_id=library_id, page=page_index)
+        if library_id:
+            temp_series = komga.get_latest_series(
+                library_id=library_id, page=page_index)
+        else:
+            temp_series = komga.get_latest_series(page=page_index)
 
         if not temp_series:
             break
@@ -293,7 +304,11 @@ def _filter_new_modified_series(library_id=None):
                 item["lastModified"]
             )
             if komga_modified_time > local_last_modified:
-                new_series.append(item)
+                if not collection_id:
+                    new_series.append(item)
+                else:
+                    if item["id"] in series_id_in_collection:
+                        new_series.append(item)
             else:
                 # 如果没有新更改的系列，停止分页
                 stop_paging_flag = True
@@ -311,14 +326,19 @@ def refresh_partial_metadata():
     """
     刷新部分书籍系列元数据
     """
-    # FIXME: 未处理有 cbl 的系列
+    # TODO: 得想想怎么不用遍历所有 `/series/latest` 就能用 _is_series_contain_cbl_link() 找到全部CBL项
     recent_modified_series = []
     # 指定了 LIBRARY_ID
     if KOMGA_LIBRARY_LIST:
-        recent_modified_series.extend(
-            _filter_new_modified_series(library_id=KOMGA_LIBRARY_LIST)
-        )
-    # FIXME: 未处理 collection
+        for library_id in KOMGA_LIBRARY_LIST:
+            recent_modified_series.extend(
+                _filter_new_modified_series(library_id=library_id)
+            )
+    if KOMGA_COLLECTION_LIST:
+        for collection_id in KOMGA_COLLECTION_LIST:
+            recent_modified_series.extend(
+                _filter_new_modified_series(collection_id=collection_id)
+            )
     else:
         recent_modified_series.extend(_filter_new_modified_series())
 

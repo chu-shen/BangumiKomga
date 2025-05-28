@@ -285,19 +285,21 @@ def _filter_new_modified_series(library_id=None, collection_id=None):
     local_last_modified = TimeCacheManager.convert_to_datetime(
         TimeCacheManager.read_time(LastModifiedCacheFilePath)
     )
-    # 暂存需要刷新的系列
+    # 暂存待刷新的系列
     new_series = []
 
     page_index = 0
-    series_id_in_collection = [
-        item["id"] for item in komga.get_series_with_collection(collection_id)["content"]]
     stop_paging_flag = False
     while not stop_paging_flag:
         if library_id:
             temp_series = komga.get_latest_series(
-                library_id=library_id, page=page_index)["content"]
+                library_id=library_id, page_number=page_index)["content"]
+        elif collection_id:
+            temp_series = komga.get_latest_series(
+                collection_id=collection_id, page_number=page_index)["content"]
         else:
-            temp_series = komga.get_latest_series(page=page_index)["content"]
+            temp_series = komga.get_latest_series(
+                page_number=page_index)["content"]
 
         if not temp_series or temp_series == []:
             # 如果没有新更改的系列，停止分页
@@ -305,21 +307,20 @@ def _filter_new_modified_series(library_id=None, collection_id=None):
             break
 
         for item in temp_series:
-            komga_modified_time = TimeCacheManager.convert_to_datetime(
+            komga_files_modified_time = TimeCacheManager.convert_to_datetime(
                 item["lastModified"]
             )
-            # 有新更改的系列
-            if komga_modified_time > local_last_modified:
-                if not collection_id:
-                    new_series.append(item)
-                else:
-                    if item["id"] in series_id_in_collection:
-                        new_series.append(item)
+            komga_metadata_modified_time = TimeCacheManager.convert_to_datetime(
+                item["metadata"]["lastModified"]
+            )
+            # 系列有新更改/添加
+            # 无关 CBL, 只要最近有文件或元数据更改的系列均将加入待刷新列表
+            if max(komga_files_modified_time, komga_metadata_modified_time) > local_last_modified:
+                new_series.append(item)
             else:
-                # 如果包含 CBL 连接则加入待刷新列表
-                is_cbl, _ = _is_series_contain_cbl_link(item)
-                if is_cbl:
-                    new_series.append(item)
+                # 如果没有新更改的系列，停止分页
+                stop_paging_flag = True
+                break
 
         if not stop_paging_flag and (page_index + 1) < temp_series["totalPages"]:
             page_index += 1

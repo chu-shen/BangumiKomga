@@ -71,10 +71,7 @@ def update_index():
     ]
     for filePath in filePaths:
         archivefile = IndexedDataReader(filePath)
-        if "relation" in filePath:
-            return archivefile.build_offsets_index(indexedFiled="subject_id")
-        else:
-            return archivefile.build_offsets_index(indexedFiled="id")
+        archivefile.update_offsets_index()
     return
 
 

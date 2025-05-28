@@ -11,11 +11,13 @@ class IndexedDataReader:
 
     def _load_index(self):
         indexFilePath = f"{self.file_path}.index"
+        # 索引文件不存在则创建索引文件
         if not os.path.exists(indexFilePath):
             if "relation" in self.file_path:
-                return self.build_offsets_index(indexedFiled="subject_id")
+                return self._build_offsets_index(indexedFiled="subject_id")
             else:
-                return self.build_offsets_index(indexedFiled="id")
+                return self._build_offsets_index(indexedFiled="id")
+        # 索引文件存在则加载索引文件
         try:
             with open(indexFilePath, 'rb') as f:
                 id_offsets = pickle.load(f)
@@ -24,7 +26,13 @@ class IndexedDataReader:
             logger.error(f"索引文件未找到: {indexFilePath}")
             return {}
 
-    def build_offsets_index(self, indexedFiled: str):
+    def update_offsets_index(self):
+        if "relation" in self.file_path:
+            return self._build_offsets_index(indexedFiled="subject_id")
+        else:
+            return self._build_offsets_index(indexedFiled="id")
+
+    def _build_offsets_index(self, indexedFiled: str):
         """构建行偏移量索引"""
         id_offsets = {}
         indexFilePath = f"{self.file_path}.index"

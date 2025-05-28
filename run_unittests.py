@@ -7,12 +7,6 @@ from bangumiArchive.archiveAutoupdater import check_archive
 # coverage 不应纳入 requirements.txt, 仅在GithubAction中使用
 import coverage
 
-# 需要测试钩子吗?
-
-
-# 添加源代码路径
-sys.path.insert(0, os.path.abspath('src'))
-
 
 def prepare_archive():
     check_archive()
@@ -32,7 +26,14 @@ def write_junit_xml(result, filename):
 def run_unit_tests():
     # 初始化覆盖率收集
     cov = coverage.Coverage(
-        include=["*.py"],
+        include=[
+            "api/*.py",
+            "bangumiArchive/*.py",
+            "config/*.py",
+            "scripts/*.py",
+            "tools/*.py",
+            "*.py"
+        ],
         omit=[
             "*__pycache__*",
             "*tests*",

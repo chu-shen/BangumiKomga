@@ -48,14 +48,11 @@ def refresh_metadata(series_list=None):
         # Get the subject id from the Correct Bgm Link (CBL) if it exists
         subject_id = None
         force_refresh_flag = False
-        for link in series["metadata"]["links"]:
-            if link["label"].lower() == "cbl":
-                subject_id = int(link["url"].split("/")[-1])
-                logger.debug("将 cbl %s 匹配于 %s", subject_id, series_name)
-                # Get the metadata for the series from bangumi
-                metadata = bgm.get_subject_metadata(subject_id)
-                force_refresh_flag = True
-                break
+        is_cbl, cbl_subject_id = _is_series_contain_cbl_link(series)
+        if is_cbl:
+            logger.debug("将 cbl %s 匹配于 %s", cbl_subject_id, series_name)
+            metadata = bgm.get_subject_metadata(cbl_subject_id)
+            force_refresh_flag = True
 
         if not force_refresh_flag:
             # 找到对应的series_record
@@ -266,10 +263,20 @@ def getSeries():
     return series_list
 
 
-def _filter_new_modified_series(library_id=None):
+def _is_series_contain_cbl_link(series):
+    if not series:
+        return False, ""
+    for link in series["metadata"]["links"]:
+        if link["label"].lower() == "cbl":
+            subject_id = int(link["url"].split("/")[-1])
+            return True, subject_id
+
+
+def _filter_new_modified_series(library_id=None, collection_id=None):
     """
     过滤出新更改系列元数据
     """
+    # 实现了 CBL筛选， 但每次增量刷新都会遍历整个 /series/latest, 那么 refreshMetadataServive.py 中的定时全量刷新还有必要存在吗?
     os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
     # 读取上次修改时间
     LastModifiedCacheFilePath = os.path.join(
@@ -278,21 +285,37 @@ def _filter_new_modified_series(library_id=None):
     local_last_modified = TimeCacheManager.convert_to_datetime(
         TimeCacheManager.read_time(LastModifiedCacheFilePath)
     )
-    page_index = 0
+    # 暂存待刷新的系列
     new_series = []
+
+    page_index = 0
     stop_paging_flag = False
     while not stop_paging_flag:
-        temp_series = komga.get_latest_series(
-            library_id=library_id, page=page_index)
+        if library_id:
+            temp_series = komga.get_latest_series(
+                library_id=library_id, page_number=page_index)["content"]
+        elif collection_id:
+            temp_series = komga.get_latest_series(
+                collection_id=collection_id, page_number=page_index)["content"]
+        else:
+            temp_series = komga.get_latest_series(
+                page_number=page_index)["content"]
 
-        if not temp_series:
+        if not temp_series or temp_series == []:
+            # 如果没有新更改的系列，停止分页
+            stop_paging_flag = True
             break
 
-        for item in temp_series["content"]:
-            komga_modified_time = TimeCacheManager.convert_to_datetime(
+        for item in temp_series:
+            komga_files_modified_time = TimeCacheManager.convert_to_datetime(
                 item["lastModified"]
             )
-            if komga_modified_time > local_last_modified:
+            komga_metadata_modified_time = TimeCacheManager.convert_to_datetime(
+                item["metadata"]["lastModified"]
+            )
+            # 系列有新更改/添加
+            # 无关 CBL, 只要最近有文件或元数据更改的系列均将加入待刷新列表
+            if max(komga_files_modified_time, komga_metadata_modified_time) > local_last_modified:
                 new_series.append(item)
             else:
                 # 如果没有新更改的系列，停止分页
@@ -311,14 +334,20 @@ def refresh_partial_metadata():
     """
     刷新部分书籍系列元数据
     """
-    # FIXME: 未处理有 cbl 的系列
     recent_modified_series = []
-    # 指定了 LIBRARY_ID
+    # 指定了 LIBRARY_LIST
     if KOMGA_LIBRARY_LIST:
-        recent_modified_series.extend(
-            _filter_new_modified_series(library_id=KOMGA_LIBRARY_LIST)
-        )
-    # FIXME: 未处理 collection
+        for library_id in KOMGA_LIBRARY_LIST:
+            recent_modified_series.extend(
+                _filter_new_modified_series(library_id=library_id)
+            )
+    # 指定了 COLLECTION_LIST
+    if KOMGA_COLLECTION_LIST:
+        for collection_id in KOMGA_COLLECTION_LIST:
+            recent_modified_series.extend(
+                _filter_new_modified_series(collection_id=collection_id)
+            )
+    # 啥都没指定
     else:
         recent_modified_series.extend(_filter_new_modified_series())
 

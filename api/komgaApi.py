@@ -42,28 +42,62 @@ class KomgaApi:
                 logger.error("Komga: 基本身份验证失败!")
                 exit(1)
 
-    def get_latest_series(self, library_id=None, page=0):
+    def get_latest_series(self, library_id=None, collection_id=None, page_number=0):
         """
         Return recently added or updated series.
+        将API从:
         https://komga.org/docs/openapi/get-latest-series/
+        更改为:
+        https://komga.org/docs/openapi/get-series
         """
-        url = f"{self.base_url}/series/latest"
+        # url = f"{self.base_url}/series/latest"
+        url = f"{self.base_url}/series/list"
         params = {
             "size": 20,
-            "page": page,
-            "deleted": "false",
+            "page": page_number,
+            # 按更改时间降序排列
+            "sort": "lastModifiedDate,desc",
+            # "deleted": False
+
         }
+        # 仅实现了单个 library_id 筛选
         if library_id:
-            params["library_id"] = (
-                library_id if isinstance(library_id, (list, tuple)) else [
-                    library_id]
-            )
+            conditions = {
+                "condition": {
+                    "libraryId": {
+                        "operator": "is",
+                        "value": library_id
+                    }
+                }
+            }
+        # 仅实现了单个 collection_id 筛选
+        elif collection_id:
+            conditions = {
+                "condition": {
+                    "collectionId": {
+                        "operator": "is",
+                        "value": collection_id
+                    }
+                }
+            }
+        # 没有指定库/藏的默认payload
+        else:
+            conditions = {
+                "condition": {
+                    "deleted": {
+                        "operator": "isFalse",
+                    }
+                }
+            }
+
         try:
-            response = self.r.get(url, params=params)
+            # response = self.r.get(url, params=params)
+            # 改为 POST 方法
+            response = self.r.post(url, params=params, json=conditions)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
-            return []
+            return {}
         return response.json()
 
     def get_all_series(self, payload=None):

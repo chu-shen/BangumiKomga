@@ -276,7 +276,7 @@ def _filter_new_modified_series(library_id=None, collection_id=None):
     """
     过滤出新更改系列元数据
     """
-    # 实现了 CBL筛选， 但每次增量刷新都会遍历整个 /series/latest, 那么 refreshMetadataServive.py 中的定时全量刷新还有必要存在吗?
+    # TODO: 实现CBL筛选
     os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
     # 读取上次修改时间
     LastModifiedCacheFilePath = os.path.join(
@@ -313,8 +313,7 @@ def _filter_new_modified_series(library_id=None, collection_id=None):
             komga_metadata_modified_time = TimeCacheManager.convert_to_datetime(
                 item["metadata"]["lastModified"]
             )
-            # 系列有新更改/添加
-            # 无关 CBL, 只要最近有文件或元数据更改的系列均将加入待刷新列表
+            # 有新文件更改的系列
             if max(komga_files_modified_time, komga_metadata_modified_time) > local_last_modified:
                 new_series.append(item)
             else:

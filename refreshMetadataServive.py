@@ -2,11 +2,10 @@ import threading
 import time
 from tools.log import logger
 from config.config import (
-    USE_BANGUMI_KOMGA_SERVICE_POLL,
-    USE_BANGUMI_KOMGA_SERVICE_SSE,
-    SERVICE_POLL_INTERVAL,
-    SERVICE_REFRESH_ALL_METADATA_INTERVAL,
-    KOMGA_LIBRARY_LIST
+    BANGUMI_KOMGA_SERVICE_TYPE,
+    BANGUMI_KOMGA_SERVICE_POLL_INTERVAL,
+    BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL,
+    KOMGA_LIBRARY_LIST,
 )
 from refreshMetadata import refresh_metadata, refresh_partial_metadata, komga
 from api.komgaSseApi import KomgaSseApi
@@ -17,9 +16,11 @@ import json
 class PollingCaller:
     def __init__(self):
         self.is_refreshing = False
-        self.interval = SERVICE_POLL_INTERVAL
+        self.interval = BANGUMI_KOMGA_SERVICE_POLL_INTERVAL
         # 多少次轮询后执行一次全量刷新
-        self.refresh_all_metadata_interval = SERVICE_REFRESH_ALL_METADATA_INTERVAL
+        self.refresh_all_metadata_interval = (
+            BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL
+        )
         self.refresh_counter = 0
         # 添加锁对象
         self.lock = threading.Lock()
@@ -48,6 +49,7 @@ class PollingCaller:
         """
         启动服务
         """
+
         def poll():
             while True:
                 try:
@@ -56,8 +58,7 @@ class PollingCaller:
                         success = self._safe_refresh(refresh_metadata)
                         self.refresh_counter = 0
                     else:
-                        success = self._safe_refresh(
-                            refresh_partial_metadata)
+                        success = self._safe_refresh(refresh_partial_metadata)
                     # 更新计数器和间隔
                     if not success:
                         retry_delay = min(2**self.interval, 60)
@@ -134,9 +135,17 @@ def SSEService():
 
 
 if __name__ == "__main__":
-    if USE_BANGUMI_KOMGA_SERVICE_POLL:
+    service_type = BANGUMI_KOMGA_SERVICE_TYPE.lower()
+
+    if service_type == "poll":
         PollService()
-    elif USE_BANGUMI_KOMGA_SERVICE_SSE:
+    elif service_type == "sse":
         SSEService()
-    else:
+    elif service_type == "once":
         refresh_metadata()
+    else:
+        logger.error(
+            "无效的服务类型: '%s'，请检查配置文件",
+            BANGUMI_KOMGA_SERVICE_TYPE,
+        )
+        exit(1)

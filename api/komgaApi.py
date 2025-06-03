@@ -72,7 +72,6 @@ class KomgaApi:
 
         https://komga.org/docs/openapi/get-series-by-id
         """
-        # 更新为 /api/v1/series/series_id
         url = f"{self.base_url}/series/{series_id}"
         try:
             response = self.r.get(url)

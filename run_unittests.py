@@ -32,7 +32,14 @@ def write_junit_xml(result, filename):
 def run_unit_tests():
     # 初始化覆盖率收集
     cov = coverage.Coverage(
-        include=["*.py"],
+        include=[
+            "api/*.py",
+            "bangumiArchive/*.py",
+            "config/*.py",
+            "scripts/*.py",
+            "tools/*.py",
+            "*.py"
+        ],
         omit=[
             "*__pycache__*",
             "*tests*",

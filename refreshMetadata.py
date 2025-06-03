@@ -252,7 +252,7 @@ def getSeries(series_ids=[]):
     series_list = []
     if len(series_ids) > 0:
         for series_id in series_ids:
-            series_list.extend(komga.get_specific_series(series_id))
+            series_list.append(komga.get_specific_series(series_id))
     else:
         if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
             logger.error("KOMGA_LIBRARY_LIST 和 KOMGA_COLLECTION_LIST 只能配置一种")

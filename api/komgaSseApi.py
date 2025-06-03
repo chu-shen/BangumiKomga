@@ -271,7 +271,7 @@ class KomgaSseApi:
                 try:
                     # 将回调函数放在独立线程中执行, 避免阻塞事件处理
                     Thread(target=callback, args=(
-                        series_info), daemon=True).start()
+                        series_info,), daemon=True).start()
                 except Exception as e:
                     self.on_error(e)
 

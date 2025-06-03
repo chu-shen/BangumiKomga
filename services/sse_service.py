@@ -3,7 +3,7 @@ from tools.log import logger
 from config.config import (
     KOMGA_LIBRARY_LIST,
 )
-from refreshMetadata import refresh_metadata, komga
+from refreshMetadata import refresh_metadata, getSeries
 from api.komgaSseApi import KomgaSseApi
 import threading
 import json
@@ -13,10 +13,10 @@ def series_update_sse_handler(data):
     event_data = json.loads(data["event_data"])
     series_id = event_data["seriesId"]
     library_id = event_data["libraryId"]
+    # 获取指定系列的信息
+    series_detail = getSeries([series_id])
     # 筛选有效的 SeriesChanged 事件
     if data["event_type"] == "SeriesChanged":
-        # 获取指定系列的信息
-        series_detail = komga.getSeries([series_id])
         # 判断 SeriesChanged 是否为CBL更改
         for link in series_detail["metadata"]["links"]:
             if link["label"].lower() == "cbl":
@@ -27,7 +27,7 @@ def series_update_sse_handler(data):
     recent_modified_series = []
     # 仅刷新指定 LIBRARY_ID
     if KOMGA_LIBRARY_LIST and (library_id in KOMGA_LIBRARY_LIST):
-        recent_modified_series.extend(series_id)
+        recent_modified_series.extend(series_detail)
 
     if recent_modified_series:
         refresh_metadata(recent_modified_series)

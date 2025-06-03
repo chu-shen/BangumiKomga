@@ -45,71 +45,43 @@ class KomgaApi:
     def get_latest_series(self, library_id=None, collection_id=None, page_number=0):
         """
         Return recently added or updated series.
-        将API从:
-        https://komga.org/docs/openapi/get-latest-series/
-        更改为:
-        https://komga.org/docs/openapi/get-series
         """
-        # url = f"{self.base_url}/series/latest"
-        url = f"{self.base_url}/series/list"
-        params = {
-            "size": 20,
-            "page": page_number,
-            # 按更改时间降序排列
-            "sort": "lastModifiedDate,desc",
-            # "deleted": False
-
-        }
         # 仅实现了单个 library_id 筛选
         if library_id:
             conditions = {
-                "condition": {
-                    "libraryId": {
-                        "operator": "is",
-                        "value": library_id
-                    }
+                "libraryId": {
+                    "operator": "is",
+                    "value": library_id
                 }
             }
         # 仅实现了单个 collection_id 筛选
-        elif collection_id:
+        if collection_id:
             conditions = {
-                "condition": {
-                    "collectionId": {
-                        "operator": "is",
-                        "value": collection_id
-                    }
-                }
-            }
-        # 没有指定库/藏的默认payload
-        else:
-            conditions = {
-                "condition": {
-                    "deleted": {
-                        "operator": "isFalse",
-                    }
+                "collectionId": {
+                    "operator": "is",
+                    "value": collection_id
                 }
             }
 
-        try:
-            # response = self.r.get(url, params=params)
-            # 改为 POST 方法
-            response = self.r.post(url, params=params, json=conditions)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"出现错误: {e}")
-            return {}
-        return response.json()
+        return self._get_series(payload=conditions, page_size=20, page_number=page_number)
 
-    def get_all_series(self, payload=None):
+    def _get_series(self, payload=None, page_size: int = 2000, page_number=0):
         """
-        Retrieves all series in the komga comic.
+        Retrieves series in the komga comic.
 
         https://komga.org/docs/openapi/get-series/
         """
-        # 更新为 /api/v1/series/list
         url = f"{self.base_url}/series/list"
-        # 取消默认分页（大小为 2000），以便一次性获取所有系列
-        params = {"size": 50000, "unpaged": True}
+        if page_size:
+            params = {
+                "size": page_size,
+                "page": page_number,
+                # 按更改时间降序排列
+                "sort": "lastModifiedDate,desc"
+            }
+        else:
+            # 取消默认分页（大小为 2000），以便一次性获取所有系列
+            params = {"size": 50000, "unpaged": True}
         conditions = [
             {
                 "deleted": {
@@ -128,6 +100,15 @@ class KomgaApi:
             return []
         # 将response作为JSON对象返回
         return response.json()
+
+    def get_all_series(self, payload=None):
+        """
+        Retrieves all series in the komga comic.
+
+        https://komga.org/docs/openapi/get-series/
+        """
+        # 取消默认分页（大小为 2000），以便一次性获取所有系列
+        return self._get_series()
 
     def get_series_with_libraryid(self, library_id):
         """

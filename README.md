@@ -102,7 +102,7 @@
 
     `KOMGA_COLLECTION_LIST` 处理指定收藏中的书籍系列。komga界面点击收藏（对应链接）即可获得，形如：`'0B79XX3NP97K9'`。填写时以英文引号`''`包裹，英文逗号`,`分割。与`KOMGA_LIBRARY_LIST`不能同时使用
 
-3. 用 `python refreshMetadataServive.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(默认执行后容器将自动关闭，详细说明见[服务运行方式](#服务运行方式))
+3. 用 `python main.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(默认执行后容器将自动关闭，详细说明见[服务运行方式](#服务运行方式))
 
 > [!TIP]
 >

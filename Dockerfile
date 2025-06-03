@@ -7,4 +7,4 @@ FROM python:3.13-slim
 WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
 COPY . .
-CMD [ "python3", "refreshMetadataServive.py"]
+CMD [ "python3", "main.py"]

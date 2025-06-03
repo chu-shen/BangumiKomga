@@ -48,9 +48,11 @@ class PollingCaller:
             while True:
                 try:
                     if self.refresh_counter >= self.refresh_all_metadata_interval:
+                        logger.info(f"正在执行全量刷新......")
                         success = self._safe_refresh(refresh_metadata)
                         self.refresh_counter = 0
                     else:
+                        logger.debug(f"正在执行增量刷新......")
                         success = self._safe_refresh(refresh_partial_metadata)
 
                     if not success:

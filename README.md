@@ -11,7 +11,7 @@
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
-  - [以后台服务形式运行](#以后台服务形式运行)
+  - [服务运行方式](#服务运行方式)
   - [为小说添加元数据](#为小说添加元数据)
   - [如何修正错误元数据](#如何修正错误元数据)
   - [同步阅读进度](#同步阅读进度)
@@ -102,7 +102,7 @@
 
     `KOMGA_COLLECTION_LIST` 处理指定收藏中的书籍系列。komga界面点击收藏（对应链接）即可获得，形如：`'0B79XX3NP97K9'`。填写时以英文引号`''`包裹，英文逗号`,`分割。与`KOMGA_LIBRARY_LIST`不能同时使用
 
-3. 用 `python refreshMetadata.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(执行后容器将自动关闭)
+3. 用 `python main.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(默认执行后容器将自动关闭，详细说明见[服务运行方式](#服务运行方式))
 
 > [!TIP]
 >
@@ -182,13 +182,14 @@
     - [chu-shen/BangumiKomga#37](https://github.com/chu-shen/BangumiKomga/issues/37)
   - 如果要对此功能启用前的系列进行修改，请在`scripts`目录下手动运行一次`python sortTitleByLetter.py`
 
-## 以后台服务形式运行
+## 服务运行方式
 
-- `USE_BANGUMI_KOMGA_SERVICE`：设置为`True`时，以后台服务形式运行
-
-- `SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
-
-- `SERVICE_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
+- `BANGUMI_KOMGA_SERVICE_TYPE`：服务运行方式，可选值：'once', 'poll', 'sse'
+  - `'once'`：以单次任务方式启动。执行后程序自动退出。推荐使用
+  - `'sse'`：以事件服务方式启动。官方 API 支持，常驻后台，持续接收新变化。推荐有频繁更新需求的使用
+  - `'poll'`：以轮询服务方式启动。常驻后台，需搭配以下配置使用
+    - `BANGUMI_KOMGA_SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
+    - `BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
 
 ## 为小说添加元数据
 

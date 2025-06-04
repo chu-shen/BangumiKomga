@@ -44,7 +44,7 @@ class DataSource(ABC):
         pass
 
     @abstractmethod
-    def get_subject_thumbnail(self, subject_metadata):
+    def get_subject_thumbnail(self, subject_metadata, image_size):
         pass
 
 
@@ -332,7 +332,7 @@ class BangumiArchiveDataSource(DataSource):
         NotImplementedError("离线数据源不支持更新阅读进度")
         return False
 
-    def get_subject_thumbnail(self, subject_metadata):
+    def get_subject_thumbnail(self, subject_metadata, image_size):
         """
         离线数据源获取封面
         """
@@ -392,5 +392,7 @@ class FallbackDataSource(DataSource):
     def update_reading_progress(self, subject_id, progress):
         self._fallback_call("update_reading_progress", subject_id, progress)
 
-    def get_subject_thumbnail(self, subject_metadata):
-        return self._fallback_call("get_subject_thumbnail", subject_metadata)
+    def get_subject_thumbnail(self, subject_metadata, image_size):
+        return self._fallback_call(
+            "get_subject_thumbnail", subject_metadata, image_size
+        )

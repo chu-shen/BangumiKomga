@@ -13,7 +13,7 @@ def series_update_sse_handler(data):
     event_data = json.loads(data["event_data"])
     series_id = event_data["seriesId"]
     library_id = event_data["libraryId"]
-    # 获取指定系列的信息
+    # 获取指定系列的详细信息
     series_detail = getSeries([series_id])
     # 筛选有效的 SeriesChanged 事件
     if data["event_type"] == "SeriesChanged":
@@ -24,15 +24,15 @@ def series_update_sse_handler(data):
             else:
                 # 无视其他 SeriesChanged 事件
                 return
-    recent_modified_series = []
-    # 仅刷新指定 LIBRARY_ID
-    if KOMGA_LIBRARY_LIST and (library_id in KOMGA_LIBRARY_LIST):
-        recent_modified_series.extend(series_detail)
-
-    if recent_modified_series:
-        refresh_metadata(recent_modified_series)
+    # 其他事件 RefreshEventType, 例如 SeriesAdded
     else:
+        pass
+    # 设置了 KOMGA_LIBRARY_LIST 且 library_id 不在 KOMGA_LIBRARY_LIST 中
+    if KOMGA_LIBRARY_LIST and (library_id not in KOMGA_LIBRARY_LIST):
         logger.info("未找到最近添加系列, 无需刷新")
+    # 以 series_detail 刷新指定库中的系列
+    else:
+        refresh_metadata(series_detail)
     return
 
 

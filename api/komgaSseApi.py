@@ -185,38 +185,60 @@ class KomgaSseClient:
     def _process_stream(self, response):
         """事件流解析器"""
         buffer = ""
-        # iter_lines() 没有线程安全, 应配合 self.running 使用
-        # https://tedboy.github.io/requests/generated/generated/requests.Response.iter_lines.html
-        for line in response.iter_lines(decode_unicode=True):
-            if not self.running:
-                break
-            # 非空行
-            if line:
-                # 处理可能的多行数据
-                buffer += line + "\n"  # 确保每行以换行符结尾
-                # 分割完整行（以换行符结束）
-                lines = buffer.split("\n")
-                # 保留最后一个未完成的行（如果有的话）
-                if lines and lines[-1] == "":  # 完整行结束
-                    buffer = ""
-                    lines = lines[:-1]
-                else:
-                    buffer = lines[-1]  # 保留未完成行
-                    lines = lines[:-1]
-                # 处理所有完整行
-                for line in lines:
-                    self._parse_message_line(line.strip())
-            else:
-                # 空行表示事件分隔符
-                self._parse_message_line("")  # 触发事件分隔处理
+        try:
+            # iter_lines() 没有线程安全, 应配合 self.running 使用
+            # https://tedboy.github.io/requests/generated/generated/requests.Response.iter_lines.html
+            for line in response.iter_lines(decode_unicode=True):
+                if not self.running:
+                    break
+                try:
+                    # 非空行
+                    if line:
+                        # 处理可能的多行数据
+                        buffer += line + "\n"  # 确保每行以换行符结尾
+                        # 分割完整行（以换行符结束）
+                        lines = buffer.split("\n")
+                        # 保留最后一个未完成的行（如果有的话）
+                        if lines and lines[-1] == "":  # 完整行结束
+                            buffer = ""
+                            lines = lines[:-1]
+                        else:
+                            buffer = lines[-1]  # 保留未完成行
+                            lines = lines[:-1]
+                        # 处理所有完整行
+                        for line in lines:
+                            self._parse_message_line(line.strip())
+                    else:
+                        # 空行表示事件分隔符
+                        self._parse_message_line("")  # 触发事件分隔处理
+                except Exception as e:
+                    self.on_error(f"SSE数据行 {line} 处理异常, {e}")
+                    continue
+        except requests.exceptions.RequestException as re:
+            # 处理网络层异常（连接超时、断开等）
+            self.on_error(f"网络连接中断, {e}")
+
+        except Exception as e:
+            # 处理其他未知异常
+            self.on_error(f"系统级错误, {e}")
 
     def _dispatch_event(self, event_type, data):
         """分发事件到对应处理器"""
-        # 忽略refresh_event_type外的其他事件类型
-        if event_type in RefreshEventType:
-            self.on_event(event_type, data)
-        else:
-            self.on_message(data)
+        try:
+            # 数据有效性验证
+            if isinstance(data, str):
+                data = json.loads(data)
+            # 忽略refresh_event_type外的其他事件类型
+            if event_type in RefreshEventType:
+                self.on_event(event_type, data)
+            else:
+                self.on_message(data)
+        except json.JSONDecodeError as e:
+            self.on_error("事件数据的JSON格式无效", raw_data=data)
+            return
+        except Exception as e:
+            self.on_error("事件分发出错", error=e)
+            return
 
 
 class KomgaSseApi:
@@ -276,10 +298,6 @@ class KomgaSseApi:
                     self.on_error(e)
 
     def on_message(self, data):
-        try:
-            json_data = json.loads(data)
-        except json.JSONDecodeError as e:
-            self.on_error(e)
         logger.debug(f"收到非订阅 SSE 消息: {data}")
 
     def on_error(self, e: Exception):
@@ -293,14 +311,13 @@ class KomgaSseApi:
         # 仅通知在 RefreshEventType 类型的事件
         if event_type in RefreshEventType:
             logger.debug(f"捕获订阅事件 [{event_type}]:{event_data}")
-            parsed_data = json.loads(event_data)
             # 判断 KOMGA_LIBRARY_LIST 是否为空
             if not KOMGA_LIBRARY_LIST:
                 pass
             # 在配置了KOMGA_LIBRARY_LIST时, 不通告 KOMGA_LIBRARY_LIST 外的库更改
-            elif parsed_data.get('libraryId') not in KOMGA_LIBRARY_LIST:
+            elif event_data.get('libraryId') not in KOMGA_LIBRARY_LIST:
                 logger.info(
-                    f"libraryId: {parsed_data.get('libraryId')} 不在 KOMGA_LIBRARY_LIST 中，跳过")
+                    f"libraryId: {event_data.get('libraryId')} 不在 KOMGA_LIBRARY_LIST 中，跳过")
                 return
             # 要不要在这里用多线程来 _notify_callbacks 呢?
             arg = {

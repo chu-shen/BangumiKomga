@@ -195,9 +195,7 @@ class TestKomgaSseApi(unittest.TestCase):
             callback_data.clear()
 
         # 测试库过滤（不匹配）
-        callback_data.clear()
         with patch('config.config.KOMGA_LIBRARY_LIST', ["lib2"]):
-            callback_data = []
             test_api.on_event("SeriesAdded", json.dumps({"libraryId": "lib1"}))
             self.assertEqual(len(callback_data), 0)
             callback_data.clear()

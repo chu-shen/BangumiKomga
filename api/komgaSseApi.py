@@ -14,6 +14,7 @@ from requests.adapters import HTTPAdapter
 from threading import Thread, Lock
 import base64
 from concurrent.futures import ThreadPoolExecutor
+import atexit
 
 # 可配置的订阅事件类型
 RefreshEventType = ["SeriesAdded",
@@ -267,6 +268,8 @@ class KomgaSseApi:
         self.sse_thread.start()
         # 使用线程池管理回调线程
         self.executor = ThreadPoolExecutor(max_workers=5)
+        # 程序退出时自动调用
+        atexit.register(self._stop_client)
 
     def _start_client(self):
         try:

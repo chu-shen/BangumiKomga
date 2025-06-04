@@ -1,29 +1,27 @@
 import threading
 from tools.log import logger
-from config.config import (
-    KOMGA_LIBRARY_LIST,
-)
+from config.config import KOMGA_LIBRARY_LIST
 from refreshMetadata import refresh_metadata, getSeries
 from api.komgaSseApi import KomgaSseApi
 import threading
-import json
 
 
 def series_update_sse_handler(data):
-    event_data = json.loads(data["event_data"])
-    series_id = event_data["seriesId"]
-    library_id = event_data["libraryId"]
+    series_id = data["event_data"]["seriesId"]
+    library_id = data["event_data"]["libraryId"]
     # 获取指定系列的详细信息
     series_detail = getSeries([series_id])
     # 筛选有效的 SeriesChanged 事件
     if data["event_type"] == "SeriesChanged":
         # 判断 SeriesChanged 是否为CBL更改
-        for link in series_detail["metadata"]["links"]:
-            if link["label"].lower() == "cbl":
-                continue
-            else:
-                # 无视其他 SeriesChanged 事件
-                return
+        if any(
+            link["label"].lower() == "cbl"
+            for link in series_detail[0]["metadata"]["links"]
+        ):
+            pass
+        else:
+            # 无视其他 SeriesChanged 事件
+            return
     # 其他事件 RefreshEventType, 例如 SeriesAdded
     else:
         pass

@@ -1,5 +1,7 @@
 import threading
 import time
+import os
+import sqlite3
 from tools.log import logger
 from config.config import (
     USE_BANGUMI_KOMGA_SERVICE,
@@ -85,7 +87,21 @@ def main():
         logger.warning("服务手动终止: 退出 BangumiKomga 服务")
 
 
+def prepare_procedure():
+    try:
+        # 准备日志目录
+        os.makedirs('/logs', exist_ok=True)
+        # 自动创建db文件
+        with sqlite3.connect('recordsRefreshed.db') as conn:
+            pass
+    except Exception as e:
+        logger.waring(f"环境准备出错: {e}, 请检查目录权限")
+        return
+
+
 if __name__ == "__main__":
+    # 加入启动流程
+    prepare_procedure()
     if USE_BANGUMI_KOMGA_SERVICE:
         main()
     else:

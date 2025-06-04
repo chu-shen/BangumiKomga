@@ -90,7 +90,7 @@ def run_unit_tests():
     print(f"忽略的用例数: {len(result.skipped)}")
     print(f"失败的用例数: {len(result.failures)}")
     print(f"错误的用例数: {len(result.errors)}")
-    print(f"\n代码覆盖率：{cov.report():.1f}%")
+    print(f"\n代码覆盖率：{cov.report():.2f}%")
 
     # 返回失败用例数量作为退出码
     return len(result.failures) + len(result.errors)

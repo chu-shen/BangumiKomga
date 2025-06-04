@@ -13,6 +13,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from threading import Thread, Lock
 import base64
+from concurrent.futures import ThreadPoolExecutor
 
 # 可配置的订阅事件类型
 RefreshEventType = ["SeriesAdded",
@@ -258,12 +259,14 @@ class KomgaSseApi:
         self.sse_client.on_error = self.on_error
         self.sse_client.on_event = self.on_event
 
+        self.series_callback_lock = Lock()
+        self.series_modified_callbacks = []
         # 使用守护线程启动SSE客户端
         self.sse_thread = Thread(target=self._start_client, daemon=True)
-        self.series_modified_callbacks = []
-        self.series_callback_lock = Lock()
-        self.sse_thread.start()  # 立即启动线程
-
+        # 立即启动线程
+        self.sse_thread.start()
+        # 使用线程池管理回调线程
+        self.executor = ThreadPoolExecutor(max_workers=5)
     def _start_client(self):
         try:
             # 改为依赖主线程的保持
@@ -274,6 +277,15 @@ class KomgaSseApi:
         except Exception as e:
             logger.error(f"启动SSE客户端失败: {e}")
             self.sse_client.stop()
+
+    def _stop_client(self):
+        # 停止 SSE 客户端
+        self.sse_client.running = False
+        if self.sse_client.thread and self.sse_client.thread.is_alive():
+            self.sse_client.thread.join(timeout=1)
+        # 关闭线程池
+        self.executor.shutdown(wait=True)
+        logger.info("SSE 客户端和线程池已关闭")
 
     def register_series_update_callback(self, callback):
         """注册系列更新回调函数"""
@@ -291,14 +303,16 @@ class KomgaSseApi:
 
     def _notify_callbacks(self, series_info):
         """通告所有已注册的回调函数"""
+        callbacks = []
         with self.series_callback_lock:
-            for callback in self.series_modified_callbacks:
-                try:
-                    # 将回调函数放在独立线程中执行, 避免阻塞事件处理
-                    Thread(target=callback, args=(
-                        series_info,), daemon=True).start()
-                except Exception as e:
-                    self.on_error(e)
+            # 复制列表，释放锁
+            callbacks = list(self.series_modified_callbacks)  
+        for callback in callbacks:
+            try:
+                # 提交任务到线程池
+                self.executor.submit(callback, series_info)
+            except Exception as e:
+                self.on_error(e)
 
     def on_message(self, data):
         logger.debug(f"收到非订阅 SSE 消息: {data}")

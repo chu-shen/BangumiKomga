@@ -227,17 +227,20 @@ class KomgaSseClient:
         try:
             # 数据有效性验证
             if isinstance(data, str):
-                data = json.loads(data)
+                json_data = json.loads(data)
+            # 确保 json_data 是字典
+            if not isinstance(json_data, dict):
+                raise Exception(f"事件数据不是有效的JSON格式")
             # 忽略refresh_event_type外的其他事件类型
             if event_type in RefreshEventType:
-                self.on_event(event_type, data)
+                self.on_event(event_type, json_data)
             else:
-                self.on_message(data)
+                self.on_message(json_data)
         except json.JSONDecodeError as e:
-            self.on_error("事件数据的JSON格式无效", raw_data=data)
+            self.on_error(f"事件数据的JSON格式无效: {data}, {e}")
             return
         except Exception as e:
-            self.on_error("事件分发出错", error=e)
+            self.on_error(f"事件 {event_type}, {data} 分发出错: {e}")
             return
 
 

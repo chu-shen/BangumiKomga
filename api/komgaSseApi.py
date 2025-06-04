@@ -314,8 +314,7 @@ class KomgaSseApi:
         # 仅通知在 RefreshEventType 类型的事件
         if event_type in RefreshEventType:
             logger.debug(f"捕获订阅事件 [{event_type}]:{event_data}")
-            parsed_data = json.loads(event_data)
-            library_id = parsed_data.get('libraryId')
+            library_id = event_data.get("libraryId")
             # 判断 KOMGA_LIBRARY_LIST 是否为空
             if not KOMGA_LIBRARY_LIST:
                 pass
@@ -325,10 +324,7 @@ class KomgaSseApi:
                     f"libraryId: {library_id} 不在 KOMGA_LIBRARY_LIST 中，跳过")
                 return
             # 要不要在这里用多线程来执行 _notify_callbacks 呢?
-            arg = {
-                "event_type": event_type,
-                "event_data": parsed_data
-            }
+            arg = {"event_type": event_type, "event_data": event_data}
             self._notify_callbacks(arg)
         else:
             logger.debug(f"捕获无关事件 [{event_type}]:{event_data}")

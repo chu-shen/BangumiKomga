@@ -237,7 +237,7 @@ class KomgaSseClient:
             else:
                 self.on_message(json_data)
         except json.JSONDecodeError as e:
-            self.on_error(f"事件数据的JSON格式无效: {data}, {e}")
+            self.on_error(f"事件数据的格式错误: {data}, {e}")
             return
         except Exception as e:
             self.on_error(f"事件 {event_type}, {data} 分发出错: {e}")
@@ -314,18 +314,20 @@ class KomgaSseApi:
         # 仅通知在 RefreshEventType 类型的事件
         if event_type in RefreshEventType:
             logger.debug(f"捕获订阅事件 [{event_type}]:{event_data}")
+            parsed_data = json.loads(event_data)
+            library_id = parsed_data.get('libraryId')
             # 判断 KOMGA_LIBRARY_LIST 是否为空
             if not KOMGA_LIBRARY_LIST:
                 pass
             # 在配置了KOMGA_LIBRARY_LIST时, 不通告 KOMGA_LIBRARY_LIST 外的库更改
-            elif event_data.get('libraryId') not in KOMGA_LIBRARY_LIST:
+            elif library_id not in KOMGA_LIBRARY_LIST:
                 logger.info(
-                    f"libraryId: {event_data.get('libraryId')} 不在 KOMGA_LIBRARY_LIST 中，跳过")
+                    f"libraryId: {library_id} 不在 KOMGA_LIBRARY_LIST 中，跳过")
                 return
-            # 要不要在这里用多线程来 _notify_callbacks 呢?
+            # 要不要在这里用多线程来执行 _notify_callbacks 呢?
             arg = {
                 "event_type": event_type,
-                "event_data": event_data
+                "event_data": parsed_data
             }
             self._notify_callbacks(arg)
         else:

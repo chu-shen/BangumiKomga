@@ -87,8 +87,9 @@ def run_unit_tests():
     # 输出简要结果到控制台
     print(f"\n测试执行完成，报告已保存至: {report_file}")
     print(f"测试用例总数: {result.testsRun}")
-    print(f"失败用例数: {len(result.failures)}")
-    print(f"错误用例数: {len(result.errors)}")
+    print(f"忽略的用例数: {len(result.skipped)}")
+    print(f"失败的用例数: {len(result.failures)}")
+    print(f"错误的用例数: {len(result.errors)}")
     print(f"\n代码覆盖率：{cov.report():.1f}%")
 
     # 返回失败用例数量作为退出码

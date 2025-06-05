@@ -69,12 +69,12 @@ class IndexedDataReader:
             targetID = int(targetID)
         except Exception as e:
             logger.debug(f"无法将传入值视为 ID: {targetID}, {e}")
-            return {}
+            return []
 
         # 检查ID是否存在
         if targetID not in self.id_offsets:
             logger.debug(f"未在索引中找到 ID: {targetID}")
-            return {}
+            return []
 
         offsets = self.id_offsets[targetID]
 

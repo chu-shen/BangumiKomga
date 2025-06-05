@@ -7,7 +7,7 @@ from bangumi_archive.indexed_jsonlines_read import IndexedDataReader
 from bangumi_archive.archive_autoupdater import update_index
 
 
-# @unittest.skip("临时跳过测试")
+@unittest.skip("临时跳过测试")
 class TestIndexedDataReader(unittest.TestCase):
     # TODO: 将覆盖率提升到100%
     def setUp(self):

@@ -7,7 +7,7 @@ from tools.slide_window_rate_limiter import SlideWindowCounter, slide_window_rat
 class TestSlideWindowCounter(unittest.TestCase):
     @patch('time.time')
     def test_basic_flow(self, mock_time):
-        """测试滑动窗口限流器-基本流程"""
+        """测试滑动窗口限流器 - 基本流程"""
         # 设置初始时间
         fixed_time = 1000.0
         mock_time.return_value = fixed_time
@@ -39,7 +39,7 @@ class TestSlideWindowCounter(unittest.TestCase):
         self.assertEqual(len(limiter.requests), 1)
 
     def test_invalid_parameters(self):
-        """测试滑动窗口限流器-无效参数输入"""
+        """测试滑动窗口限流器 - 无效参数输入"""
         # 测试负数参数处理（需要补充到原始代码中）
         with self.assertRaises(ValueError):
             SlideWindowCounter(-1, 60)
@@ -51,7 +51,7 @@ class TestRateLimiterDecorator(unittest.TestCase):
     @patch('time.time')
     @patch('time.sleep')
     def test_decorator_behavior(self, mock_sleep, mock_time):
-        """测试滑动窗口限流器-装饰器的基本行为"""
+        """测试滑动窗口限流器 - 装饰器的基本行为"""
         mock_time.return_value = 1000.0
 
         @slide_window_rate_limiter(max_requests=2, window_seconds=60, max_retries=2)

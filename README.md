@@ -62,7 +62,7 @@
 - [ ] 更新 Komga 封面时，判断：类型（'GENERATED'）、大小
 - [ ] 重构元数据更新范围及覆盖逻辑
 - [ ] 增强文件名解析
-- [ ] 自动化测试
+- [ ] ~~自动化测试~~ 完善测试用例至100%覆盖率
 
 ## 先决条件
 
@@ -191,6 +191,37 @@
     - `BANGUMI_KOMGA_SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
     - `BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
 
+  以 `SSE事件服务` 方式启动的 `BANGUMI KOMGA`, 推荐在LAN环境中连接Komga实例。若出于安全考虑将Komga置于了Nginx后端, 需更改Nginx配置来支持SSE长连接。以下为`nginx.conf`的参考`location`块配置:
+
+  ```
+  location / {
+    # KOMGA实例地址
+    proxy_pass http://komga_backend;
+    # 关闭URL自动调整功能。
+    proxy_redirect off;
+    # 将客户端请求的 Host 头传递给后端服务器，而非使用 Nginx 代理的虚拟主机配置。
+    proxy_set_header Host $http_host;
+    # 传递客户端请求的原始协议（http 或 https），帮助后端处理 SSL 终止
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # 显式指定 HTTP/1.1 协议以便支持长连接
+    proxy_http_version 1.1;
+    # proxy_set_header Upgrade $http_upgrade;
+    # 关闭 Nginx 缓冲，实时转发后端数据到客户端，避免延迟。
+    proxy_buffering off;
+    # 禁用缓存，确保每次请求SSE返回最新数据
+    proxy_cache off;
+    # 禁用 Nginx 自动添加的 Connection: keep-alive 头，避免后端服务器提前关闭长连接。
+    proxy_set_header Connection '';
+    # 强制客户端或中间代理不缓存请求结果
+    proxy_set_header Cache-Control 'no-cache';
+    # 禁用分块传输编码，确保后端直接控制数据流
+    # 后端应正确设置 Content-Type: text/event-stream
+    chunked_transfer_encoding off;
+
+ }
+
+  ```
+  
 ## 为小说添加元数据
 
 Komga 并没有区分漫画与小说，建议不同类型使用不同库

@@ -62,7 +62,7 @@
 - [ ] 更新 Komga 封面时，判断：类型（'GENERATED'）、大小
 - [ ] 重构元数据更新范围及覆盖逻辑
 - [ ] 增强文件名解析
-- [ ] ~~自动化测试~~ 完善测试用例至100%覆盖率
+- [ ] ~~自动化测试~~ 完善测试用例
 
 ## 先决条件
 
@@ -191,9 +191,11 @@
     - `BANGUMI_KOMGA_SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
     - `BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
 
-  以 `SSE事件服务` 方式启动的 `BANGUMI KOMGA`, 推荐在LAN环境中连接Komga实例。若出于安全考虑将Komga置于了Nginx后端, 需更改Nginx配置来支持SSE长连接。以下为`nginx.conf`的参考`location`块配置:
+### SSE 事件服务搭配 Nginx
 
-  ```
+推荐在 LAN 环境中连接 Komga 实例。若以 SSE 事件服务方式启动`BANGUMI KOMGA`，并且出于安全考虑将 Komga 置于 Nginx 后端, 需更改 Nginx 配置来支持 SSE 长连接。以下为`nginx.conf`的`location`块配置参考:
+
+```conf
   location / {
     # KOMGA实例地址
     proxy_pass http://komga_backend;
@@ -217,10 +219,8 @@
     # 禁用分块传输编码，确保后端直接控制数据流
     # 后端应正确设置 Content-Type: text/event-stream
     chunked_transfer_encoding off;
-
  }
-
-  ```
+```
   
 ## 为小说添加元数据
 

@@ -7,9 +7,6 @@ from bangumiArchive.archiveAutoupdater import check_archive
 # coverage 不应纳入 requirements.txt, 仅在GithubAction中使用
 import coverage
 
-# 需要测试钩子吗?
-
-
 # 添加源代码路径
 sys.path.insert(0, os.path.abspath('src'))
 
@@ -90,9 +87,10 @@ def run_unit_tests():
     # 输出简要结果到控制台
     print(f"\n测试执行完成，报告已保存至: {report_file}")
     print(f"测试用例总数: {result.testsRun}")
-    print(f"失败用例数: {len(result.failures)}")
-    print(f"错误用例数: {len(result.errors)}")
-    print(f"\n代码覆盖率：{cov.report():.1f}%")
+    print(f"忽略的用例数: {len(result.skipped)}")
+    print(f"失败的用例数: {len(result.failures)}")
+    print(f"错误的用例数: {len(result.errors)}")
+    print(f"\n代码覆盖率：{cov.report():.2f}%")
 
     # 返回失败用例数量作为退出码
     return len(result.failures) + len(result.errors)

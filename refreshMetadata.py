@@ -10,6 +10,7 @@ from tools.notification import send_notification
 from tools.db import initSqlite3, record_series_status, record_book_status
 from tools.cacheTime import TimeCacheManager
 
+
 env = InitEnv()
 bgm = env.bgm
 komga = env.komga
@@ -247,22 +248,25 @@ def refresh_metadata(series_list=None):
     )
 
 
-def getSeries():
+def getSeries(series_ids=[]):
     series_list = []
-
-    if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
-        logger.error("KOMGA_LIBRARY_LIST 和 KOMGA_COLLECTION_LIST 只能配置一种")
-    elif KOMGA_LIBRARY_LIST:
-        series_list.extend(
-            komga.get_series_with_libraryid(KOMGA_LIBRARY_LIST)["content"]
-        )
-    elif KOMGA_COLLECTION_LIST:
-        series_list.extend(
-            komga.get_series_with_collection(KOMGA_COLLECTION_LIST)["content"]
-        )
+    if len(series_ids) > 0:
+        for series_id in series_ids:
+            series_list.append(komga.get_specific_series(series_id))
     else:
-        series_list = komga.get_all_series()["content"]
-
+        if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
+            logger.error("KOMGA_LIBRARY_LIST 和 KOMGA_COLLECTION_LIST 只能配置一种")
+        elif KOMGA_LIBRARY_LIST:
+            series_list.extend(
+                komga.get_series_with_libraryid(KOMGA_LIBRARY_LIST)["content"]
+            )
+        elif KOMGA_COLLECTION_LIST:
+            series_list.extend(
+                komga.get_series_with_collection(
+                    KOMGA_COLLECTION_LIST)["content"]
+            )
+        else:
+            series_list = komga.get_all_series()["content"]
     return series_list
 
 

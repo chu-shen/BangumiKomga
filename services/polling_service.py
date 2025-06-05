@@ -2,9 +2,8 @@ import threading
 import time
 from tools.log import logger
 from config.config import (
-    USE_BANGUMI_KOMGA_SERVICE,
-    SERVICE_POLL_INTERVAL,
-    SERVICE_REFRESH_ALL_METADATA_INTERVAL,
+    BANGUMI_KOMGA_SERVICE_POLL_INTERVAL,
+    BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL,
 )
 from refreshMetadata import refresh_metadata, refresh_partial_metadata
 
@@ -12,9 +11,11 @@ from refreshMetadata import refresh_metadata, refresh_partial_metadata
 class PollingCaller:
     def __init__(self):
         self.is_refreshing = False
-        self.interval = SERVICE_POLL_INTERVAL
+        self.interval = BANGUMI_KOMGA_SERVICE_POLL_INTERVAL
         # 多少次轮询后执行一次全量刷新
-        self.refresh_all_metadata_interval = SERVICE_REFRESH_ALL_METADATA_INTERVAL
+        self.refresh_all_metadata_interval = (
+            BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL
+        )
         self.refresh_counter = 0
         # 添加锁对象
         self.lock = threading.Lock()
@@ -47,12 +48,13 @@ class PollingCaller:
         def poll():
             while True:
                 try:
+                    # 执行定时轮询
                     if self.refresh_counter >= self.refresh_all_metadata_interval:
                         success = self._safe_refresh(refresh_metadata)
                         self.refresh_counter = 0
                     else:
                         success = self._safe_refresh(refresh_partial_metadata)
-
+                    # 更新计数器和间隔
                     if not success:
                         retry_delay = min(2**self.interval, 60)
                         time.sleep(retry_delay)
@@ -75,7 +77,7 @@ class PollingCaller:
         threading.Thread(target=poll, daemon=True).start()
 
 
-def main():
+def poll_service():
     PollingCaller().start_polling()
 
     # 防止服务主线程退出
@@ -83,10 +85,3 @@ def main():
         threading.Event().wait()
     except KeyboardInterrupt:
         logger.warning("服务手动终止: 退出 BangumiKomga 服务")
-
-
-if __name__ == "__main__":
-    if USE_BANGUMI_KOMGA_SERVICE:
-        main()
-    else:
-        refresh_metadata()

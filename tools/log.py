@@ -7,15 +7,8 @@ from logging.handlers import RotatingFileHandler
 def is_in_debug():
     """检测是否在调试模式下运行"""
     result = sys.gettrace()
-    print("==============================")
-    print(f"调试器: {result}")
-    print("==============================")
-
-    # 检查调试器钩子, 不为空则是启用了调试
-    if result:
-        return True
-    else:
-        return False
+    logger.debug(f"调试器检测结果: {result}")
+    return bool(result)
 
 
 logger = logging.getLogger()

@@ -13,7 +13,7 @@ def is_english_char(c):
     return "A" <= c <= "Z" or "a" <= c <= "z"
 
 
-def sortTitleByLetter():
+def sort_title_by_letter():
     """
     为存在`Bangumi`链接的系列在排序标题中添加首字母，使其能够在导航中按字母排序
 
@@ -65,4 +65,4 @@ def sortTitleByLetter():
                 break
 
 
-sortTitleByLetter()
+sort_title_by_letter()

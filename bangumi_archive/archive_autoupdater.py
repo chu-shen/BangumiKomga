@@ -4,8 +4,8 @@ import requests
 import json
 from config.config import ARCHIVE_FILES_DIR
 from tools.log import logger
-from bangumiArchive.indexedJsonlinesRead import IndexedDataReader
-from tools.cacheTime import TimeCacheManager
+from bangumi_archive.indexed_jsonlines_read import IndexedDataReader
+from tools.cache_time import TimeCacheManager
 import hashlib
 
 # TODO: 加入Archive更新定时检查功能

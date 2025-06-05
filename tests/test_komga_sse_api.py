@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import json
 import threading
 import time
-from api.komgaSseApi import KomgaSseClient, KomgaSseApi, RefreshEventType
+from api.komga_sse_api import KomgaSseClient, KomgaSseApi, RefreshEventType
 
 
 # @unittest.skip("临时跳过测试")

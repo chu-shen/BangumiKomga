@@ -3,7 +3,7 @@ import sys
 import unittest
 from datetime import datetime
 import xml.etree.ElementTree as ET
-from bangumiArchive.archiveAutoupdater import check_archive
+from bangumi_archive.archive_autoupdater import check_archive
 # coverage 不应纳入 requirements.txt, 仅在GithubAction中使用
 import coverage
 
@@ -31,11 +31,13 @@ def run_unit_tests():
     cov = coverage.Coverage(
         include=[
             "api/*.py",
-            "bangumiArchive/*.py",
+            "bangumi_archive/*.py",
             "config/*.py",
+            "core/*.py",
             "scripts/*.py",
+            "services/*.py",
             "tools/*.py",
-            "*.py"
+            "*.py",
         ],
         omit=[
             "*__pycache__*",

@@ -3,8 +3,8 @@ import os
 from unittest.mock import patch, MagicMock, mock_open
 # from tools.log import logger
 from config.config import ARCHIVE_FILES_DIR
-from bangumiArchive.indexedJsonlinesRead import IndexedDataReader
-from bangumiArchive.archiveAutoupdater import update_index
+from bangumi_archive.indexed_jsonlines_read import IndexedDataReader
+from bangumi_archive.archive_autoupdater import update_index
 
 
 # @unittest.skip("临时跳过测试")

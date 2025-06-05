@@ -8,6 +8,11 @@ class SlideWindowCounter:
     """线程安全的滑动窗口限流器"""
 
     def __init__(self, max_requests: int, window_seconds: float):
+        # 值范围检查
+        if max_requests < 1:
+            raise ValueError("max_requests 必须大于等于1")
+        if window_seconds <= 0:
+            raise ValueError("window_seconds 必须大于0")
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.requests = deque()

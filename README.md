@@ -11,7 +11,7 @@
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
-  - [以后台服务形式运行](#以后台服务形式运行)
+  - [服务运行方式](#服务运行方式)
   - [为小说添加元数据](#为小说添加元数据)
   - [如何修正错误元数据](#如何修正错误元数据)
   - [同步阅读进度](#同步阅读进度)
@@ -62,7 +62,7 @@
 - [ ] 更新 Komga 封面时，判断：类型（'GENERATED'）、大小
 - [ ] 重构元数据更新范围及覆盖逻辑
 - [ ] 增强文件名解析
-- [ ] 自动化测试
+- [ ] ~~自动化测试~~ 完善测试用例
 
 ## 先决条件
 
@@ -102,7 +102,7 @@
 
     `KOMGA_COLLECTION_LIST` 处理指定收藏中的书籍系列。komga界面点击收藏（对应链接）即可获得，形如：`'0B79XX3NP97K9'`。填写时以英文引号`''`包裹，英文逗号`,`分割。与`KOMGA_LIBRARY_LIST`不能同时使用
 
-3. 用 `python refreshMetadata.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(执行后容器将自动关闭)
+3. 用 `python main.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(默认执行后容器将自动关闭，详细说明见[服务运行方式](#服务运行方式))
 
 > [!TIP]
 >
@@ -182,14 +182,46 @@
     - [chu-shen/BangumiKomga#37](https://github.com/chu-shen/BangumiKomga/issues/37)
   - 如果要对此功能启用前的系列进行修改，请在`scripts`目录下手动运行一次`python sortTitleByLetter.py`
 
-## 以后台服务形式运行
+## 服务运行方式
 
-- `USE_BANGUMI_KOMGA_SERVICE`：设置为`True`时，以后台服务形式运行
+- `BANGUMI_KOMGA_SERVICE_TYPE`：服务运行方式，可选值：'once', 'poll', 'sse'
+  - `'once'`：以单次任务方式启动。执行后程序自动退出。推荐使用
+  - `'sse'`：以事件服务方式启动。官方 API 支持，常驻后台，持续接收新变化。推荐有频繁更新需求的使用
+  - `'poll'`：以轮询服务方式启动。常驻后台，需搭配以下配置使用
+    - `BANGUMI_KOMGA_SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
+    - `BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
 
-- `SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
+### SSE 事件服务搭配 Nginx
 
-- `SERVICE_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
+推荐在 LAN 环境中连接 Komga 实例。若以 SSE 事件服务方式启动`BANGUMI KOMGA`，并且出于安全考虑将 Komga 置于 Nginx 后端, 需更改 Nginx 配置来支持 SSE 长连接。以下为`nginx.conf`的`location`块配置参考:
 
+```conf
+  location / {
+    # KOMGA实例地址
+    proxy_pass http://komga_backend;
+    # 关闭URL自动调整功能。
+    proxy_redirect off;
+    # 将客户端请求的 Host 头传递给后端服务器，而非使用 Nginx 代理的虚拟主机配置。
+    proxy_set_header Host $http_host;
+    # 传递客户端请求的原始协议（http 或 https），帮助后端处理 SSL 终止
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # 显式指定 HTTP/1.1 协议以便支持长连接
+    proxy_http_version 1.1;
+    # proxy_set_header Upgrade $http_upgrade;
+    # 关闭 Nginx 缓冲，实时转发后端数据到客户端，避免延迟。
+    proxy_buffering off;
+    # 禁用缓存，确保每次请求SSE返回最新数据
+    proxy_cache off;
+    # 禁用 Nginx 自动添加的 Connection: keep-alive 头，避免后端服务器提前关闭长连接。
+    proxy_set_header Connection '';
+    # 强制客户端或中间代理不缓存请求结果
+    proxy_set_header Cache-Control 'no-cache';
+    # 禁用分块传输编码，确保后端直接控制数据流
+    # 后端应正确设置 Content-Type: text/event-stream
+    chunked_transfer_encoding off;
+ }
+```
+  
 ## 为小说添加元数据
 
 Komga 并没有区分漫画与小说，建议不同类型使用不同库

@@ -5,8 +5,8 @@ import json
 import datetime
 from config.config import ARCHIVE_FILES_DIR, ARCHIVE_CHECK_INTERVAL
 from tools.log import logger
-from bangumiArchive.indexedJsonlinesRead import IndexedDataReader
-from tools.cacheTime import TimeCacheManager
+from bangumi_archive.indexed_jsonlines_read import IndexedDataReader
+from tools.cache_time import TimeCacheManager
 import hashlib
 
 UpdateTimeCacheFilePath = os.path.join(
@@ -72,10 +72,7 @@ def update_index():
     ]
     for filePath in filePaths:
         archivefile = IndexedDataReader(filePath)
-        if "relation" in filePath:
-            return archivefile.build_offsets_index(indexedFiled="subject_id")
-        else:
-            return archivefile.build_offsets_index(indexedFiled="id")
+        archivefile.update_offsets_index()
     return
 
 

@@ -41,7 +41,7 @@ class SlideWindowCounter:
 
 
 # 参数设置参考：https://docs.anilist.co/guide/rate-limiting
-def SlideWindowRateLimiter(
+def slide_window_rate_limiter(
     max_requests: int = 90,
     window_seconds: float = 60,
     max_retries: int = 3,

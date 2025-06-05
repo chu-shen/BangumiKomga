@@ -1,5 +1,5 @@
-from api.bangumiApi import BangumiDataSourceFactory
-import api.komgaApi as komgaApi
+from api.bangumi_api import BangumiDataSourceFactory
+import api.komga_api as komga_api
 from config.config import *
 
 
@@ -12,6 +12,6 @@ class InitEnv:
         }
         self.bgm = BangumiDataSourceFactory.create(BANGUMI_DATA_SOURCE_CONFIG)
         # Initialize the komga API
-        self.komga = komgaApi.KomgaApi(
+        self.komga = komga_api.KomgaApi(
             KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD
         )

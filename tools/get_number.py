@@ -8,7 +8,7 @@ class NumberType:
     NONE = "none"
 
 
-def getNumberWithPrefix(s):
+def get_number_with_prefix(s):
     pattern = r"vol\.(\d+)|chap\.(\d+)"
     match = re.search(pattern, s, re.IGNORECASE)
 
@@ -39,7 +39,7 @@ def roman_to_integer(s):
     return total
 
 
-def getRomanNumber(s):
+def get_roman_number(s):
     # 罗马数字紧邻前后无英文字母
     roman_pattern = r"(?<![A-Z])[IVXLCDM]+(?![A-Z])"
     match = re.search(roman_pattern, s, re.IGNORECASE)
@@ -66,16 +66,16 @@ def normal(s):
     return None, NumberType.NONE
 
 
-def formatString(s):
+def format_string(s):
     # e.g. 16-5
     return s.replace("-", ".").replace("_", ".")
 
 
-def getNumber(s):
+def get_number(s):
 
-    s = formatString(s)
+    s = format_string(s)
 
-    parsers = [getNumberWithPrefix, getRomanNumber, normal]
+    parsers = [get_number_with_prefix, get_roman_number, normal]
 
     for parser in parsers:
         number, type = parser(s)

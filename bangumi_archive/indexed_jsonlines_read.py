@@ -12,10 +12,7 @@ class IndexedDataReader:
     def _load_index(self):
         indexFilePath = f"{self.file_path}.index"
         if not os.path.exists(indexFilePath):
-            if "relation" in self.file_path:
-                return self.build_offsets_index(indexedFiled="subject_id")
-            else:
-                return self.build_offsets_index(indexedFiled="id")
+            return self.update_offsets_index()
         try:
             with open(indexFilePath, 'rb') as f:
                 id_offsets = pickle.load(f)
@@ -24,7 +21,13 @@ class IndexedDataReader:
             logger.error(f"索引文件未找到: {indexFilePath}")
             return {}
 
-    def build_offsets_index(self, indexedFiled: str):
+    def update_offsets_index(self):
+        if "relation" in self.file_path:
+            return self._build_offsets_index(indexedFiled="subject_id")
+        else:
+            return self._build_offsets_index(indexedFiled="id")
+
+    def _build_offsets_index(self, indexedFiled: str):
         """构建行偏移量索引"""
         id_offsets = {}
         indexFilePath = f"{self.file_path}.index"
@@ -58,10 +61,16 @@ class IndexedDataReader:
             return {}
         return id_offsets
 
-    def get_data_by_id(self, targetID: str, targetFiled: str) -> dict:
+    def get_data_by_id(self, targetID: str, targetFiled: str) -> list:
         """
         根据ID从数据文件中快速获取对应行内容
         """
+        try:
+            targetID = int(targetID)
+        except Exception as e:
+            logger.debug(f"无法将传入值视为 ID: {targetID}, {e}")
+            return {}
+
         # 检查ID是否存在
         if targetID not in self.id_offsets:
             logger.debug(f"未在索引中找到 ID: {targetID}")

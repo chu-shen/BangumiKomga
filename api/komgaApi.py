@@ -66,6 +66,22 @@ class KomgaApi:
             return []
         return response.json()
 
+    def get_specific_series(self, series_id):
+        """
+        Retrieves one specific series in the komga comic.
+
+        https://komga.org/docs/openapi/get-series-by-id
+        """
+        url = f"{self.base_url}/series/{series_id}"
+        try:
+            response = self.r.get(url)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"出现错误: {e}")
+            return []
+        # 将response作为JSON对象返回
+        return response.json()
+
     def get_all_series(self, payload=None):
         """
         Retrieves all series in the komga comic.

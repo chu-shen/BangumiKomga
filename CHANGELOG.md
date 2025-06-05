@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.17.0](https://github.com/chu-shen/BangumiKomga/compare/v0.16.1...v0.17.0) (2025-06-04)
+
+
+### Features
+
+* 添加`file_integrity_verifier()`并改进`update_archive()`的下载 ([#86](https://github.com/chu-shen/BangumiKomga/issues/86)) ([1ea5e1c](https://github.com/chu-shen/BangumiKomga/commit/1ea5e1c0b9c4f0dd2cbc24288655433998f46ccb))
+* 添加`unittest`测试 ([#88](https://github.com/chu-shen/BangumiKomga/issues/88)) ([44ed7c2](https://github.com/chu-shen/BangumiKomga/commit/44ed7c28f3b07ac0dfe642547aac640ab64a795a))
+
+
+### Bug Fixes
+
+* 修复`get_data_by_id()`的ID类型错误 ([#87](https://github.com/chu-shen/BangumiKomga/issues/87)) ([75a2d76](https://github.com/chu-shen/BangumiKomga/commit/75a2d7660ef57383ab5ab281d5d1630700ad0062))
+* 修复Komga海报因尺寸限制上传失败 ([#89](https://github.com/chu-shen/BangumiKomga/issues/89)) ([e8f8f9c](https://github.com/chu-shen/BangumiKomga/commit/e8f8f9cd1563273acb07ee769c379f331b1de51f))
+* 修复偏移量读取错误 ([90050a1](https://github.com/chu-shen/BangumiKomga/commit/90050a1f16ef1a51d1d9a2183269fcf20ef58f3c))
+* 修复图片尺寸参数未配置的错误 ([2ec3365](https://github.com/chu-shen/BangumiKomga/commit/2ec33658475b22a4b181f330bcac7a77bd1ddfe4))
+* 移除`|| exit 0`, 保留原始错误状态码 ([#90](https://github.com/chu-shen/BangumiKomga/issues/90)) ([562b090](https://github.com/chu-shen/BangumiKomga/commit/562b090f5adabab9338b6cb1b55c4b5bd1c4bfe6))
+
+
+### Documentation
+
+* add Contributors ([ec1b1d9](https://github.com/chu-shen/BangumiKomga/commit/ec1b1d9054ff284178caf2b757e062b41dd2698c))
+* 更新 Komga 最低版本要求 ([af066e8](https://github.com/chu-shen/BangumiKomga/commit/af066e8e8a74ef9ad8db31bad39d1662df7182d0))
+
 ## [0.16.1](https://github.com/chu-shen/BangumiKomga/compare/v0.16.0...v0.16.1) (2025-05-09)
 
 

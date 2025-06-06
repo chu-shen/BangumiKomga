@@ -8,7 +8,6 @@ from bangumi_archive.indexed_jsonlines_read import IndexedDataReader
 from tools.cache_time import TimeCacheManager
 import hashlib
 
-# TODO: 加入Archive更新定时检查功能
 
 UpdateTimeCacheFilePath = os.path.join(
     ARCHIVE_FILES_DIR, "archive_update_time.json")
@@ -58,9 +57,11 @@ def get_latest_url_update_time_and_size():
             data.get("size"),
         )
     except requests.exceptions.RequestException as e:
-        logger.warning(f"Bangumi Archive JSON 获取失败: {str(e)}")
+        logger.warning(f"Bangumi Archive JSON 获取失败: {e}")
     except json.JSONDecodeError as e:
-        logger.warning(f"Bangumi Archive JSON 解析失败: {str(e)}")
+        logger.warning(f"Bangumi Archive JSON 解析失败: {e}")
+    except Exception as e:
+        logger.warning(f"Bangumi Archive JSON 获取失败: {e}")
     return "", "", ""
 
 

@@ -1,6 +1,5 @@
 import unittest
 from unittest.mock import MagicMock, patch
-import threading
 from api.komga_sse_api import KomgaSseClient, KomgaSseApi, RefreshEventType
 
 
@@ -166,9 +165,16 @@ class TestKomgaSseApi(unittest.TestCase):
         self.api = KomgaSseApi(
             self.base_url, self.username, self.password)
 
+    # 应特别注意以:
+    # from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
+    # 方式导入的变量将作为本地变量绑定到当前模块的命名空间, 不能再使用:
+    # patch('config.config.KOMGA_LIBRARY_LIST', new=[])
+    # 而应该使用:
+    # patch('api.komga_sse_api.KOMGA_LIBRARY_LIST', new=[])
+
     def test_library_filtering_with_empty_list(self):
         """测试SSE API - 空KOMGA_LIBRARY_LIST时的事件分发逻辑"""
-        with patch('config.config.KOMGA_LIBRARY_LIST', []):
+        with patch('api.komga_sse_api.KOMGA_LIBRARY_LIST', new=[]):
             api = self.api
             callback_data = []
 
@@ -181,7 +187,7 @@ class TestKomgaSseApi(unittest.TestCase):
 
     def test_library_filtering_with_matching_id(self):
         """测试SSE API - 匹配KOMGA_LIBRARY_LIST时的事件分发逻辑"""
-        with patch('config.config.KOMGA_LIBRARY_LIST', ['lib1']):
+        with patch('api.komga_sse_api.KOMGA_LIBRARY_LIST', new=['lib1']):
             api = self.api
             callback_data = []
 
@@ -194,7 +200,7 @@ class TestKomgaSseApi(unittest.TestCase):
 
     def test_library_filtering_with_non_matching_id(self):
         """测试SSE API - 不匹配KOMGA_LIBRARY_LIST时的事件分发逻辑"""
-        with patch('config.config.KOMGA_LIBRARY_LIST', ['lib2']):
+        with patch('config.config.KOMGA_LIBRARY_LIST', new=['lib2']):
             api = self.api
             callback_data = []
 

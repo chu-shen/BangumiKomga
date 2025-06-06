@@ -12,14 +12,18 @@ class IndexedDataReader:
     def _load_index(self):
         indexFilePath = f"{self.file_path}.index"
         if not os.path.exists(indexFilePath):
+            logger.warning(f"索引文件未找到: {indexFilePath}")
             return self.update_offsets_index()
         try:
             with open(indexFilePath, 'rb') as f:
                 id_offsets = pickle.load(f)
                 return id_offsets
-        except FileNotFoundError as e:
-            logger.error(f"索引文件未找到: {indexFilePath}")
-            return {}
+        except pickle.UnpicklingError as e:
+            logger.error(f"索引文件损坏: {indexFilePath}, 正在尝试重建......")
+        except Exception as e:
+            logger.error(f"索引文件读取出错: {indexFilePath}, {e}, 正在尝试重建......")
+        finally:
+            return self.update_offsets_index()
 
     def update_offsets_index(self):
         if "relation" in self.file_path:
@@ -47,7 +51,7 @@ class IndexedDataReader:
                             id_offsets[item[indexedFiled]
                                        ] = [f.tell() - len(line)]
                     except Exception as e:
-                        logger.warning(f"{str(e)}")
+                        logger.warning(f"构建索引文件时于 {line} 出错: {e}")
                         continue
         except FileNotFoundError:
             logger.error(f"源数据文件未找到: {self.file_path}")
@@ -57,7 +61,7 @@ class IndexedDataReader:
                 pickle.dump(id_offsets, f)
                 logger.info(f"索引文件已保存至: {indexFilePath}")
         except Exception as e:
-            logger.error(f"写入索引失败: {str(e)}")
+            logger.error(f"写入索引失败: {e}")
             return {}
         return id_offsets
 

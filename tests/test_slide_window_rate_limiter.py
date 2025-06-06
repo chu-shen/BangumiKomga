@@ -7,7 +7,7 @@ from tools.slide_window_rate_limiter import SlideWindowCounter, slide_window_rat
 class TestSlideWindowCounter(unittest.TestCase):
     @patch('time.time')
     def test_basic_flow(self, mock_time):
-        """测试滑动窗口限流器 - 基本流程"""
+        """测试滑动窗口限流器 - 滑动窗口计数器基本行为"""
         # 设置初始时间
         fixed_time = 1000.0
         mock_time.return_value = fixed_time
@@ -51,7 +51,7 @@ class TestRateLimiterDecorator(unittest.TestCase):
     @patch('time.time')
     @patch('time.sleep')
     def test_decorator_behavior(self, mock_sleep, mock_time):
-        """测试滑动窗口限流器 - 装饰器的基本行为"""
+        """测试滑动窗口限流器 - 装饰器基本流程"""
         mock_time.return_value = 1000.0
 
         @slide_window_rate_limiter(max_requests=2, window_seconds=60, max_retries=2)
@@ -67,16 +67,14 @@ class TestRateLimiterDecorator(unittest.TestCase):
 
         # 第三次调用失败（达到限制）
         mock_time.return_value = 1015.0
-        with patch('tools.log.logger') as mock_logger:
+        with patch('tools.slide_window_rate_limiter.logger') as mock_logger:
             self.assertEqual(dummy_func(), None)  # 因为被限流且重试失败
 
-            # 期望日志被调用 3 次（每次重试都会记录一次）
-            self.assertEqual(mock_logger.debug.call_count, 3)
+            # 每次重试都会记录日志 3 次 以及 1 次检查是否允许请求
+            self.assertEqual(mock_logger.debug.call_count, 4)
 
             # 验证最后一次调用是否匹配预期
-            mock_logger.debug.assert_called_with(
-                "时间: 1015.0 | 拒绝请求 | 达到最大请求数: 2)"
-            )
+            mock_logger.debug.assert_called_with("达到最大重试次数(2)")
 
         # 验证 sleep 被调用次数
         self.assertEqual(mock_sleep.call_count, 2)  # 两次重试

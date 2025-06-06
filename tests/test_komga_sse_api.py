@@ -64,7 +64,7 @@ class TestKomgaSseClient(unittest.TestCase):
         patch.stopall()
 
     def test_authentication_flow(self):
-        """模拟测试认证流程"""
+        """测试SSE API - 模拟认证流程"""
         # 测试API Key认证
         api_key_client = KomgaSseClient(
             self.base_url, self.username, self.password,
@@ -93,7 +93,7 @@ class TestKomgaSseClient(unittest.TestCase):
         )
 
     def test_reconnection_logic(self):
-        """测试重连逻辑（模拟异常）"""
+        """测试SSE API - 模拟异常重连逻辑"""
         # 创建客户端
         client = KomgaSseClient(
             self.base_url, self.username, self.password,
@@ -169,7 +169,7 @@ class TestKomgaSseApi(unittest.TestCase):
             self.base_url, self.username, self.password)
 
     def test_event_filtering_and_dispatching(self):
-        """测试事件过滤与分发逻辑"""
+        """测试SSE API - 事件过滤与分发逻辑"""
         test_api = self.api
         # 准备测试回调
         callback_data = []
@@ -183,20 +183,20 @@ class TestKomgaSseApi(unittest.TestCase):
         # 测试未设置KOMGA_LIBRARY_LIST的事件分发
         with patch('config.config.KOMGA_LIBRARY_LIST', []):
             for event_type in RefreshEventType:
-                test_data = json.dumps({"libraryId": "0JR3B78BEGVYG"})
+                test_data = {"libraryId": "0JR3B78BEGVYG"}
                 test_api.on_event(event_type, test_data)
             self.assertTrue(len(callback_data) > 0)
             callback_data.clear()
 
         # 测试库过滤（匹配）
         with patch('config.config.KOMGA_LIBRARY_LIST', ["lib1"]):
-            test_api.on_event("SeriesAdded", json.dumps({"libraryId": "lib1"}))
+            test_api.on_event("SeriesAdded", {"libraryId": "lib1"})
             self.assertEqual(len(callback_data), 1)
             callback_data.clear()
 
         # 测试库过滤（不匹配）
         with patch('config.config.KOMGA_LIBRARY_LIST', ["lib2"]):
-            test_api.on_event("SeriesAdded", json.dumps({"libraryId": "lib1"}))
+            test_api.on_event("SeriesAdded", {"libraryId": "lib1"})
             self.assertEqual(len(callback_data), 0)
             callback_data.clear()
 
@@ -243,7 +243,7 @@ class TestErrorHandling(unittest.TestCase):
             self.base_url, self.username, self.password)
 
     def test_invalid_json_handling(self):
-        """测试无效JSON数据处理"""
+        """测试SSE API - 无效JSON数据处理"""
 
         # 模拟无效JSON数据
         invalid_data = '{"invalid": true'
@@ -252,7 +252,7 @@ class TestErrorHandling(unittest.TestCase):
             self.assertTrue(error_mock.called)
 
     def test_network_errors(self):
-        """测试网络错误处理"""
+        """测试SSE API - 网络错误处理"""
         # 模拟网络错误
         # _process_stream 使用 response.iter_lines() 读取行数据
         # 因此要用 response_mock.iter_lines.side_effect 来模拟异常

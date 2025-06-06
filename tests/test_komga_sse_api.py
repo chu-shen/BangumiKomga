@@ -1,13 +1,12 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import json
+import threading
+import time
 from api.komga_sse_api import KomgaSseClient, KomgaSseApi, RefreshEventType
-
-# TODO: logger的mock似乎没有正常工作
 
 
 # @unittest.skip("临时跳过测试")
-@patch('tools.log.logger')
 class TestKomgaSseClient(unittest.TestCase):
     """基于Mock的Komga SSE测试"""
 
@@ -20,6 +19,10 @@ class TestKomgaSseClient(unittest.TestCase):
         # 模拟requests.get，防止真实认证请求
         self.mock_get_patcher = patch('requests.get')
         self.mock_get = self.mock_get_patcher.start()
+
+        # 模拟日志系统
+        self.mock_logger = MagicMock()
+        patch('tools.log.logger', self.mock_logger).start()
 
         # 模拟requests.Session
         self.session_mock = MagicMock()
@@ -60,9 +63,8 @@ class TestKomgaSseClient(unittest.TestCase):
     def tearDown(self):
         patch.stopall()
 
-    @patch('tools.log.logger')
     def test_authentication_flow(self):
-        """模拟SSEClient - 测试认证流程"""
+        """模拟测试认证流程"""
         # 测试API Key认证
         api_key_client = KomgaSseClient(
             self.base_url, self.username, self.password,
@@ -91,7 +93,7 @@ class TestKomgaSseClient(unittest.TestCase):
         )
 
     def test_reconnection_logic(self):
-        """模拟SSEClient异常 - 测试重连逻辑"""
+        """测试重连逻辑（模拟异常）"""
         # 创建客户端
         client = KomgaSseClient(
             self.base_url, self.username, self.password,
@@ -115,66 +117,6 @@ class TestKomgaSseClient(unittest.TestCase):
 
 
 # @unittest.skip("临时跳过测试")
-@patch('tools.log.logger')
-class TestErrorHandling(unittest.TestCase):
-    """错误处理测试"""
-
-    def setUp(self):
-        # 模拟配置
-        self.base_url = "http://mocked-komga-url"
-        self.username = "test_user"
-        self.password = "test_password"
-
-        # 模拟requests.post，防止真实认证请求
-        self.mock_post_patcher = patch('requests.post')
-        self.mock_post = self.mock_post_patcher.start()
-
-        # 模拟requests.Session
-        self.session_mock = MagicMock()
-        self.session_constructor = patch(
-            'requests.Session', return_value=self.session_mock).start()
-
-        # 模拟Response对象
-        self.response_mock = MagicMock()
-        self.response_mock.status_code = 200
-        self.response_mock.headers = {}
-        self.session_mock.get.return_value = self.response_mock
-
-        self.test_events = []
-
-        # 模拟真实字节流传输
-        self.test_event_bytes = [event.encode(
-            'utf-8') for event in self.test_events]
-        self.response_mock.iter_lines.side_effect = lambda chunk_size, decode_unicode: iter(
-            self.test_event_bytes)
-
-        # 创建不会发起真实请求的测试客户端
-        self.client = KomgaSseClient(
-            self.base_url, self.username, self.password)
-
-    def test_invalid_json_handling(self):
-        """模拟SSEClient - 测试无效JSON数据处理"""
-
-        # 模拟无效JSON数据
-        invalid_data = '{"invalid": true'
-        with patch.object(self.client, 'on_error') as error_mock:
-            self.client._dispatch_event("SeriesAdded", invalid_data)
-            self.assertTrue(error_mock.called)
-
-    def test_network_errors(self):
-        """模拟SSEClient - 测试网络错误处理"""
-        # 模拟网络错误
-        # _process_stream 使用 response.iter_lines() 读取行数据
-        # 因此要用 response_mock.iter_lines.side_effect 来模拟异常
-        self.response_mock.iter_lines.side_effect = Exception("Network error")
-
-        with patch.object(self.client, 'on_error') as error_mock:
-            self.client._process_stream(self.response_mock)
-            self.assertTrue(error_mock.called)
-
-
-# @unittest.skip("临时跳过测试")
-@patch('tools.log.logger')
 class TestKomgaSseApi(unittest.TestCase):
     def setUp(self):
         # 模拟配置
@@ -185,6 +127,10 @@ class TestKomgaSseApi(unittest.TestCase):
         # 模拟requests.get，防止真实认证请求
         self.mock_get_patcher = patch('requests.get')
         self.mock_get = self.mock_get_patcher.start()
+
+        # 模拟日志系统
+        self.mock_logger = MagicMock()
+        patch('tools.log.logger', self.mock_logger).start()
 
         # 模拟requests.Session
         self.session_mock = MagicMock()
@@ -223,7 +169,7 @@ class TestKomgaSseApi(unittest.TestCase):
             self.base_url, self.username, self.password)
 
     def test_event_filtering_and_dispatching(self):
-        """模拟SSEAPI - 测试事件过滤与分发逻辑"""
+        """测试事件过滤与分发逻辑"""
         test_api = self.api
         # 准备测试回调
         callback_data = []
@@ -253,3 +199,65 @@ class TestKomgaSseApi(unittest.TestCase):
             test_api.on_event("SeriesAdded", json.dumps({"libraryId": "lib1"}))
             self.assertEqual(len(callback_data), 0)
             callback_data.clear()
+
+
+# @unittest.skip("临时跳过测试")
+class TestErrorHandling(unittest.TestCase):
+    """错误处理测试"""
+
+    def setUp(self):
+        # 模拟配置
+        self.base_url = "http://mocked-komga-url"
+        self.username = "test_user"
+        self.password = "test_password"
+
+        # 模拟requests.post，防止真实认证请求
+        self.mock_post_patcher = patch('requests.post')
+        self.mock_post = self.mock_post_patcher.start()
+
+        # 模拟日志系统
+        self.mock_logger = MagicMock()
+        patch('tools.log.logger', self.mock_logger).start()
+
+        # 模拟requests.Session
+        self.session_mock = MagicMock()
+        self.session_constructor = patch(
+            'requests.Session', return_value=self.session_mock).start()
+
+        # 模拟Response对象
+        self.response_mock = MagicMock()
+        self.response_mock.status_code = 200
+        self.response_mock.headers = {}
+        self.session_mock.get.return_value = self.response_mock
+
+        self.test_events = []
+
+        # 模拟真实字节流传输
+        self.test_event_bytes = [event.encode(
+            'utf-8') for event in self.test_events]
+        self.response_mock.iter_lines.side_effect = lambda chunk_size, decode_unicode: iter(
+            self.test_event_bytes)
+
+        # 创建不会发起真实请求的测试客户端
+        self.client = KomgaSseClient(
+            self.base_url, self.username, self.password)
+
+    def test_invalid_json_handling(self):
+        """测试无效JSON数据处理"""
+
+        # 模拟无效JSON数据
+        invalid_data = '{"invalid": true'
+        with patch.object(self.client, 'on_error') as error_mock:
+            self.client._dispatch_event("SeriesAdded", invalid_data)
+            self.assertTrue(error_mock.called)
+
+    def test_network_errors(self):
+        """测试网络错误处理"""
+        # 模拟网络错误
+        # _process_stream 使用 response.iter_lines() 读取行数据
+        # 因此要用 response_mock.iter_lines.side_effect 来模拟异常
+        self.response_mock.iter_lines.side_effect = Exception("Network error")
+
+        with patch.object(self.client, 'on_error') as error_mock:
+            self.client._process_stream(self.response_mock)
+            self.assertTrue(error_mock.called)

@@ -67,7 +67,7 @@ class IndexedDataReader:
         """
         try:
             targetID = int(targetID)
-        except Exception as e:
+        except ValueError as e:
             logger.debug(f"无法将传入值视为 ID: {targetID}, {e}")
             return []
 

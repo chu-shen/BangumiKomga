@@ -1,8 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
-import json
 import threading
-import time
 from api.komga_sse_api import KomgaSseClient, KomgaSseApi, RefreshEventType
 
 
@@ -173,15 +171,18 @@ class TestKomgaSseApi(unittest.TestCase):
         test_api = self.api
         # 准备测试回调
         callback_data = []
+        callback_event = threading.Event()  # 同步信号
 
         def test_callback(data):
             callback_data.append(data)
+            callback_event.set()  # 触发信号
 
         # 注册
         test_api.register_series_update_callback(test_callback)
 
         # 测试未设置KOMGA_LIBRARY_LIST的事件分发
         with patch('config.config.KOMGA_LIBRARY_LIST', []):
+            from config.config import KOMGA_LIBRARY_LIST
             for event_type in RefreshEventType:
                 test_data = {"libraryId": "0JR3B78BEGVYG"}
                 test_api.on_event(event_type, test_data)
@@ -190,12 +191,16 @@ class TestKomgaSseApi(unittest.TestCase):
 
         # 测试库过滤（匹配）
         with patch('config.config.KOMGA_LIBRARY_LIST', ["lib1"]):
+            from config.config import KOMGA_LIBRARY_LIST
             test_api.on_event("SeriesAdded", {"libraryId": "lib1"})
+            # 等待回调完成（超时1秒）
+            self.assertTrue(callback_event.wait(timeout=1))
             self.assertEqual(len(callback_data), 1)
             callback_data.clear()
 
         # 测试库过滤（不匹配）
         with patch('config.config.KOMGA_LIBRARY_LIST', ["lib2"]):
+            from config.config import KOMGA_LIBRARY_LIST
             test_api.on_event("SeriesAdded", {"libraryId": "lib1"})
             self.assertEqual(len(callback_data), 0)
             callback_data.clear()

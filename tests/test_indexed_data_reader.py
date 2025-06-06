@@ -74,23 +74,30 @@ class TestIndexedDataReader(unittest.TestCase):
         self.assertTrue(hasattr(reader, 'id_offsets'))
         self.assertIsInstance(reader.id_offsets, dict)
 
-    @patch('os.path.exists')  # 模拟索引文件存在
-    @patch('pickle.load')
-    @patch('builtins.open', new_callable=mock_open)
-    def test_load_index_file_found(self, mock_file, mock_pickle_load, mock_exists):
+    def test_load_index_file_found(self):
         """测试索引查询 - 加载已有索引文件"""
-        mock_exists.return_value = True
+        import tempfile
+        # 构造临时数据文件, 内容为空
+        test_data_file = tempfile.NamedTemporaryFile(delete=False)
+        test_data_file.write(b'')
+        test_data_file.close()
 
-        # 创建模拟索引文件
-        test_index_data = {1: [0, 20], 2: [40]}
-        mock_pickle_load.return_value = test_index_data
+        # 构造测试索引数据
+        test_index_data = {
+            1: [0, 20],
+            2: [40]
+        }
+        # 构造索引文件路径
+        test_index_file = f"{test_data_file.name}.index"
 
-        reader = IndexedDataReader(self.test_subject_file)
+        # 手动写入索引文件
+        with open(test_index_file, 'wb') as f:
+            pickle.dump(test_index_data, f)
 
-        # 验证索引文件打开过
-        # expected_path = f"{self.test_subject_file}.index"
-        # mock_file.assert_called_once_with(expected_path, 'rb')
-        self.assertGreaterEqual(mock_file.call_count, 1)
+        # 初始化 IndexedDataReader
+        reader = IndexedDataReader(test_data_file.name)
+
+        # 验证索引文件正确加载
         self.assertEqual(reader.id_offsets, test_index_data)
 
     # @patch('tools.log.logger')                       # 模拟日志记录器
@@ -206,39 +213,26 @@ class TestEdgeCases(unittest.TestCase):
         if os.path.exists(f"{empty_data}.index"):
             os.remove(f"{empty_data}.index")
 
-    # 模拟 pickle 加载失败
-    @patch('pickle.load')
-    @patch('builtins.open', new_callable=mock_open)
-    def test_corrupted_data_file(self, mock_index_open, mock_pickle_load):
+    def test_corrupted_data_file(self):
         """测试索引查询 - 损坏的数据行"""
-
-        # 模拟pickle.load加载失败
-        mock_pickle_load.side_effect = pickle.UnpicklingError(
-            "Invalid pickle data")
-
-        test_data = [
-            self.sample_subject_data[0],                     # 第一行正常解析
-            json.JSONDecodeError("Expecting value", "", 0),  # 第二行损坏
-            self.sample_subject_data[2],                     # 第三行正常解析
+        import tempfile
+        test_corrupt_data = [
+            json.dumps(self.sample_subject_data[0]).encode(
+                'utf-8') + b'\n',  # 第一行正常解析
+            b'invalid json line\n',                           # 第二行损坏
+            json.dumps(self.sample_subject_data[2]).encode(
+                'utf-8') + b'\n',  # 第三行正常解析
         ]
+        # 准备损坏的测试数据
+        test_corrupt_data_file = tempfile.NamedTemporaryFile(delete=False)
+        test_corrupt_data_file.write(b''.join(test_corrupt_data))
+        test_corrupt_data_file.close()
 
-        # 模拟 open 的行为，区分数据文件和索引文件
-        def index_open(*args, **kwargs):
-            path = args[0]
-            if path.endswith('.index'):
-                # 索引文件模拟可写
-                mock_file = mock_open(*args, **kwargs).return_value
-                mock_file.write = MagicMock()
-                return mock_file
-            else:
-                # 数据文件
-                mock_file = MagicMock()
-                mock_file.return_value.__enter__.return_value.readline.side_effect = test_data
-                return mock_file
+        reader = IndexedDataReader(test_corrupt_data_file.name)
 
-        mock_index_open.side_effect = index_open
-        # 创建测试实例并触发索引构建
-        reader = IndexedDataReader("corrupt_data.jsonlines")
+        # 验证索引中包含正确的 ID
+        self.assertIn(328150, reader.id_offsets)
+        self.assertIn(252220, reader.id_offsets)
 
         # 调用 get_data_by_id 获取第一行数据
         result = reader.get_data_by_id(328150, "id")
@@ -251,6 +245,9 @@ class TestEdgeCases(unittest.TestCase):
 
         # 验证只包含两行正确数据的索引
         self.assertEqual(len(reader.id_offsets), 2)
+        # 验证损坏行未被索引
+        with self.assertRaises(KeyError):
+            reader.id_offsets['invalid']
 
     @patch('os.path.exists')  # 模拟索引文件存在
     @patch('pickle.load')     # 模拟 pickle 加载失败

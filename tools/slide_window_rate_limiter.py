@@ -61,16 +61,13 @@ def slide_window_rate_limiter(
             while retries <= max_retries:
                 if limiter.is_allowed():
                     return func(*args, **kwargs)
-                else:
-                    try:
-                        # 达到最大重试次数
-                        if retries >= max_retries:
-                            raise Exception(f"达到最大重试次数({max_retries})")
-                    except Exception as e:
-                        logger.debug(e)
-                    # 否则休眠并重试
-                    time.sleep(delay)
-                    retries += 1
+                # 达到最大重试次数
+                if retries >= max_retries:
+                    logger.debug(f"达到最大重试次数({max_retries})")
+                    return None
+                # 仅在未达重试上限时等待并递增
+                time.sleep(delay)
+                retries += 1
 
         return wrapper
     return decorator

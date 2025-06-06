@@ -22,8 +22,7 @@ class IndexedDataReader:
             logger.error(f"索引文件损坏: {indexFilePath}, 正在尝试重建......")
         except Exception as e:
             logger.error(f"索引文件读取出错: {indexFilePath}, {e}, 正在尝试重建......")
-        finally:
-            return self.update_offsets_index()
+        return self.update_offsets_index()
 
     def update_offsets_index(self):
         if "relation" in self.file_path:

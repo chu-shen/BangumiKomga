@@ -62,7 +62,7 @@ class TestKomgaSseClient(unittest.TestCase):
         patch.stopall()
 
     def test_authentication_flow(self):
-        """测试SSE API - 模拟认证流程"""
+        """测试SSE Client - 模拟认证流程"""
         # 测试API Key认证
         api_key_client = KomgaSseClient(
             self.base_url, self.username, self.password,
@@ -91,7 +91,7 @@ class TestKomgaSseClient(unittest.TestCase):
         )
 
     def test_reconnection_logic(self):
-        """测试SSE API - 模拟异常重连逻辑"""
+        """测试SSE Client - 模拟异常重连逻辑"""
         # 创建客户端
         client = KomgaSseClient(
             self.base_url, self.username, self.password,
@@ -166,44 +166,44 @@ class TestKomgaSseApi(unittest.TestCase):
         self.api = KomgaSseApi(
             self.base_url, self.username, self.password)
 
-    def test_event_filtering_and_dispatching(self):
-        """测试SSE API - 事件过滤与分发逻辑"""
-        test_api = self.api
-        # 准备测试回调
-        callback_data = []
-        callback_event = threading.Event()  # 同步信号
-
-        def test_callback(data):
-            callback_data.append(data)
-            callback_event.set()  # 触发信号
-
-        # 注册
-        test_api.register_series_update_callback(test_callback)
-
-        # 测试未设置KOMGA_LIBRARY_LIST的事件分发
+    def test_library_filtering_with_empty_list(self):
+        """测试SSE API - 空KOMGA_LIBRARY_LIST时的事件分发逻辑"""
         with patch('config.config.KOMGA_LIBRARY_LIST', []):
-            from config.config import KOMGA_LIBRARY_LIST
-            for event_type in RefreshEventType:
-                test_data = {"libraryId": "0JR3B78BEGVYG"}
-                test_api.on_event(event_type, test_data)
-            self.assertTrue(len(callback_data) > 0)
-            callback_data.clear()
+            api = self.api
+            callback_data = []
 
-        # 测试库过滤（匹配）
-        with patch('config.config.KOMGA_LIBRARY_LIST', ["lib1"]):
-            from config.config import KOMGA_LIBRARY_LIST
-            test_api.on_event("SeriesAdded", {"libraryId": "lib1"})
-            # 等待回调完成（超时1秒）
-            self.assertTrue(callback_event.wait(timeout=1))
+            def test_callback(data):
+                callback_data.append(data)
+
+            api.register_series_update_callback(test_callback)
+            api.on_event("SeriesAdded", {"libraryId": "lib1"})
             self.assertEqual(len(callback_data), 1)
-            callback_data.clear()
 
-        # 测试库过滤（不匹配）
-        with patch('config.config.KOMGA_LIBRARY_LIST', ["lib2"]):
-            from config.config import KOMGA_LIBRARY_LIST
-            test_api.on_event("SeriesAdded", {"libraryId": "lib1"})
+    def test_library_filtering_with_matching_id(self):
+        """测试SSE API - 匹配KOMGA_LIBRARY_LIST时的事件分发逻辑"""
+        with patch('config.config.KOMGA_LIBRARY_LIST', ['lib1']):
+            api = self.api
+            callback_data = []
+
+            def test_callback(data):
+                callback_data.append(data)
+
+            api.register_series_update_callback(test_callback)
+            api.on_event("SeriesAdded", {"libraryId": "lib1"})
+            self.assertEqual(len(callback_data), 1)
+
+    def test_library_filtering_with_non_matching_id(self):
+        """测试SSE API - 不匹配KOMGA_LIBRARY_LIST时的事件分发逻辑"""
+        with patch('config.config.KOMGA_LIBRARY_LIST', ['lib2']):
+            api = self.api
+            callback_data = []
+
+            def test_callback(data):
+                callback_data.append(data)
+
+            api.register_series_update_callback(test_callback)
+            api.on_event("SeriesAdded", {"libraryId": "lib1"})
             self.assertEqual(len(callback_data), 0)
-            callback_data.clear()
 
 
 # @unittest.skip("临时跳过测试")
@@ -248,7 +248,7 @@ class TestErrorHandling(unittest.TestCase):
             self.base_url, self.username, self.password)
 
     def test_invalid_json_handling(self):
-        """测试SSE API - 无效JSON数据处理"""
+        """测试SSE Client - 无效JSON数据处理"""
 
         # 模拟无效JSON数据
         invalid_data = '{"invalid": true'
@@ -257,7 +257,7 @@ class TestErrorHandling(unittest.TestCase):
             self.assertTrue(error_mock.called)
 
     def test_network_errors(self):
-        """测试SSE API - 网络错误处理"""
+        """测试SSE Client - 网络错误处理"""
         # 模拟网络错误
         # _process_stream 使用 response.iter_lines() 读取行数据
         # 因此要用 response_mock.iter_lines.side_effect 来模拟异常

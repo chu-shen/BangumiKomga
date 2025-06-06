@@ -44,6 +44,8 @@ class IndexedDataReader:
                         if not line:
                             break
                         item = json.loads(line.decode("utf-8"))
+                        logger.debug(
+                            f"构建行索引: {item}, ID: {item.get(indexedFiled)}")
                         if item[indexedFiled] in id_offsets:
                             id_offsets[item[indexedFiled]].append(
                                 f.tell() - len(line))
@@ -51,7 +53,7 @@ class IndexedDataReader:
                             id_offsets[item[indexedFiled]
                                        ] = [f.tell() - len(line)]
                     except Exception as e:
-                        logger.warning(f"构建索引文件时于 {line} 出错: {e}")
+                        logger.debug(f"构建索引文件时于 {line} 出错: {e}")
                         continue
         except FileNotFoundError:
             logger.error(f"源数据文件未找到: {self.file_path}")

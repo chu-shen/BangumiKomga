@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.18.0](https://github.com/chu-shen/BangumiKomga/compare/v0.17.0...v0.18.0) (2025-06-07)
+
+
+### Features
+
+* 为logger添加调试器感知功能 ([#93](https://github.com/chu-shen/BangumiKomga/issues/93)) ([c486289](https://github.com/chu-shen/BangumiKomga/commit/c4862894b2fe47b7a531dca2ec3ec6a271041f3d))
+* 添加SSE API ([#81](https://github.com/chu-shen/BangumiKomga/issues/81)) ([b386ed5](https://github.com/chu-shen/BangumiKomga/commit/b386ed5cf94f7c73e8ef79edd5ef5abc14206adc))
+* 添加启动准备函数, 防止用户端报错 ([#94](https://github.com/chu-shen/BangumiKomga/issues/94)) ([af3063f](https://github.com/chu-shen/BangumiKomga/commit/af3063faf352d0345bec47ae98676e62ec40726d))
+
+
+### Bug Fixes
+
+* fix:  ([c9738ca](https://github.com/chu-shen/BangumiKomga/commit/c9738cacba6fb46fcb12169c1cb865df7621ae04))
+* 更新`unittest-ci`适配新的`run_unit_tests.py`文件名 ([#97](https://github.com/chu-shen/BangumiKomga/issues/97)) ([39e38f0](https://github.com/chu-shen/BangumiKomga/commit/39e38f08a7662b075335faa6035f2f1b26ea87bc))
+
 ## [0.17.0](https://github.com/chu-shen/BangumiKomga/compare/v0.16.1...v0.17.0) (2025-06-04)
 
 

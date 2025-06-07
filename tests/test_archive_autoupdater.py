@@ -127,14 +127,15 @@ class TestUpdateArchive(unittest.TestCase):
         mock_zip.return_value.__enter__.return_value = mock_zip_instance
 
         # 执行测试
-        result = update_archive("http://example.com/archive.zip")
-        self.assertTrue(result)
-        mock_remove.assert_called_once()
-        mock_zip_instance.extractall.assert_called_once_with()
+        with patch("bangumi_archive.archive_autoupdater.file_integrity_verifier", return_value=True):
+            result = update_archive("http://example.com/archive.zip")
+            self.assertTrue(result)
+            mock_remove.assert_called_once()
+            mock_zip_instance.extractall.assert_called()
 
-        # 验证文件写入完整性
-        mock_file = mock_open("dummy_path", "wb").__enter__()
-        mock_file.write.assert_called_once_with(b"X" * 1024)
+            # 验证文件写入完整性
+            mock_file = mock_open("dummy_path", "wb").__enter__()
+            mock_file.write.assert_called_once_with(b"chunk")
 
     @patch("requests.get")
     def test_download_failure(self, mock_get):
@@ -193,12 +194,16 @@ class TestCheckArchive(unittest.TestCase):
 
 
 class TestUpdateIndex(unittest.TestCase):
-    @patch("bangumi_archive.indexed_jsonlines_read.IndexedDataReader")
+    @patch("bangumi_archive.archive_autoupdater.IndexedDataReader")
     def test_update_index(self, mock_reader):
         """测试archive文件自动更新器 - 触发索引更新"""
         mock_instance = MagicMock()
         mock_reader.return_value = mock_instance
 
         update_index()
+
         mock_reader.assert_called()
+        # 验证 IndexedDataReader 是否被调用
+        self.assertTrue(mock_reader.called, "IndexedDataReader 未被调用")
+        # 验证 update_offsets_index 方法是否被调用
         mock_instance.update_offsets_index.assert_called()

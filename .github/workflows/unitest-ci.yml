@@ -10,7 +10,7 @@ jobs:
       matrix:
         python-version: ["3.13"]
     steps:
-      - name: Checkout
+      - name: Checkout Source Code
         uses: actions/checkout@v4
 
       - name: Set Python Version ${{ matrix.python-version }}
@@ -24,10 +24,10 @@ jobs:
           pip install coverage
 
       # 便于测试代码导入config.config
-      - name: Copy config.template.py to config.py
+      - name: Rename config.template.py To config.py
         run: cp config/config.template.py config/config.py
       
-      - name: Prepare log file, SQLite DB file and archivedata directory
+      - name: Prepare Necessary Files And Directories
         run: |
           mkdir -p logs
           mkdir -p archivedata

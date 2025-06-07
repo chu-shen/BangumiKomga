@@ -27,7 +27,7 @@ jobs:
       - name: Copy config.template.py to config.py
         run: cp config/config.template.py config/config.py
       
-      - name: Prepare log file, SQLite DB file and archivedata directory
+      - name: Prepare necessary files and directory
         run: |
           mkdir -p logs
           mkdir -p archivedata

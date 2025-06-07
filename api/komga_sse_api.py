@@ -5,16 +5,17 @@
 # ------------------------------------------------------------------
 
 
-from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
 import time
 import json
-from tools.log import logger
 import requests
+import atexit
+import base64
+from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
 from threading import Thread, Lock
-import base64
 from concurrent.futures import ThreadPoolExecutor
-import atexit
+from tools.log import logger
+from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
 
 # 可配置的订阅事件类型
 RefreshEventType = ["SeriesAdded",
@@ -40,13 +41,19 @@ RefreshEventType = ["SeriesAdded",
 
 class KomgaSseClient:
     def __init__(self, base_url, username, password, api_key=None, timeout=30, retries=5):
+        # 基本设置
+        self.base_url = base_url
         self.url = f"{base_url}/sse/v1/events"
         self.auth = (username, password)
-        self.running = False
-        self.timeout = timeout
         self.thread = None
-        self.delay = 1
+        self.api_key = api_key
+        self.timeout = timeout
         self.max_retries = retries
+
+        # 连接状态管理
+        self.running = False
+        self.retry_count = 0
+        self.delay = 1
         self._current_event = ""
         self._current_data = ""
 
@@ -59,26 +66,41 @@ class KomgaSseClient:
         self.on_event = lambda event_type, data: logger.info(
             f"Event [{event_type}]: {data}")
 
-        self.session = requests.Session()
-        # 传输层自动重连, 重试 self.max_retries 次
-        self.session.mount(
-            "http://", HTTPAdapter(max_retries=self.max_retries))
-        self.session.mount(
-            "https://", HTTPAdapter(max_retries=self.max_retries))
-        self.session.headers.update(
-            {
-                # 客户端向服务器表明自身能够接收事件流格式数据的关键标识
-                # 见MDN: https://developer.mozilla.org/zh-CN/docs/Web/API/Server-sent_events/Using_server-sent_events
-                "Accept": "text/event-stream",
-                "User-Agent": "chu-shen/BangumiKomga (https://github.com/chu-shen/BangumiKomga)",
-                # 防止缓存干扰实时数据流
-                "Cache-Control": "no-cache",
-            }
+        self.session = self._create_session()
+        self._setup_headers()
+
+    def _create_session(self, pool_size=5) -> requests.Session:
+        """创建带连接池的会话"""
+        session = requests.Session()
+        retries = Retry(
+            total=self.max_retries,
+            backoff_factor=0.5,
+            status_forcelist=[500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET"]
         )
-        # 使用API_KEY
-        if api_key:
-            self.session.headers["X-API-Key"] = api_key
-            test_url = f"{base_url}/api/v2/users/me"
+        adapter = HTTPAdapter(max_retries=retries,
+                              pool_connections=pool_size,
+                              pool_maxsize=pool_size)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        return session
+
+    def _setup_headers(self):
+        """设置请求头"""
+        headers = {
+            # 客户端向服务器表明自身能够接收事件流格式数据的关键标识
+            # 见MDN: https://developer.mozilla.org/zh-CN/docs/Web/API/Server-sent_events/Using_server-sent_events
+            "Accept": "text/event-stream",
+            "User-Agent": "chu-shen/BangumiKomga (https://github.com/chu-shen/BangumiKomga)",
+            # 防止缓存干扰实时数据流
+            "Cache-Control": "no-cache",
+        }
+
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
+            self.session.headers.update(headers)
+            # 验证身份
+            test_url = f"{self.base_url}/api/v2/users/me"
             try:
                 response = self.session.get(test_url)
                 if response.status_code != 200:
@@ -87,19 +109,13 @@ class KomgaSseClient:
             except requests.exceptions.RequestException as e:
                 logger.error(f"API_KEY 身份验证失败: {e}")
                 return
-        # 使用账号凭据
-        else:
+        elif self.auth:
             # 构建认证字符串
             credentials = f"{self.auth[0]}:{self.auth[1]}"
             encoded = base64.b64encode(
                 credentials.encode("utf-8")).decode("utf-8")
-            auth_text = f"Basic {encoded}"
-            # 向header加入认证字段
-            self.session.headers.update(
-                {
-                    "Authorization": auth_text
-                }
-            )
+            headers["Authorization"] = f"Basic {encoded}"
+            self.session.headers.update(headers)
             # 测试连接
             try:
                 response = self.session.get(
@@ -118,6 +134,8 @@ class KomgaSseClient:
             if response.status_code != 200:
                 logger.error("Komga 账户凭据验证失败!")
                 return
+        else:
+            return
 
     def start(self):
         """启动 SSE 监听"""

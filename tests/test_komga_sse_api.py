@@ -200,7 +200,7 @@ class TestKomgaSseApi(unittest.TestCase):
 
     def test_library_filtering_with_non_matching_id(self):
         """测试SSE API - 不匹配KOMGA_LIBRARY_LIST时的事件分发逻辑"""
-        with patch('config.config.KOMGA_LIBRARY_LIST', new=['lib2']):
+        with patch('api.komga_sse_api.KOMGA_LIBRARY_LIST', new=['lib2']):
             api = self.api
             callback_data = []
 

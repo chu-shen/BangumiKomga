@@ -47,9 +47,10 @@ class TestFileIntegrityVerifier(unittest.TestCase):
         # 正常 ZIP
         self.assertTrue(file_integrity_verifier(zip_path))
 
-        # 损坏 ZIP
-        with open(zip_path, "ab") as f:
-            f.write(b"corrupted data")
+        # 以二进制方式打开文件进行追加写入, 模拟损坏 ZIP
+        with open(zip_path, "wb") as f:
+            # 写入随机垃圾数据
+            f.write(os.urandom(100))
         self.assertFalse(file_integrity_verifier(zip_path))
 
     def tearDown(self):
@@ -100,11 +101,12 @@ class TestGetLatestInfo(unittest.TestCase):
 
 class TestUpdateArchive(unittest.TestCase):
     """测试archive文件自动更新"""
+    @patch("os.path.exists")
     @patch("requests.get")
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.remove")
     @patch("zipfile.ZipFile")
-    def test_download_and_extract_success(self, mock_zip, mock_remove, mock_open, mock_get):
+    def test_download_and_extract_success(self, mock_zip, mock_remove, mock_open, mock_get, mock_exists):
         """测试archive文件自动更新器 - 成功下载并解压archive"""
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -112,12 +114,27 @@ class TestUpdateArchive(unittest.TestCase):
         mock_response.iter_content.return_value = [b"chunk"]
         mock_get.return_value = mock_response
 
-        mock_zip.return_value.__enter__.return_value.testzip.return_value = None
+        # 模拟文件存在
+        mock_exists.return_value = True
+        # 创建完整的ZipFile模拟实例
+        mock_zip_instance = MagicMock()
+        mock_zip_instance.testzip.return_value = None  # ZIP校验通过
+        mock_zip.return_value.__enter__.return_value = MagicMock(
+            testzip=lambda: None,
+            extractall=MagicMock()
+        )
+        # 配置上下文管理器行为
+        mock_zip.return_value.__enter__.return_value = mock_zip_instance
 
+        # 执行测试
         result = update_archive("http://example.com/archive.zip")
         self.assertTrue(result)
         mock_remove.assert_called_once()
-        mock_zip.assert_called_once()
+        mock_zip_instance.extractall.assert_called_once_with()
+
+        # 验证文件写入完整性
+        mock_file = mock_open("dummy_path", "wb").__enter__()
+        mock_file.write.assert_called_once_with(b"X" * 1024)
 
     @patch("requests.get")
     def test_download_failure(self, mock_get):

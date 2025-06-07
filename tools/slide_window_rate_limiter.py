@@ -8,6 +8,11 @@ class SlideWindowCounter:
     """线程安全的滑动窗口限流器"""
 
     def __init__(self, max_requests: int, window_seconds: float):
+        # 值范围检查
+        if max_requests < 1:
+            raise ValueError("max_requests 必须大于等于1")
+        if window_seconds <= 0:
+            raise ValueError("window_seconds 必须大于0")
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.requests = deque()
@@ -56,15 +61,13 @@ def slide_window_rate_limiter(
             while retries <= max_retries:
                 if limiter.is_allowed():
                     return func(*args, **kwargs)
-                else:
-                    try:
-                        if retries >= max_retries:  # 最后一次重试失败
-                            raise Exception(f"达到最大重试次数({max_retries})")
-                    except Exception as e:
-                        print(e)
-                    time.sleep(delay)
-                    retries += 1
+                # 达到最大重试次数
+                if retries >= max_retries:
+                    logger.debug(f"达到最大重试次数({max_retries})")
+                    return None
+                # 仅在未达重试上限时等待并递增
+                time.sleep(delay)
+                retries += 1
 
         return wrapper
-
     return decorator

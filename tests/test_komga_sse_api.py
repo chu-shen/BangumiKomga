@@ -1,6 +1,6 @@
 import unittest
-from unittest.mock import MagicMock, patch
-from api.komga_sse_api import KomgaSseClient, KomgaSseApi, RefreshEventType
+from unittest.mock import MagicMock, patch, call
+from api.komga_sse_api import KomgaSseClient, KomgaSseApi
 
 
 # @unittest.skip("临时跳过测试")
@@ -112,8 +112,145 @@ class TestKomgaSseClient(unittest.TestCase):
                 # 验证延迟调用
                 self.assertTrue(sleep_mock.called)
 
+    def test_invalid_json_handling(self):
+        """测试SSE Client - 无效JSON数据处理"""
+
+        # 模拟无效JSON数据
+        invalid_data = '{"invalid": true'
+        with patch.object(self.client, 'on_error') as error_mock:
+            self.client._dispatch_event("SeriesAdded", invalid_data)
+            self.assertTrue(error_mock.called)
+
+    def test_network_errors(self):
+        """测试SSE Client - 网络错误处理"""
+        # 模拟网络错误
+        # _process_stream 使用 response.iter_lines() 读取行数据
+        # 因此要用 response_mock.iter_lines.side_effect 来模拟异常
+        self.response_mock.iter_lines.side_effect = Exception("Network error")
+
+        with patch.object(self.client, 'on_error') as error_mock:
+            self.client._process_stream(self.response_mock)
+            self.assertTrue(error_mock.called)
+
+    def test_multi_line_event_processing(self):
+        """测试SSE Client - 多行事件数据拼接处理"""
+        import time
+        # 准备测试数据
+        test_data = [
+            'event: MultiLine\ndata: {"part1": "hello"',
+            'data: ", "part2": "world"}\n\n'
+        ]
+        byte_data = [line.encode('utf-8') for line in test_data]
+
+        # 配置模拟
+        self.response_mock.iter_lines.side_effect = lambda *args, **kwargs: iter(
+            byte_data)
+
+        # 记录回调结果
+        callback_data = []
+
+        def test_callback(event_type, data):
+            callback_data.append((event_type, data))
+
+        self.client.on_event = test_callback
+
+        # 执行测试
+        with patch.object(self.client, '_connect', new=MagicMock()) as connect_mock:
+            self.client.start()
+            time.sleep(0.1)  # 等待事件处理
+
+        # 验证数据正确拼接
+        self.assertEqual(len(callback_data), 1)
+        self.assertEqual(callback_data[0][0], "MultiLine")
+        self.assertEqual(callback_data[0][1]["part1"], "hello")
+        self.assertEqual(callback_data[0][1]["part2"], "world")
+
+    def test_unicode_decoding_error(self):
+        """测试SSE Client - Unicode解码错误处理"""
+        # 创建包含非法字符的数据
+        invalid_bytes = b'event: ErrorTest\ndata: {"invalid": "\x80"}\n\n'
+
+        # 配置模拟
+        self.response_mock.iter_lines.return_value = [invalid_bytes]
+
+        # 执行测试
+        with patch.object(self.client, 'on_error') as error_mock:
+            with patch('builtins.print'):
+                self.client._process_stream(self.response_mock)
+                self.assertTrue(error_mock.called)
+
+    def test_retry_logic_with_different_exceptions(self):
+        """测试SSE Client - 不同异常类型下的重试行为"""
+        import requests
+        test_exceptions = [
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.HTTPError,
+        ]
+
+        for exc_type in test_exceptions:
+            with self.subTest(exception=exc_type):
+                client = KomgaSseClient(
+                    self.base_url, self.username, self.password,
+                    retries=2, timeout=1
+                )
+
+                # 模拟异常
+                self.session_mock.get.side_effect = [exc_type] * 3
+
+                with patch('time.sleep') as sleep_mock:
+                    with patch.object(client, '_connect') as connect_mock:
+                        client.running = True
+                        client._connect()
+
+                        # 验证重试次数
+                        self.assertEqual(connect_mock.call_count, 2)
+                        self.assertTrue(sleep_mock.called)
+
+    def test_max_retries_boundary(self):
+        """测试SSE Client - 最大重试次数边界条件"""
+        import requests
+        client = KomgaSseClient(
+            self.base_url, self.username, self.password,
+            retries=3, timeout=1
+        )
+
+        # 模拟持续超时
+        self.session_mock.get.side_effect = requests.exceptions.Timeout
+
+        with patch('time.sleep'):
+            with patch.object(client, '_connect') as connect_mock:
+                client.running = True
+                client._connect()
+
+                # 验证达到最大重试次数后停止
+                self.assertEqual(connect_mock.call_count, 3)
+                self.assertFalse(client.running)
+
+    def test_exponential_backoff_algorithm(self):
+        """测试SSE Client - 指数退避算法准确性"""
+        import requests
+        client = KomgaSseClient(
+            self.base_url, self.username, self.password,
+            retries=5, timeout=1
+        )
+
+        # 模拟失败序列
+        self.session_mock.get.side_effect = requests.exceptions.Timeout
+
+        with patch('time.sleep') as sleep_mock:
+            with patch.object(client, '_connect'):
+                client.running = True
+                client._connect()
+
+                # 验证延迟序列 [1, 2, 4, 8, 16, 30]
+                calls = [call(1), call(2), call(
+                    4), call(8), call(16), call(30)]
+                sleep_mock.assert_has_calls(calls)
 
 # @unittest.skip("临时跳过测试")
+
+
 class TestKomgaSseApi(unittest.TestCase):
     def setUp(self):
         # 模拟配置
@@ -214,64 +351,62 @@ class TestKomgaSseApi(unittest.TestCase):
                          "seriesId": "series1", "libraryId": "lib1"})
             self.assertEqual(len(callback_data), 0)
 
+    def test_concurrent_callback_registration(self):
+        """测试SSE API - 注册/注销回调"""
+        # 创建测试回调
+        def callback1(x): return None
+        def callback2(x): return None
 
-# @unittest.skip("临时跳过测试")
-class TestErrorHandling(unittest.TestCase):
-    """错误处理测试"""
+        # 模拟并发操作
+        # 注册
+        self.api.register_series_update_callback(callback1)
+        self.api.register_series_update_callback(callback2)
 
-    def setUp(self):
-        # 模拟配置
-        self.base_url = "http://mocked-komga-url"
-        self.username = "test_user"
-        self.password = "test_password"
+        # 验证回调注册
+        self.assertIn(callback1, self.api.series_modified_callbacks)
+        # 注销
+        self.api.unregister_series_update_callback(callback1)
+        self.api.unregister_series_update_callback(callback2)
 
-        # 模拟requests.post，防止真实认证请求
-        self.mock_post_patcher = patch('requests.post')
-        self.mock_post = self.mock_post_patcher.start()
+        # 验证回调注销
+        self.assertNotIn(callback1, self.api.series_modified_callbacks)
+        self.assertNotIn(callback2, self.api.series_modified_callbacks)
 
-        # 模拟日志系统
-        self.mock_logger = MagicMock()
-        patch('tools.log.logger', self.mock_logger).start()
+    def test_series_lock_cache_behavior(self):
+        """测试SSE API - 系列锁缓存行为"""
+        # 获取多个锁
+        lock1 = self.api._get_series_lock("series1")
+        lock2 = self.api._get_series_lock("series2")
+        lock3 = self.api._get_series_lock("series1")  # 相同ID
 
-        # 模拟requests.Session
-        self.session_mock = MagicMock()
-        self.session_constructor = patch(
-            'requests.Session', return_value=self.session_mock).start()
+        # 验证缓存行为
+        self.assertIsNotNone(lock1)
+        self.assertIsNotNone(lock2)
+        self.assertIs(lock1, lock3)  # 相同ID应返回相同锁
 
-        # 模拟Response对象
-        self.response_mock = MagicMock()
-        self.response_mock.status_code = 200
-        self.response_mock.headers = {}
-        self.session_mock.get.return_value = self.response_mock
+    def test_event_callback_thread_pool(self):
+        """测试SSE API - 回调线程池行为"""
+        # 准备测试数据
+        event_data = {
+            "event_type": "SeriesAdded",
+            "event_data": {"seriesId": "series1", "libraryId": "lib1"}
+        }
+        # 创建测试回调
+        def callback_test(x): return None
+        # 执行回调
+        with patch.object(self.api.executor, 'submit', new=MagicMock()) as mock_submit:
+            self.api.register_series_update_callback(callback_test)
+            self.api._notify_callbacks(event_data)
+            self.assertTrue(mock_submit.called)
 
-        self.test_events = []
+    def test_session_closing_behavior(self):
+        """测试SSE API - Session关闭状态"""
+        client = KomgaSseClient(
+            self.base_url, self.username, self.password
+        )
 
-        # 模拟真实字节流传输
-        self.test_event_bytes = [event.encode(
-            'utf-8') for event in self.test_events]
-        self.response_mock.iter_lines.side_effect = lambda chunk_size, decode_unicode: iter(
-            self.test_event_bytes)
+        # 模拟关闭
+        client.stop()
 
-        # 创建不会发起真实请求的测试客户端
-        self.client = KomgaSseClient(
-            self.base_url, self.username, self.password)
-
-    def test_invalid_json_handling(self):
-        """测试SSE Client - 无效JSON数据处理"""
-
-        # 模拟无效JSON数据
-        invalid_data = '{"invalid": true'
-        with patch.object(self.client, 'on_error') as error_mock:
-            self.client._dispatch_event("SeriesAdded", invalid_data)
-            self.assertTrue(error_mock.called)
-
-    def test_network_errors(self):
-        """测试SSE Client - 网络错误处理"""
-        # 模拟网络错误
-        # _process_stream 使用 response.iter_lines() 读取行数据
-        # 因此要用 response_mock.iter_lines.side_effect 来模拟异常
-        self.response_mock.iter_lines.side_effect = Exception("Network error")
-
-        with patch.object(self.client, 'on_error') as error_mock:
-            self.client._process_stream(self.response_mock)
-            self.assertTrue(error_mock.called)
+        # 验证session关闭
+        self.session_mock.close.assert_called_once()

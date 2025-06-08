@@ -278,6 +278,7 @@ class KomgaSseApi:
             base_url, username, password, api_key, timeout, retries)
 
         self.series_modified_callbacks = []
+        # 保护回调列表的互斥访问
         self.series_callback_lock = Lock()
 
         # 绑定回调
@@ -286,16 +287,25 @@ class KomgaSseApi:
         self.sse_client.on_event = self.on_event
 
         self.series_modified_callbacks = []
-        # 使用守护线程立即启动SSE客户端
-        self.sse_thread = Thread(
-            target=self._start_client, daemon=True
-        ).start()
+        # 使用守护线程启动SSE客户端，确保线程唯一性
+        self.sse_thread = None
+        self._start_sse_thread()
         # 使用线程池管理回调线程
         self.executor = ThreadPoolExecutor(max_workers=5)
         # 记录每个 series ID 的锁
         self.series_locks = {}
         # 程序退出时自动调用
         atexit.register(self._stop_client)
+
+    def _start_sse_thread(self):
+        """确保 SSE 线程唯一且安全启动"""
+        if self.sse_thread and self.sse_thread.is_alive():
+            logger.warning("SSE 线程已运行，跳过重复启动")
+            return
+        self.sse_thread = Thread(
+            target=self._start_client, daemon=True
+        )
+        self.sse_thread.start()
 
     def _start_client(self):
         try:

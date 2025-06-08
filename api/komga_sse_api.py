@@ -329,10 +329,10 @@ class KomgaSseApi:
 
     def register_series_update_callback(self, callback):
         """注册系列更新回调函数"""
-        # with self.series_callback_lock:
-        if callback not in self.series_modified_callbacks:
-            self.series_modified_callbacks.append(callback)
-            logger.debug(f"已注册回调函数: {callback.__name__}")
+        with self.series_callback_lock:
+            if callback not in self.series_modified_callbacks:
+                self.series_modified_callbacks.append(callback)
+                logger.debug(f"已注册回调函数: {callback.__name__}")
 
     def unregister_series_update_callback(self, callback):
         """取消注册回调函数"""

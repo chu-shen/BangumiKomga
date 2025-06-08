@@ -165,9 +165,9 @@ class TestKomgaSseApi(unittest.TestCase):
         self.api = KomgaSseApi(
             self.base_url, self.username, self.password)
 
-    # 应特别注意以:
-    # from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
-    # 方式导入的变量将作为本地变量绑定到当前模块的命名空间, 不能再使用:
+    # 应特别注意, 以:
+    # from config.config import KOMGA_LIBRARY_LIST 方式导入的变量将作为本地变量绑定到当前模块的命名空间
+    # 不能再使用:
     # patch('config.config.KOMGA_LIBRARY_LIST', new=[])
     # 而应该使用:
     # patch('api.komga_sse_api.KOMGA_LIBRARY_LIST', new=[])
@@ -182,7 +182,8 @@ class TestKomgaSseApi(unittest.TestCase):
                 callback_data.append(data)
 
             api.register_series_update_callback(test_callback)
-            api.on_event("SeriesAdded", {"libraryId": "lib1"})
+            api.on_event("SeriesAdded", {
+                         "seriesId": "series1", "libraryId": "lib1"})
             self.assertEqual(len(callback_data), 1)
 
     def test_library_filtering_with_matching_id(self):
@@ -195,7 +196,8 @@ class TestKomgaSseApi(unittest.TestCase):
                 callback_data.append(data)
 
             api.register_series_update_callback(test_callback)
-            api.on_event("SeriesAdded", {"libraryId": "lib1"})
+            api.on_event("SeriesAdded", {
+                         "seriesId": "series1", "libraryId": "lib1"})
             self.assertEqual(len(callback_data), 1)
 
     def test_library_filtering_with_non_matching_id(self):
@@ -208,7 +210,8 @@ class TestKomgaSseApi(unittest.TestCase):
                 callback_data.append(data)
 
             api.register_series_update_callback(test_callback)
-            api.on_event("SeriesAdded", {"libraryId": "lib1"})
+            api.on_event("SeriesAdded", {
+                         "seriesId": "series1", "libraryId": "lib1"})
             self.assertEqual(len(callback_data), 0)
 
 

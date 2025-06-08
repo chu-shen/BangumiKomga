@@ -14,6 +14,7 @@ from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
 from threading import Thread, Lock
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from tools.log import logger
 from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
 
@@ -70,7 +71,7 @@ class KomgaSseClient:
         self._setup_headers()
 
     def _create_session(self, pool_size=5) -> requests.Session:
-        """创建带连接池的会话"""
+        """创建带连接池和重试策略的会话"""
         session = requests.Session()
         retries = Retry(
             total=self.max_retries,
@@ -86,7 +87,7 @@ class KomgaSseClient:
         return session
 
     def _setup_headers(self):
-        """设置请求头"""
+        """设置请求头并验证身份"""
         headers = {
             # 客户端向服务器表明自身能够接收事件流格式数据的关键标识
             # 见MDN: https://developer.mozilla.org/zh-CN/docs/Web/API/Server-sent_events/Using_server-sent_events
@@ -145,6 +146,7 @@ class KomgaSseClient:
         self.running = True
         self.thread = Thread(target=self._connect)
         self.thread.start()
+        self.on_open()
 
     def stop(self):
         """停止 SSE 监听"""
@@ -256,7 +258,7 @@ class KomgaSseClient:
             # 确保 json_data 是字典
             if not isinstance(json_data, dict):
                 raise Exception(f"事件数据不是有效的JSON格式")
-            # 忽略refresh_event_type外的其他事件类型
+            # 事件过滤, 忽略refresh_event_type外的其他事件类型
             if event_type in RefreshEventType:
                 self.on_event(event_type, json_data)
             else:
@@ -283,14 +285,15 @@ class KomgaSseApi:
         self.sse_client.on_error = self.on_error
         self.sse_client.on_event = self.on_event
 
-        self.series_callback_lock = Lock()
         self.series_modified_callbacks = []
-        # 使用守护线程启动SSE客户端
-        self.sse_thread = Thread(target=self._start_client, daemon=True)
-        # 立即启动线程
-        self.sse_thread.start()
+        # 使用守护线程立即启动SSE客户端
+        self.sse_thread = Thread(
+            target=self._start_client, daemon=True
+        ).start()
         # 使用线程池管理回调线程
         self.executor = ThreadPoolExecutor(max_workers=5)
+        # 记录每个 series ID 的锁
+        self.series_locks = {}
         # 程序退出时自动调用
         atexit.register(self._stop_client)
 
@@ -330,16 +333,22 @@ class KomgaSseApi:
 
     def _notify_callbacks(self, series_info):
         """通告所有已注册的回调函数"""
-        callbacks = []
-        with self.series_callback_lock:
-            # 复制列表，释放锁
-            callbacks = list(self.series_modified_callbacks)
-        for callback in callbacks:
-            try:
-                # 提交任务到线程池
-                self.executor.submit(callback, series_info)
-            except Exception as e:
-                self.on_error(e)
+        series_id = series_info['event_data'].get('seriesId')
+        if not series_id:
+            return
+        with self._get_series_lock(series_id):
+            for callback in list(self.series_modified_callbacks):
+                try:
+                    # 提交任务到线程池
+                    self.executor.submit(callback, series_info)
+                except Exception as e:
+                    self.on_error(e)
+
+    # 为每个 series_id 提供一个独立的锁对象, lru_cache 会根据传入的参数来缓存不同的结果
+    # 300是随手填的, 非经验最优值
+    @lru_cache(maxsize=300)
+    def _get_series_lock(self, series_id):
+        return Lock()
 
     def on_message(self, data):
         logger.debug(f"收到非订阅 SSE 消息: {data}")

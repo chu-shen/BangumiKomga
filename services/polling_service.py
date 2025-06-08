@@ -1,5 +1,7 @@
 import threading
 import time
+import os
+import sqlite3
 from tools.log import logger
 from config.config import (
     BANGUMI_KOMGA_SERVICE_POLL_INTERVAL,

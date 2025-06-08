@@ -36,10 +36,14 @@ def file_integrity_verifier(file_path, expected_hash=None, expected_size=None):
 
     # ZIP 完整性自检
     if file_path.lower().endswith(".zip"):
-        with zipfile.ZipFile(file_path) as zip_ref:
-            if zip_ref.testzip() is not None:
-                logger.error(f"压缩包 CRC 校验失败: {file_path} 文件损坏")
-                return False
+        try:
+            with zipfile.ZipFile(file_path) as zip_ref:
+                if zip_ref.testzip() is not None:
+                    logger.error(f"压缩文件 CRC 校验失败: {file_path} 文件损坏")
+                    return False
+        except Exception as e:
+            logger.error(f"压缩文件无法读取: {file_path} 文件损坏")
+            return False
 
     return True
 
@@ -59,9 +63,11 @@ def get_latest_url_update_time_and_size():
             data.get("size"),
         )
     except requests.exceptions.RequestException as e:
-        logger.warning(f"Bangumi Archive JSON 获取失败: {str(e)}")
+        logger.warning(f"Bangumi Archive JSON 获取失败: {e}")
     except json.JSONDecodeError as e:
-        logger.warning(f"Bangumi Archive JSON 解析失败: {str(e)}")
+        logger.warning(f"Bangumi Archive JSON 解析失败: {e}")
+    except Exception as e:
+        logger.warning(f"Bangumi Archive JSON 获取失败: {e}")
     return "", "", ""
 
 

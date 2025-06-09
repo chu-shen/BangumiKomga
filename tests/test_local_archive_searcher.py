@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
 import json
-from bangumi_archive.local_archive_helper import (  # 替换为实际模块名
+from bangumi_archive.local_archive_searcher import (  # 替换为实际模块名
     search_line,
     search_list,
     search_all_data,
@@ -29,8 +29,8 @@ class TestSearchFunctions(unittest.TestCase):
         result = search_line(self.test_file, 1, "id")
         self.assertEqual(result, self.test_data[0])
 
-    @patch('bangumi_archive.local_archive_helper._search_line_with_index')
-    @patch('bangumi_archive.local_archive_helper._search_line_batch_optimized')
+    @patch('bangumi_archive.local_archive_searcher._search_line_with_index')
+    @patch('bangumi_archive.local_archive_searcher._search_line_batch_optimized')
     def test_search_line_index_miss_fallback(self, mock_batch, mock_index):
         """测试索引未命中时回退到批量模式"""
         # 设置索引模式返回None
@@ -42,22 +42,22 @@ class TestSearchFunctions(unittest.TestCase):
         self.assertEqual(result, self.test_data[0])
         mock_batch.assert_called_once()
 
-    @patch('bangumi_archive.local_archive_helper.open', new_callable=mock_open, read_data=json.dumps({"id": 1, "name": "Test"}))
+    @patch('bangumi_archive.local_archive_searcher.open', new_callable=mock_open, read_data=json.dumps({"id": 1, "name": "Test"}))
     def test_search_line_batch_hit(self, mock_file):
         """测试批量模式单行命中"""
-        from bangumi_archive.local_archive_helper import _search_line_batch_optimized
+        from bangumi_archive.local_archive_searcher import _search_line_batch_optimized
         result = _search_line_batch_optimized(self.test_file, 1, "id")
         self.assertEqual(result["id"], 1)
 
     def test_search_list_basic(self):
         """测试搜索列表基础功能"""
-        with patch('bangumi_archive.local_archive_helper._search_list_with_index') as mock_index:
+        with patch('bangumi_archive.local_archive_searcher._search_list_with_index') as mock_index:
             mock_index.return_value = self.test_data
             result = search_list(self.test_file, 1, "id")
             self.assertEqual(len(result), 2)
 
-    @patch('bangumi_archive.local_archive_helper._search_all_data_with_index')
-    @patch('bangumi_archive.local_archive_helper._search_all_data_batch_optimized')
+    @patch('bangumi_archive.local_archive_searcher._search_all_data_with_index')
+    @patch('bangumi_archive.local_archive_searcher._search_all_data_batch_optimized')
     def test_search_all_data_index_hit(self, mock_batch, mock_index):
         """测试全量数据搜索索引命中"""
         mock_index.return_value = self.test_data

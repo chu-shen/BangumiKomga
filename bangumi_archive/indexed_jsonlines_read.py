@@ -66,7 +66,7 @@ class IndexedDataReader:
             return {}
         return id_offsets
 
-    def get_data_by_id(self, targetID: str, targetFiled: str) -> list:
+    def get_data_by_id(self, targetID: str, targetField: str) -> list:
         """
         根据ID从数据文件中快速获取对应行内容
         """
@@ -94,7 +94,7 @@ class IndexedDataReader:
                     f.seek(offset)
                     line = f.readline().decode('utf-8')
                     item = json.loads(line)
-                    if item.get(targetFiled, 0) == targetID:
+                    if item.get(targetField, 0) == targetID:
                         results.append(item)
                     else:
                         logger.debug(f"在 Archive 数据中缺失 {str(targetID)} 行")

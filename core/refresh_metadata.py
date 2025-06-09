@@ -1,20 +1,20 @@
 import os
-from api.bangumiModel import SubjectRelation
-from tools.getTitle import ParseTitle
-import processMetadata
+from api.bangumi_model import SubjectRelation
+from tools.get_title import ParseTitle
+import core.process_metadata as process_metadata
 from time import strftime, localtime
-from tools.getNumber import getNumber, NumberType
+from tools.get_number import get_number, NumberType
 from tools.env import *
 from tools.log import logger
 from tools.notification import send_notification
-from tools.db import initSqlite3, record_series_status, record_book_status
-from tools.cacheTime import TimeCacheManager
+from tools.db import init_sqlite3, record_series_status, record_book_status
+from tools.cache_time import TimeCacheManager
 
 
 env = InitEnv()
 bgm = env.bgm
 komga = env.komga
-cursor, conn = initSqlite3()
+cursor, conn = init_sqlite3()
 
 
 def refresh_metadata(series_list=None):
@@ -22,7 +22,7 @@ def refresh_metadata(series_list=None):
     刷新书籍系列元数据
     """
     if series_list is None or series_list == []:
-        series_list = getSeries()
+        series_list = get_series()
 
     parse_title = ParseTitle()
 
@@ -117,7 +117,7 @@ def refresh_metadata(series_list=None):
             logger.warning("无法获取元数据: %s", series_name)
             continue
 
-        komga_metadata = processMetadata.setKomangaSeriesMetadata(
+        komga_metadata = process_metadata.set_komga_series_metadata(
             metadata, series_name, bgm
         )
 
@@ -248,7 +248,7 @@ def refresh_metadata(series_list=None):
     )
 
 
-def getSeries(series_ids=[]):
+def get_series(series_ids=[]):
     series_list = []
     if len(series_ids) > 0:
         for series_id in series_ids:
@@ -343,7 +343,7 @@ def refresh_partial_metadata():
 
 def update_book_metadata(book_id, related_subject, book_name, number):
     # Get the metadata for the book from bangumi
-    book_metadata = processMetadata.setKomangaBookMetadata(
+    book_metadata = process_metadata.set_komga_book_metadata(
         related_subject["id"], number, book_name, bgm
     )
     if book_metadata.isvalid == False:
@@ -424,7 +424,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
             if link["label"].lower() == "cbl":
                 cbl_subject = bgm.get_subject_metadata(
                     link["url"].split("/")[-1])
-                number, _ = getNumber(
+                number, _ = get_number(
                     cbl_subject["name"] + cbl_subject["name_cn"])
                 update_book_metadata(book_id, cbl_subject, book_name, number)
                 break
@@ -455,7 +455,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
             # Get the number for each related subject by finding the last number in the name or name_cn field
             subjects_numbers = []
             for subject in related_subjects:
-                number, _ = getNumber(subject["name"] + subject["name_cn"])
+                number, _ = get_number(subject["name"] + subject["name_cn"])
                 try:
                     subjects_numbers.append(number)
                 except ValueError:
@@ -467,7 +467,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
                     )
 
         # get nunmber from book name
-        book_number, number_type = getNumber(book_name)
+        book_number, number_type = get_number(book_name)
         ep_flag = True
         if number_type not in (NumberType.CHAPTER, NumberType.NONE):
             # Update the metadata for the book if its number matches a related subject number

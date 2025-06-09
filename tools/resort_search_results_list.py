@@ -1,5 +1,5 @@
 from thefuzz import fuzz
-from api.bangumiModel import SubjectPlatform
+from api.bangumi_model import SubjectPlatform
 from config.config import IS_NOVEL_ONLY
 
 
@@ -21,14 +21,14 @@ def compute_name_score_by_fuzzy(name: str, name_cn: str, infobox, target: str) -
     return score
 
 
-def resort_search_list(query, results, threshold, DataSource):
+def resort_search_list(query, results, threshold, data_source):
     if len(results) < 1:
         return []
     # 构建具有完整元数据的排序条目
     sort_results = []
     for result in results:
         manga_id = result["id"]
-        manga_metadata = DataSource.get_subject_metadata(manga_id)
+        manga_metadata = data_source.get_subject_metadata(manga_id)
         if not manga_metadata:
             continue
         # bangumi书籍系列包括：系列、单行本

@@ -359,7 +359,7 @@ class KomgaApi:
             return self.add_collection(name, ordered, seriesIds)
 
 
-class seriesMetadata:
+class SeriesMetadata:
     """
     Class to represent Komga series metadata fields.
 
@@ -384,7 +384,7 @@ class seriesMetadata:
         self.isvalid = False
 
 
-class bookMetadata:
+class BookMetadata:
     """
     Class to represent Komga book metadata fields.
     """

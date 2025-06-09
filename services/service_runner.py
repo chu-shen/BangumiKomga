@@ -2,7 +2,7 @@ from services.polling_service import poll_service
 from services.sse_service import sse_service
 from tools.log import logger
 from config.config import BANGUMI_KOMGA_SERVICE_TYPE
-from refreshMetadata import refresh_metadata
+from core.refresh_metadata import refresh_metadata
 
 
 def run_service():

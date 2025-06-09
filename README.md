@@ -12,6 +12,7 @@
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
   - [服务运行方式](#服务运行方式)
+    - [SSE 事件服务搭配 Nginx](#sse-事件服务搭配-nginx)
   - [为小说添加元数据](#为小说添加元数据)
   - [如何修正错误元数据](#如何修正错误元数据)
   - [同步阅读进度](#同步阅读进度)
@@ -30,8 +31,8 @@
 该脚本获取您 Komga 实例上可用的漫画列表, 挨个在 [Bangumi](https://bgm.tv/) 上查询, 并按配置获取指定系列的元数据。
 然后将这些元数据转换为与 Komga 兼容的格式, 并更新到 Komga 服务器的具体漫画条目中。
 
-![sample](img/sample.jpg)
-![detail](img/detail.jpg)
+![sample](docs/images/sample.jpg)
+![detail](docs/images/detail.jpg)
 
 ## 功能
 
@@ -232,7 +233,7 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
 
 人工修正错误元数据可以使用`cbl(Correct Bangumi Link)`，只需在系列元数据的链接中填入`cbl`和该漫画系列的 bangumi 地址。将强制使用此链接，不再进行刮削。与`RECHECK_FAILED_SERIES`配置无关
 
-![cbl](img/cbl.png)
+![cbl](docs/images/cbl.png)
 
 下面分三种情况说明具体操作：
 
@@ -267,7 +268,7 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
 
     注意：
     - 同步当前获取的**所有系列**的漫画进度（当前有3种范围：所有、仅指定库、仅指定收藏）。**为避免污染时间线，请谨慎操作**
-3. `python updateReadProgress.py`
+3. `python scripts/updateReadProgress.py`
 
 ## 命名建议
 

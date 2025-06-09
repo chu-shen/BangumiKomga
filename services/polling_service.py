@@ -1,11 +1,13 @@
 import threading
 import time
+import os
+import sqlite3
 from tools.log import logger
 from config.config import (
     BANGUMI_KOMGA_SERVICE_POLL_INTERVAL,
     BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL,
 )
-from refreshMetadata import refresh_metadata, refresh_partial_metadata
+from core.refresh_metadata import refresh_metadata, refresh_partial_metadata
 
 
 class PollingCaller:

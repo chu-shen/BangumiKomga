@@ -34,10 +34,7 @@ RefreshEventType = ["SeriesAdded",
                     # "BookImported"
                     ]
 # TODO: 修复已知bug
-# 1. 观察到执行后有概率会自动退出，未输出错误信息
-# 2. > 一个任务好像有多个线程在执行？或者说没有过滤元数据修改？
-#    似乎某些时候会响应非CBL元数据更改
-# https://github.com/chu-shen/BangumiKomga/pull/81
+# (等待复现方案) 观察到执行后有概率会自动退出，未输出错误信息
 
 
 class KomgaSseClient:

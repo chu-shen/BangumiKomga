@@ -199,7 +199,7 @@ class KomgaSseClient:
             return "", ""
         # 解析事件类型
         if line.startswith("event:"):
-            self._current_event = line[6:].strip()
+            current_event = line[6:].strip()
         # 解析数据
         elif line.startswith("data:"):
             data_part = line[5:].strip()

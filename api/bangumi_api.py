@@ -9,7 +9,7 @@ from requests.adapters import HTTPAdapter
 
 from tools.log import logger
 from bangumi_archive.archive_autoupdater import check_archive
-from bangumi_archive.local_archive_helper import (
+from bangumi_archive.local_archive_searcher import (
     parse_infobox,
     search_line,
     search_list,

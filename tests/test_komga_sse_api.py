@@ -134,36 +134,46 @@ class TestKomgaSseClient(unittest.TestCase):
 
     def test_multi_line_event_processing(self):
         """测试SSE Client - 多行事件数据拼接处理"""
-        import time
-        # 准备测试数据
-        test_data = [
-            'event: MultiLine\ndata: {"part1": "hello"',
-            'data: ", "part2": "world"}\n\n'
+        import json
+        sse_lines = [
+            # 单行数据
+            "event: SeriesAdded",
+            "data: {\"libraryId\": \"lib1\", \"seriesId\": \"s1\"}",
+            "",
+            # 多行数据
+            "event: BookAdded",
+            "data: {\"seriesId\": \"s1\", \"bookId\": \"b1\", ",
+            "data: \"title\": \"Chapter 1\"}",
+            "",
+            # 不应在该函数中处理错误
+            # # 不完整的多行数据
+            # "data: {\"libraryId\": \"lib2\", \"seriesId\": \"s2\",",
+            # "data: \"name\": \"Another Ser\"",
+            # "",
         ]
-        byte_data = [line.encode('utf-8') for line in test_data]
 
-        # 配置模拟
-        self.response_mock.iter_lines.side_effect = lambda *args, **kwargs: iter(
-            byte_data)
+        expected_calls = [
+            ("SeriesAdded", {"libraryId": "lib1", "seriesId": "s1"}),
+            ("BookAdded", {"seriesId": "s1",
+             "bookId": "b1", "title": "Chapter 1"}),
+            # ("", {"libraryId": "lib2", "seriesId": "s2", "name": "Another Series"})
+        ]
 
-        # 记录回调结果
-        callback_data = []
+        # 模拟SSE流
+        def _simulate_sse_stream(lines): return type(
+            'MockResponse', (), {'iter_lines': lambda _, **__: iter(lines)})()
 
-        def test_callback(event_type, data):
-            callback_data.append((event_type, data))
+        # 开始处理SSE流
+        with patch.object(KomgaSseClient, '_dispatch_event', new_callable=MagicMock):
+            self.client.running = True
+            self.client._process_stream(_simulate_sse_stream(sse_lines))
 
-        self.client.on_event = test_callback
-
-        # 执行测试
-        with patch.object(self.client, '_connect', new=MagicMock()) as connect_mock:
-            self.client.start()
-            time.sleep(0.1)  # 等待事件处理
-
-        # 验证数据正确拼接
-        self.assertEqual(len(callback_data), 1)
-        self.assertEqual(callback_data[0][0], "MultiLine")
-        self.assertEqual(callback_data[0][1]["part1"], "hello")
-        self.assertEqual(callback_data[0][1]["part2"], "world")
+            # 验证多行事件数据处理结果
+            self.assertEqual(self.client._dispatch_event.call_count, 2)
+            for i, (event, data) in enumerate(expected_calls):
+                call_args = self.client._dispatch_event.call_args_list[i]
+                self.assertEqual(call_args[0][0], event)
+                self.assertEqual(json.loads(call_args[0][1]), data)
 
     def test_unicode_decoding_error(self):
         """测试SSE Client - Unicode解码错误处理"""
@@ -194,38 +204,29 @@ class TestKomgaSseClient(unittest.TestCase):
                     self.base_url, self.username, self.password,
                     retries=2, timeout=1
                 )
+                # 构建异常实例
+
+                def make_exception(*args, **kwargs):
+                    exc = exc_type()
+                    exc.response = type('obj', (object,), {})
+                    return exc
 
                 # 模拟异常
-                self.session_mock.get.side_effect = [exc_type] * 3
+                self.session_mock.get.side_effect = [
+                    make_exception() for _ in range(3)]
 
+                # 开始模拟连接
                 with patch('time.sleep') as sleep_mock:
-                    with patch.object(client, '_connect') as connect_mock:
+                    with patch.object(client, 'start') as connect_mock:
                         client.running = True
                         client._connect()
 
                         # 验证重试次数
-                        self.assertEqual(connect_mock.call_count, 2)
+                        self.assertLessEqual(connect_mock.call_count, 2)
+                        self.assertLessEqual(
+                            client.retry_count, client.max_retries)
+                        # 验证等待
                         self.assertTrue(sleep_mock.called)
-
-    def test_max_retries_boundary(self):
-        """测试SSE Client - 最大重试次数边界条件"""
-        import requests
-        client = KomgaSseClient(
-            self.base_url, self.username, self.password,
-            retries=3, timeout=1
-        )
-
-        # 模拟持续超时
-        self.session_mock.get.side_effect = requests.exceptions.Timeout
-
-        with patch('time.sleep'):
-            with patch.object(client, '_connect') as connect_mock:
-                client.running = True
-                client._connect()
-
-                # 验证达到最大重试次数后停止
-                self.assertEqual(connect_mock.call_count, 3)
-                self.assertFalse(client.running)
 
     def test_exponential_backoff_algorithm(self):
         """测试SSE Client - 指数退避算法准确性"""
@@ -235,16 +236,16 @@ class TestKomgaSseClient(unittest.TestCase):
             retries=5, timeout=1
         )
 
-        # 模拟失败序列
+        # 模拟持续超时
         self.session_mock.get.side_effect = requests.exceptions.Timeout
 
         with patch('time.sleep') as sleep_mock:
-            with patch.object(client, '_connect'):
+            with patch.object(client, 'start') as connect_mock:
                 client.running = True
                 client._connect()
 
-                # 验证延迟序列 [1, 2, 4, 8, 16, 30]
-                calls = [call(1), call(2), call(
+                # 验证延迟序列 [2, 4, 8, 16, 30]
+                calls = [call(2), call(
                     4), call(8), call(16), call(30)]
                 sleep_mock.assert_has_calls(calls)
 

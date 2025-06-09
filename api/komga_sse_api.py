@@ -55,8 +55,6 @@ class KomgaSseClient:
         self.running = False
         self.retry_count = 0
         self.delay = 1
-        self._current_event = ""
-        self._current_data = ""
 
         # 用于Debug的默认回调函数
         self.on_open = lambda: logger.info("成功连接 Komga SSE 服务端点")
@@ -102,6 +100,7 @@ class KomgaSseClient:
             self.session.headers.update(headers)
             # 验证身份
             test_url = f"{self.base_url}/api/v2/users/me"
+            response = None  # 提前声明变量
             try:
                 response = self.session.get(test_url)
                 if response.status_code != 200:
@@ -117,6 +116,7 @@ class KomgaSseClient:
                 credentials.encode("utf-8")).decode("utf-8")
             headers["Authorization"] = f"Basic {encoded}"
             self.session.headers.update(headers)
+            response = None  # 提前声明变量
             # 测试连接
             try:
                 response = self.session.get(
@@ -126,12 +126,13 @@ class KomgaSseClient:
                 )
             # 防止取不到response.status_code
             except requests.exceptions.ConnectionError as e:
-                logger.error(f"Komga SSE 连接错误: {e}")
-            except Exception as e:
                 logger.error(
-                    f"Komga SSE HTTP错误, HTTP {response.status_code}: {response.reason}")
+                    f"Komga SSE 连接错误, HTTP {response.status_code}: {response.reason}")
+                return
+            except Exception as e:
+                logger.error(f"Komga SSE 连接错误: {e}")
                 self.on_error(e)
-                exit(1)
+                return
             if response.status_code != 200:
                 logger.error("Komga 账户凭据验证失败!")
                 return
@@ -189,29 +190,30 @@ class KomgaSseClient:
                 time.sleep(delay)
                 self.on_retry()
 
-    def _parse_message_line(self, line):
+    def _parse_message_line(self, line, current_event, current_data):
         """事件行消息解析器"""
         if not line:
             # 空行表示事件结束, 分发事件
-            self._dispatch_event(self._current_event, self._current_data)
-            self._current_event = ""
-            self._current_data = ""
-            return
+            self._dispatch_event(current_event, current_data)
+            # 重置 current_event 和 current_data
+            return "", ""
         # 解析事件类型
         if line.startswith("event:"):
             self._current_event = line[6:].strip()
         # 解析数据
         elif line.startswith("data:"):
             data_part = line[5:].strip()
-            if self._current_data is None:
-                self._current_data = data_part
+            if current_data is None:
+                current_data = data_part
             else:
-                # 处理多行data
-                self._current_data += "\n" + data_part
+                current_data += "\n" + data_part
+        return current_event, current_data
 
     def _process_stream(self, response):
         """事件流解析器"""
         buffer = ""
+        current_event = ""
+        current_data = ""
         try:
             # iter_lines() 没有线程安全, 应配合 self.running 使用
             # https://tedboy.github.io/requests/generated/generated/requests.Response.iter_lines.html
@@ -234,20 +236,22 @@ class KomgaSseClient:
                             lines = lines[:-1]
                         # 处理所有完整行
                         for line in lines:
-                            self._parse_message_line(line.strip())
+                            current_event, current_data = self._parse_message_line(
+                                line.strip(), current_event, current_data)
                     else:
                         # 空行表示事件分隔符
-                        self._parse_message_line("")  # 触发事件分隔处理
+                        current_event, current_data = self._parse_message_line(
+                            "", current_event, current_data)  # 触发事件分隔处理
                 except Exception as e:
-                    self.on_error(f"SSE数据行 {line} 处理异常, {e}")
+                    self.on_error(f"SSE 数据行 {line} 处理异常, {e}")
                     continue
         except requests.exceptions.RequestException as re:
             # 处理网络层异常（连接超时、断开等）
-            self.on_error(f"网络连接中断, {e}")
+            self.on_error(f"读取 SSE 流数据时网络连接中断, {e}")
 
         except Exception as e:
             # 处理其他未知异常
-            self.on_error(f"系统级错误, {e}")
+            self.on_error(f"遇到未知错误, {e}")
 
     def _dispatch_event(self, event_type, data):
         """分发事件到对应处理器"""

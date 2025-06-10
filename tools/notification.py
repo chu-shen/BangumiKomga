@@ -25,9 +25,9 @@ def send_notification(title, message):
                 json=data,
             )
             if response.status_code == 200:
-                logger.info(type + ": 成功发送通知")
+                logger.info(f"{type}: 成功发送通知")
             else:
-                logger.error(type + ": 发送通知失败")
+                logger.error(f"{type}: 发送通知失败")
 
         elif type == "WEBHOOK":
             data = {
@@ -53,9 +53,9 @@ def send_notification(title, message):
                 json=data,
             )
             if response.status_code == 200:
-                logger.info(type + ": 成功发送通知")
+                logger.info(f"{type}: 成功发送通知")
             else:
-                logger.error(type + ": 发送通知失败")
+                logger.error(f"{type}: 发送通知失败")
 
         elif type == "HEALTHCHECKS":
             try:

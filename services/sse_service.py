@@ -52,7 +52,7 @@ def sse_service():
 
     # 注册回调函数
     komga_api.register_series_update_callback(series_update_sse_handler)
-    # 主线程保持运行（实际应用中可能有其他逻辑）
+
     # 防止服务主线程退出
     try:
         threading.Event().wait()

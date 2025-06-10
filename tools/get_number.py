@@ -21,7 +21,10 @@ def get_number_with_prefix(s):
 
 
 def roman_to_integer(s):
-    roman_numerals = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+    # FIXME: 检查重复规则, V, L, D 不能重复
+    # FIXME: 检查是否包含非法字符
+    roman_numerals = {"I": 1, "V": 5, "X": 10,
+                      "L": 50, "C": 100, "D": 500, "M": 1000}
 
     total = 0
     prev_value = 0

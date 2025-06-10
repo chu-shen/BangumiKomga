@@ -62,6 +62,7 @@ def send_notification(title, message):
                 requests.get(
                     NOTIF_HEALTHCHECKS_ENDPOINT, timeout=NOTIF_HEALTHCHECKS_TIMEOUT
                 )
+                logger.debug("HEALTHCHECKS 通过")
             except requests.RequestException as e:
                 # Log ping failure here...
-                logger.error(type + ": Ping 失败。错误: " + e)
+                logger.error(f"{type}: Ping 失败。错误: {e}")

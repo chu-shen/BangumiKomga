@@ -32,10 +32,10 @@ class TimeCacheManager:
 
     def convert_to_timedelta(input_seconds: int) -> Optional[datetime]:
         """
-        将小时数转换为 datetime 对象
+        将分钟数转换为 datetime 对象
         """
         try:
-            result = timedelta(hours=input_seconds)
+            result = timedelta(minutes=input_seconds)
         except Exception as e:
             logger.warning(f"时间值 {input_seconds} 转换失败: {str(e)}")
             return None

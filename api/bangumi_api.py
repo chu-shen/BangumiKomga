@@ -9,11 +9,11 @@ from requests.adapters import HTTPAdapter
 
 from tools.log import logger
 from bangumi_archive.archive_autoupdater import check_archive
-from bangumi_archive.local_archive_helper import (
+from bangumi_archive.local_archive_searcher import (
     parse_infobox,
-    search_line_with_index,
-    search_list_with_index,
-    search_all_data_batch_optimized,
+    search_line,
+    search_list,
+    search_all_data,
 )
 from tools.resort_search_results_list import resort_search_list
 from tools.slide_window_rate_limiter import slide_window_rate_limiter
@@ -193,7 +193,7 @@ class bangumi_archiveDataSource(DataSource):
 
     def _get_metadata_from_archive(self, subject_id):
         # return search_line_batch_optimized(
-        return search_line_with_index(
+        return search_line(
             file_path=self.subject_metadata_file,
             subject_id=subject_id,
             target_field="id",
@@ -201,7 +201,7 @@ class bangumi_archiveDataSource(DataSource):
 
     def _get_relations_from_archive(self, subject_id):
         # return search_list_batch_optimized(
-        return search_list_with_index(
+        return search_list(
             file_path=self.subject_relation_file,
             subject_id=subject_id,
             target_field="subject_id",
@@ -209,7 +209,7 @@ class bangumi_archiveDataSource(DataSource):
 
     # 将10s+的全文件扫描性能提升到1s左右
     def _get_search_results_from_archive(self, query):
-        return search_all_data_batch_optimized(
+        return search_all_data(
             file_path=self.subject_metadata_file, query=query
         )
 

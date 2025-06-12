@@ -194,7 +194,8 @@ class TestKomgaSseApi(unittest.TestCase):
                 callback_data.append(data)
 
             api.register_series_update_callback(test_callback)
-            api.on_event("SeriesAdded", {"libraryId": "lib1"})
+            api.on_event("SeriesAdded", {
+                         "libraryId": "lib1", "seriesId": "series1"})
             self.assertEqual(len(callback_data), 1)
 
     def test_library_filtering_with_matching_id(self):
@@ -217,7 +218,8 @@ class TestKomgaSseApi(unittest.TestCase):
                 callback_data.append(data)
 
             api.register_series_update_callback(test_callback)
-            api.on_event("SeriesAdded", {"libraryId": "lib1"})
+            api.on_event("SeriesAdded", {
+                         "libraryId": "lib1", "seriesId": "series1"})
             self.assertEqual(len(callback_data), 1)
 
     def test_library_filtering_with_non_matching_id(self):

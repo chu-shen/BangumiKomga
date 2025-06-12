@@ -7,7 +7,6 @@ from config.config import ARCHIVE_FILES_DIR, ARCHIVE_CHECK_INTERVAL
 from tools.log import logger
 from bangumi_archive.indexed_jsonlines_read import IndexedDataReader
 from tools.cache_time import TimeCacheManager
-import hashlib
 
 UpdateTimeCacheFilePath = os.path.join(
     ARCHIVE_FILES_DIR, "archive_update_time.json")
@@ -18,6 +17,7 @@ CheckTimeCacheFilePath = os.path.join(
 def file_integrity_verifier(file_path, expected_hash=None, expected_size=None):
     """文件完整性验证工具"""
     # 分块哈希校验
+    import hashlib
     if expected_hash:
         sha256_hash = hashlib.sha256()
         with open(file_path, "rb") as f:
@@ -84,8 +84,8 @@ def update_index():
 
 def update_archive(url, target_dir=ARCHIVE_FILES_DIR, expected_size=None):
     """下载并解压文件"""
+    import tqdm
     temp_zip_path = os.path.join(target_dir, "temp_archive.zip")
-    # 也许应该加个下载进度条?
     logger.info("正在下载 Bangumi Archive 数据......")
     try:
         # 下载文件
@@ -94,9 +94,19 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR, expected_size=None):
         # 获取文件尺寸
         if not expected_size:
             expected_size = int(response.headers.get("content-length", 0))
-        with open(temp_zip_path, "wb") as f:
+
+        # 添加 tqdm 下载进度条
+        with open(temp_zip_path, "wb") as f, tqdm.tqdm(
+            total=expected_size,
+            unit="B",
+            unit_scale=True,
+            desc="正在下载",
+            leave=True,
+        ) as pbar:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
+                pbar.update(len(chunk))
+
         if not file_integrity_verifier(
             file_path=temp_zip_path, expected_size=expected_size
         ):

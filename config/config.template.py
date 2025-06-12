@@ -13,7 +13,8 @@ KOMGA_COLLECTION_LIST = []
 USE_BANGUMI_ARCHIVE = False
 # 本地离线元数据存储目录
 ARCHIVE_FILES_DIR = "./archivedata/"
-ARCHIVE_CHECK_INTERVAL = 0  # 单位为小时, 0表示不启用
+# 多长时间内无需检查Archive更新, 单位为分钟, 0表示不启用
+ARCHIVE_CHECK_INTERVAL = 0
 
 # 服务运行方式，可选值：'once', 'poll', 'sse'
 BANGUMI_KOMGA_SERVICE_TYPE = "once"

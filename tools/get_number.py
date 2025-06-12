@@ -21,6 +21,7 @@ def get_number_with_prefix(s):
 
 
 def roman_to_integer(s):
+    # FIXME: 遵循罗马数字规则
     # FIXME: 检查重复规则, V, L, D 不能重复
     # FIXME: 检查是否包含非法字符
     roman_numerals = {"I": 1, "V": 5, "X": 10,
@@ -56,7 +57,7 @@ def get_roman_number(s):
 
 def normal(s):
     # Define the pattern to match decimal numbers in the format of "xx.xx"
-    decimal_pattern = r"\d+\.\d"
+    decimal_pattern = r"\d+\.\d+"
     # Use the `re.findall` function to search for all occurrences of the pattern in the input string
     match = re.findall(decimal_pattern, s)
     # If no decimal numbers are found, change the pattern to match integer numbers

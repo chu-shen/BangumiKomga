@@ -25,6 +25,7 @@ class TestSearchResort(unittest.TestCase):
         self.data_source.get_subject_metadata.return_value = self.mock_metadata
         filtered = resort_search_list("Test", results, 90, self.data_source)
         # 验证低分结果被过滤
+        self.assertEqual(len(filtered), 0, "应过滤掉低于阈值的结果")
 
     def test_sorting_accuracy(self):
         """测试搜索结果排序器 - 排序准确性"""

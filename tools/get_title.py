@@ -88,7 +88,33 @@ class ParseTitle:
             "corpus/Japanese_Names_Corpus（18W）.txt"
         ) + read_corpus("corpus/bangumi_person.txt")
         self.vocabulary = build_vocabulary(
-            ["comic", "comics", "artbook", "artbooks", "汉化", "全彩版", "青文"]
+            [
+                "comic",
+                "comics",
+                "artbook",
+                "artbooks",
+                "漫画",
+                "全彩版",
+                "日版",
+                "bili",
+                "B漫",
+                "汉化",
+                "简中",
+                "繁中",
+                "尖端",
+                "东立",
+                "東立",
+                "东贩",
+                "東販",
+                "玉皇朝",
+                "天下",
+                "青文",
+                "长鸿",
+                "角川",
+                "文传",
+                "文傳",
+                "時報",
+            ]
         )
 
     def get_title(self, title):

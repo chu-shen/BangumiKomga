@@ -2,7 +2,7 @@ import os
 import zipfile
 import requests
 import json
-import datetime
+from datetime import datetime ,timezone
 from config.config import ARCHIVE_FILES_DIR, ARCHIVE_CHECK_INTERVAL
 from tools.log import logger
 from bangumi_archive.indexed_jsonlines_read import IndexedDataReader
@@ -140,7 +140,7 @@ def check_archive():
             ARCHIVE_CHECK_INTERVAL)
 
         # 判断当前是否在 ARCHIVE_CHECK_INTERVAL 内
-        if (datetime.datetime.now() - local_update_time) < check_interval:
+        if (datetime.now(timezone.utc) - local_update_time) < check_interval:
             logger.info("依设置跳过 Bangumi Archive 更新步骤")
             return
 

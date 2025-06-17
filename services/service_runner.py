@@ -1,6 +1,7 @@
 from services.polling_service import poll_service
 from services.sse_service import sse_service
 from tools.log import logger
+import threading
 from config.config import BANGUMI_KOMGA_SERVICE_TYPE
 from core.refresh_metadata import refresh_metadata
 from bangumi_archive.periodic_archive_checker import periodical_archive_check_service
@@ -13,11 +14,13 @@ def run_service():
     service_type = BANGUMI_KOMGA_SERVICE_TYPE.lower()
 
     if service_type == "poll":
-        poll_service()
-        periodical_archive_check_service()
+        refresh_service_thread = threading.Thread(target=poll_service, daemon=True)
+        archive_check_thread= periodical_archive_check_service()
+        refresh_service_thread.start()
     elif service_type == "sse":
-        sse_service()
-        periodical_archive_check_service()
+        refresh_service_thread = threading.Thread(target=sse_service, daemon=True)
+        archive_check_thread= periodical_archive_check_service()
+        refresh_service_thread.start()
     elif service_type == "once":
         refresh_metadata()
     else:
@@ -26,3 +29,8 @@ def run_service():
             BANGUMI_KOMGA_SERVICE_TYPE,
         )
         exit(1)
+    try:
+        refresh_service_thread.join()
+        archive_check_thread.join()
+    except KeyboardInterrupt:
+        logger.warning("服务手动终止: 退出 BangumiKomga 服务")

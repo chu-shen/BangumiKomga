@@ -6,8 +6,10 @@ from core.refresh_metadata import refresh_metadata, get_series
 from api.komga_sse_api import KomgaSseApi
 import threading
 
+# 已无引用, 留待下版本删除
 
-def isSeriesUpdated(series_id: str) -> bool:
+
+def isSeriesRefreshed(series_id: str) -> bool:
     if series_id:
         return None
     from tools.db import init_sqlite3, get_series_update_status
@@ -30,7 +32,7 @@ def series_update_sse_handler(data):
         if any(
             link["label"].lower() == "cbl"
             for link in series_detail[0]["metadata"]["links"]
-        ) or isSeriesUpdated(series_id):
+        ):
             pass
         else:
             # 无视其他 SeriesChanged 事件

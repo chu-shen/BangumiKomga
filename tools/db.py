@@ -92,3 +92,19 @@ def record_book_status(conn, book_id, subject_id, status, book_name, message):
         logger.warning("更新书籍元数据失败: " + book_name + ", " + message)
     elif status == 1:
         logger.info("更新书籍元数据成功: " + book_name)
+
+
+def get_series_update_status(conn, series_id):
+    """
+    查询指定 series_id 的 update_success 状态
+    """
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT update_success FROM refreshed_series WHERE series_id = ?",
+        (series_id,)
+    )
+    result = cursor.fetchone()
+    if result:
+        return result[0]
+    else:
+        return None

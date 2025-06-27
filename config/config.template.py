@@ -1,17 +1,55 @@
-# BGM，获取 token : https://next.bgm.tv/demo/access-token
+
+# @@name: BANGUMI_ACCESS_TOKEN
+# @@prompt: BGM访问令牌
+# @@type: password
+# @@required: True
+# @@validator: validate_bangumi_token
+# @@info: 获取地址: https://next.bgm.tv/demo/access-token
 BANGUMI_ACCESS_TOKEN = 'gruUsn***************************SUSSn'
 
-# Komga
+
+# @@name: KOMGA_BASE_URL
+# @@prompt: KOMGA访问地址
+# @@type: string
+# @@required: True
+# @@validator: validate_url
+# @@info:
 KOMGA_BASE_URL = "http://IP:PORT"
+
+# @@name: KOMGA_EMAIL
+# @@prompt: KOMGA账户邮箱地址
+# @@type: string
+# @@required: True
+# @@validator: validate_email
+# @@info:
 KOMGA_EMAIL = "email"
+
+# @@name: KOMGA_EMAIL_PASSWORD
+# @@prompt: KOMGA账户密码
+# @@type: password
+# @@required: True
+# @@validator: validate_komga_access
+# @@info:
 KOMGA_EMAIL_PASSWORD = "password"
+
 KOMGA_LIBRARY_LIST = []
 KOMGA_COLLECTION_LIST = []
 
-# bangumi/Archive 离线元数据
-# 指定是否启用本地离线元数据
+
+# @@name: USE_BANGUMI_ARCHIVE
+# @@prompt: 是否启用本地离线元数据
+# @@type: boolean
+# @@required: False
+# @@validator:
+# @@info: 指定是否启用本地 bangumi/Archive 离线元数据
 USE_BANGUMI_ARCHIVE = False
-# 本地离线元数据存储目录
+
+# @@name: ARCHIVE_FILES_DIR
+# @@prompt: 本地离线元数据存储目录
+# @@type: string
+# @@required: False
+# @@validator:
+# @@info: 可以指定自建目录
 ARCHIVE_FILES_DIR = "./archivedata/"
 
 # 服务运行方式，可选值：'once', 'poll', 'sse'

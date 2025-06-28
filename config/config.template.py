@@ -1,3 +1,5 @@
+# type 可选值 : password, string, url, boolean, integer
+
 
 # @@name: BANGUMI_ACCESS_TOKEN
 # @@prompt: BGM访问令牌
@@ -10,7 +12,7 @@ BANGUMI_ACCESS_TOKEN = 'gruUsn***************************SUSSn'
 
 # @@name: KOMGA_BASE_URL
 # @@prompt: KOMGA访问地址
-# @@type: string
+# @@type: url
 # @@required: True
 # @@validator: validate_url
 # @@info:
@@ -21,7 +23,6 @@ KOMGA_BASE_URL = "http://IP:PORT"
 # @@type: string
 # @@required: True
 # @@validator: validate_email
-# @@info:
 KOMGA_EMAIL = "email"
 
 # @@name: KOMGA_EMAIL_PASSWORD
@@ -29,9 +30,16 @@ KOMGA_EMAIL = "email"
 # @@type: password
 # @@required: True
 # @@validator: validate_komga_access
-# @@info:
 KOMGA_EMAIL_PASSWORD = "password"
 
+
+# @@name: KOMGA_LIBRARY_LIST
+# @@prompt: KOMGA库设置
+# @@type: string
+# @@required: False
+# @@validator:
+# @@info:交互式设置 Komga 目标库列表
+# @@dependency: KOMGA_BASE_URL,KOMGA_EMAIL,KOMGA_EMAIL_PASSWORD
 KOMGA_LIBRARY_LIST = []
 KOMGA_COLLECTION_LIST = []
 
@@ -52,11 +60,29 @@ USE_BANGUMI_ARCHIVE = False
 # @@info: 可以指定自建目录
 ARCHIVE_FILES_DIR = "./archivedata/"
 
-# 服务运行方式，可选值：'once', 'poll', 'sse'
+# @@name: BANGUMI_KOMGA_SERVICE_TYPE
+# @@prompt: BangumiKomga 服务运行方式
+# @@type: string
+# @@required: True
+# @@validator:
+# @@info: 可选值：'once', 'poll', 'sse'
+# @@allowed_values: ['once', 'poll', 'sse']
 BANGUMI_KOMGA_SERVICE_TYPE = "once"
-# 'poll'：轮询间隔，单位秒
+
+# @@name: BANGUMI_KOMGA_SERVICE_POLL_INTERVAL
+# @@prompt: 轮询服务轮询间隔
+# @@type: integer
+# @@required: False
+# @@validator:
+# @@info: 单位秒
 BANGUMI_KOMGA_SERVICE_POLL_INTERVAL = 20
-# 'poll'：多少次轮询后执行一次全量刷新
+
+# @@name: BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL
+# @@prompt: 轮询服务全量刷新间隔
+# @@type: integer
+# @@required: False
+# @@validator:
+# @@info: 多少次轮询后执行一次全量刷新, 单位秒
 BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL = 10000
 
 # Misc

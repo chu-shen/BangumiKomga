@@ -5,9 +5,8 @@ import os
 import getpass
 import requests
 from colorama import Fore, Style, init
-from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
-
+from api.komga_api import KomgaApi
 # 初始化 colorama（Windows 必需）
 init()
 
@@ -62,40 +61,41 @@ def validate_bangumi_token(token):
         return colored_input().lower() in ['y', 'yes']
 
 
-def get_komga_libraries(base_url, email, password):
+def configurate_komga_libraries(base_url, email, password):
     """获取Komga库列表并交互选择"""
-    auth = (email, password)
+    colored_message("🔗 正在获取Komga库列表...", Fore.YELLOW)
+    libraries = KomgaApi(base_url, email, password).get_all_libraries()
     try:
-        colored_message("🔗 正在获取Komga库列表...", Fore.YELLOW)
-        response = requests.get(
-            f"{base_url.rstrip('/')}/api/v1/libraries",
-            auth=auth,
-            timeout=TIMEOUT
-        )
-        if response.status_code == 200:
-            libraries = response.json()
+        if libraries:
             colored_message(f"✅ 找到 {len(libraries)} 个库", Fore.GREEN)
             selected_libraries = []
             for lib in libraries:
                 while True:
-                    choice = colored_input(
-                        f"是否包含库 '{lib['name']}' (ID: {lib['id']})? (y/n): ",
-                        Fore.CYAN
-                    ).lower()
-                    if choice in ['y', 'yes', 'true']:
-                        selected_libraries.append(lib['id'])
+                    specific_library = {}
+                    lib_choice = colored_input(
+                        f"是否包含库 '{lib['name']}' (ID: {lib['id']})? (y/n): ", Fore.CYAN).lower()
+                    if lib_choice in ['y', 'yes', 'true']:
+                        specific_library['LIBRARY'] = lib['id']
+                        novel_choice = colored_input(
+                            f"库 '{lib['name']}' (ID: {lib['id']})是否为小说库? (y/n): ", Fore.CYAN).lower()
+                        if novel_choice in ['y', 'yes', 'true']:
+                            specific_library['IS_NOVEL_ONLY'] = True
+                        else:
+                            specific_library['IS_NOVEL_ONLY'] = False
                         break
-                    elif choice in ['n', 'no', 'false']:
+                    elif lib_choice in ['n', 'no', 'false']:
                         break
                     else:
                         colored_message("请输入 y 或 n", Fore.RED)
+                    if specific_library:
+                        selected_libraries.append(specific_library)
             return selected_libraries
         else:
-            colored_message(f"❌ 获取失败（状态码：{response.status_code}）", Fore.RED)
+            colored_message(f"❌ Komga 库列表为空或获取失败", Fore.RED)
             return []
     except RequestException as e:
         colored_message(f"⚠️ 网络错误：{str(e)}", Fore.RED)
-        colored_message("是否跳过库获取？(y/n)", Fore.YELLOW)
+        colored_message("是否跳过库设置？(y/n)", Fore.YELLOW)
         return [] if colored_input().lower() in ['y', 'yes'] else None
 
 
@@ -199,7 +199,7 @@ def masked_input(prompt, default=None, mask="*"):
     return user_input if user_input else default
 
 
-def get_validated_input(prompt, default, var_type, required=False, allowed_values=None):
+def get_validated_template_input(prompt, default, var_type, required=False, allowed_values=None):
     """带验证的用户输入"""
     while True:
         # 显示提示信息
@@ -278,7 +278,7 @@ def main():
                     dep_item = next(
                         (i for i in config_schema if i["name"] == dep), None)
                     if dep_item:
-                        dep_value = get_validated_input(
+                        dep_value = get_validated_template_input(
                             dep_item["prompt"],
                             dep_item["default"],
                             dep_item.get("type", "string"),
@@ -294,7 +294,7 @@ def main():
             if item.get("info"):
                 colored_message(f"ℹ️ {item['info']}", Fore.BLUE)
 
-            current_value = get_validated_input(
+            current_value = get_validated_template_input(
                 item["prompt"],
                 item["default"],
                 item.get("type", "string"),
@@ -334,7 +334,7 @@ def main():
 
     # 特殊处理Komga库获取
     if "KOMGA_BASE_URL" in config_values and "KOMGA_EMAIL" in dependency_values:
-        komga_libraries = get_komga_libraries(
+        komga_libraries = configurate_komga_libraries(
             config_values["KOMGA_BASE_URL"],
             dependency_values["KOMGA_EMAIL"],
             dependency_values["KOMGA_EMAIL_PASSWORD"]

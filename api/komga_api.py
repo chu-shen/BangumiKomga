@@ -341,6 +341,22 @@ class KomgaApi:
         else:
             return None
 
+    def get_all_libraries(self) -> list:
+        """
+        search collection by name
+        return collection id.
+        """
+        try:
+            response = self.r.get(f"{self.base_url}/api/v1/libraries")
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"出现错误: {e}")
+        results = response.json()
+        if results:
+            return results
+        else:
+            return []
+
     def delete_collection(self, id):
         """
         delete collection.

@@ -34,12 +34,11 @@ KOMGA_EMAIL_PASSWORD = "password"
 
 
 # @@name: KOMGA_LIBRARY_LIST
-# @@prompt: KOMGA库设置
+# @@prompt: 开始 KOMGA 库交互式设置设置
 # @@type: string
 # @@required: False
-# @@validator:
-# @@info:交互式设置 Komga 目标库列表
-# @@dependency: KOMGA_BASE_URL,KOMGA_EMAIL,KOMGA_EMAIL_PASSWORD
+# @@validator: validate_komga_libraries
+# @@info: 将使用 KOMGA_BASE_URL, KOMGA_EMAIL 和 KOMGA_EMAIL_PASSWORD 读取库列表
 KOMGA_LIBRARY_LIST = []
 KOMGA_COLLECTION_LIST = []
 
@@ -63,7 +62,7 @@ ARCHIVE_FILES_DIR = "./archivedata/"
 # @@name: BANGUMI_KOMGA_SERVICE_TYPE
 # @@prompt: BangumiKomga 服务运行方式
 # @@type: string
-# @@required: True
+# @@required: False
 # @@validator:
 # @@info: 可选值：'once', 'poll', 'sse'
 # @@allowed_values: ['once', 'poll', 'sse']
@@ -101,8 +100,15 @@ CREATE_FAILED_COLLECTION = False
 # 只应用于 Komga 的小说库
 IS_NOVEL_ONLY = False
 
-# 消息通知
-# 支持： 'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'
+
+# @@name: NOTIF_TYPE_ENABLE
+# @@prompt: 设置消息通知类型
+# @@type: string
+# @@required: False
+# @@default: []
+# @@info: 消息通知
+# @@info: 可选值：'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'
+# @@allowed_values: ['GOTIFY', 'WEBHOOK', 'HEALTHCHECKS']
 NOTIF_TYPE_ENABLE = []
 
 NOTIF_GOTIFY_ENDPOINT = "http://IP:PORT"

@@ -3,6 +3,7 @@ import re
 import ast
 import os
 import getpass
+import json
 import requests
 from colorama import Fore, Style, init
 from requests.exceptions import RequestException
@@ -70,8 +71,8 @@ def configurate_komga_libraries(base_url, email, password):
             colored_message(f"✅ 找到 {len(libraries)} 个库", Fore.GREEN)
             selected_libraries = []
             for lib in libraries:
+                specific_library = {}
                 while True:
-                    specific_library = {}
                     lib_choice = colored_input(
                         f"是否包含库 '{lib['name']}' (ID: {lib['id']})? (y/n): ", Fore.CYAN).lower()
                     if lib_choice in ['y', 'yes', 'true']:
@@ -86,9 +87,9 @@ def configurate_komga_libraries(base_url, email, password):
                     elif lib_choice in ['n', 'no', 'false']:
                         break
                     else:
-                        colored_message("请输入 y 或 n", Fore.RED)
-                    if specific_library:
-                        selected_libraries.append(specific_library)
+                        colored_message("请输入 yes 或 no", Fore.RED)
+                if specific_library:
+                    selected_libraries.append(specific_library)
             return selected_libraries
         else:
             colored_message(f"❌ Komga 库列表为空或获取失败", Fore.RED)
@@ -159,11 +160,12 @@ def display_config_preview(config_values):
     print("=" * 50)
     for key, value in config_values.items():
         if isinstance(value, list):
-            value_str = ", ".join(value)
-        elif isinstance(value, bool):
-            value_str = str(value)
+            try:
+                value_str = json.dumps(value)
+            except Exception as e:
+                value_str = ", ".join(str(value))
         else:
-            value_str = value
+            value_str = str(value)
         print(f"{Fore.MAGENTA}{key}: {Style.RESET_ALL}{value_str}")
     print("=" * 50)
     while True:
@@ -267,26 +269,9 @@ def main():
         return
 
     config_values = {}
-    dependency_values = {}
 
     # 处理配置项
     for item in config_schema:
-        # 处理依赖项
-        if "dependency" in item:
-            for dep in item["dependency"]:
-                if dep not in dependency_values:
-                    dep_item = next(
-                        (i for i in config_schema if i["name"] == dep), None)
-                    if dep_item:
-                        dep_value = get_validated_template_input(
-                            dep_item["prompt"],
-                            dep_item["default"],
-                            dep_item.get("type", "string"),
-                            dep_item.get("required", False),
-                            dep_item.get("allowed_values")
-                        )
-                        dependency_values[dep] = dep_value
-                        config_values[dep] = dep_value
 
         # 获取当前项值
         while True:
@@ -301,7 +286,17 @@ def main():
                 item.get("required", False),
                 item.get("allowed_values")
             )
-
+            # 处理Komga库获取
+            if item["name"] == 'KOMGA_LIBRARY_LIST':
+                if "KOMGA_BASE_URL" in config_values and "KOMGA_EMAIL" in config_values and "KOMGA_EMAIL_PASSWORD" in config_values:
+                    komga_libraries = configurate_komga_libraries(
+                        config_values["KOMGA_BASE_URL"],
+                        config_values["KOMGA_EMAIL"],
+                        config_values["KOMGA_EMAIL_PASSWORD"]
+                    )
+                if komga_libraries is not None:
+                    config_values["KOMGA_LIBRARY_LIST"] = komga_libraries
+                    break
             # 转交给验证器处理
             validator_name = item.get("validator")
             if validator_name and current_value != item["default"]:
@@ -332,18 +327,9 @@ def main():
                     f"✅ {Fore.MAGENTA}{item['name']}{Style.RESET_ALL} 被设置为: {current_value}", Fore.GREEN)
             break
 
-    # 特殊处理Komga库获取
-    if "KOMGA_BASE_URL" in config_values and "KOMGA_EMAIL" in dependency_values:
-        komga_libraries = configurate_komga_libraries(
-            config_values["KOMGA_BASE_URL"],
-            dependency_values["KOMGA_EMAIL"],
-            dependency_values["KOMGA_EMAIL_PASSWORD"]
-        )
-        if komga_libraries is not None:
-            config_values["KOMGA_LIBRARY_LIST"] = komga_libraries
-
     # 配置预览与确认
     if display_config_preview(config_values):
+        colored_message("\nℹ️ 非交互式配置项将以默认值被添加", Fore.BLUE)
         colored_message("\n📦 正在生成配置文件...", Fore.YELLOW)
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
             for line in template_lines:
@@ -371,11 +357,11 @@ def main():
                             f.write(f"{name} = '{value}'\n")
                         continue
 
-                # 保留非注释、非交互式配置项的原始行（如 SIMPLE_CONFIG = "value"）
+                # 保留非交互式配置项的原始行(如 FUZZ_SCORE_THRESHOLD = 80)
                 f.write(line)
-        colored_message(f"🎉 配置文件生成成功！路径: {OUTPUT_FILE}", Fore.GREEN)
+        colored_message(f"🎉 配置文件生成成功！路径: {OUTPUT_FILE} 🎉", Fore.GREEN)
     else:
-        colored_message("❌ 配置已取消", Fore.RED)
+        colored_message("❌ 交互式配置生成已被取消", Fore.RED)
 
 
 if __name__ == "__main__":

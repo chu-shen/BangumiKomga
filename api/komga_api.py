@@ -347,7 +347,7 @@ class KomgaApi:
         return collection id.
         """
         try:
-            response = self.r.get(f"{self.base_url}/api/v1/libraries")
+            response = self.r.get(f"{self.base_url}/libraries")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")

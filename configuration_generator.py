@@ -90,7 +90,7 @@ def validate_komga_access(password):
 def configurate_komga_libraries(base_url, email, password):
     """获取Komga库列表并交互选择"""
     colored_message("🔗 正在获取Komga库列表...", Fore.YELLOW)
-    libraries = KomgaApi(base_url, email, password).get_all_libraries()
+    libraries = KomgaApi(base_url, email, password).list_libraries()
     try:
         if libraries:
             colored_message(f"✅ 找到 {len(libraries)} 个库", Fore.GREEN)
@@ -122,6 +122,44 @@ def configurate_komga_libraries(base_url, email, password):
     except RequestException as e:
         colored_message(f"⚠️ 网络错误：{str(e)}", Fore.RED)
         colored_message("是否跳过库设置？(y/n)", Fore.YELLOW)
+        return [] if colored_input().lower() in ['y', 'yes'] else None
+
+
+def configurate_komga_collections(base_url, email, password):
+    """获取Komga收藏列表并交互选择"""
+    colored_message("🔗 正在获取Komga收藏列表...", Fore.YELLOW)
+    collections = KomgaApi(base_url, email, password).list_collections()
+    try:
+        if collections:
+            colored_message(f"✅ 找到 {len(collections)} 个收藏集", Fore.GREEN)
+            selected_collections = []
+            for coll in collections:
+                specific_collection = {}
+                while True:
+                    lib_choice = colored_input(
+                        f"是否包含收藏 '{coll['name']}' (ID: {coll['id']})? (y/n): ", Fore.CYAN).lower()
+                    if lib_choice in ['y', 'yes', 'true']:
+                        specific_collection['LIBRARY'] = coll['id']
+                        novel_choice = colored_input(
+                            f"收藏 '{coll['name']}' (ID: {coll['id']})是否为小说收藏集? (y/n): ", Fore.CYAN).lower()
+                        if novel_choice in ['y', 'yes', 'true']:
+                            specific_collection['IS_NOVEL_ONLY'] = True
+                        else:
+                            specific_collection['IS_NOVEL_ONLY'] = False
+                        break
+                    elif lib_choice in ['n', 'no', 'false']:
+                        break
+                    else:
+                        colored_message("请输入 yes 或 no", Fore.RED)
+                if specific_collection:
+                    selected_collections.append(specific_collection)
+            return selected_collections
+        else:
+            colored_message(f"❌ Komga 收藏列表为空或获取失败", Fore.RED)
+            return []
+    except RequestException as e:
+        colored_message(f"⚠️ 网络错误：{str(e)}", Fore.RED)
+        colored_message("是否跳过收藏设置？(y/n)", Fore.YELLOW)
         return [] if colored_input().lower() in ['y', 'yes'] else None
 
 
@@ -312,7 +350,7 @@ def start_config_generate():
                 item.get("required", False),
                 item.get("allowed_values")
             )
-            # 处理Komga库获取
+            # 处理 Komga 库配置
             if item["name"] == 'KOMGA_LIBRARY_LIST':
                 komga_libraries = None
                 if "KOMGA_BASE_URL" in config_values and "KOMGA_EMAIL" in config_values and "KOMGA_EMAIL_PASSWORD" in config_values:
@@ -323,7 +361,23 @@ def start_config_generate():
                     )
                 if komga_libraries is not None:
                     config_values["KOMGA_LIBRARY_LIST"] = komga_libraries
+                    # 无需验证器介入
                     break
+
+            # # 处理 Komga 收藏配置
+            # if item["name"] == 'KOMGA_COLLECTION_LIST':
+            #     komga_collections = None
+            #     if "KOMGA_BASE_URL" in config_values and "KOMGA_EMAIL" in config_values and "KOMGA_EMAIL_PASSWORD" in config_values:
+            #         komga_collections = configurate_komga_collections(
+            #             config_values["KOMGA_BASE_URL"],
+            #             config_values["KOMGA_EMAIL"],
+            #             config_values["KOMGA_EMAIL_PASSWORD"]
+            #         )
+            #     if komga_collections is not None:
+            #         config_values["KOMGA_COLLECTION_LIST"] = komga_collections
+            #         # 无需验证器介入
+            #         break
+
             # 转交给验证器处理
             validator_name = item.get("validator")
             if validator_name and current_value != item["default"]:

@@ -281,7 +281,7 @@ def get_validated_template_input(prompt, default, var_type, required=False, allo
 config_values = {}
 
 
-def main():
+def start_config_generate():
     colored_message("🎮 欢迎使用交互式配置生成器", Fore.GREEN)
     colored_message("🔍 正在解析模板文件...", Fore.YELLOW)
 
@@ -393,4 +393,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    start_config_generate()

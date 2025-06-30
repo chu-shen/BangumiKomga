@@ -341,22 +341,6 @@ class KomgaApi:
         else:
             return None
 
-    def get_all_libraries(self) -> list:
-        """
-        search collection by name
-        return collection id.
-        """
-        try:
-            response = self.r.get(f"{self.base_url}/libraries")
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"出现错误: {e}")
-        results = response.json()
-        if results:
-            return results
-        else:
-            return []
-
     def delete_collection(self, id):
         """
         delete collection.
@@ -373,6 +357,36 @@ class KomgaApi:
         id = self.get_collection_id_by_search_name(name)
         if id is None or self.delete_collection(id):
             return self.add_collection(name, ordered, seriesIds)
+
+    def list_libraries(self) -> list:
+        """
+        The libraries are filtered based on the current user's permissions
+        """
+        try:
+            response = self.r.get(f"{self.base_url}/libraries")
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"出现错误: {e}")
+        results = response.json()
+        if results:
+            return results
+        else:
+            return []
+
+    def list_collections(self) -> list:
+        """
+        List collections
+        """
+        try:
+            response = self.r.get(f"{self.base_url}/collections")
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"出现错误: {e}")
+        results = response.json()
+        if results:
+            return results
+        else:
+            return []
 
 
 class SeriesMetadata:

@@ -8,6 +8,9 @@ import requests
 from colorama import Fore, Style, init
 from requests.exceptions import RequestException
 from api.komga_api import KomgaApi
+
+# TODO：统一初始化 KomgaApi 复用连接
+
 # 初始化 colorama（Windows 必需）
 init()
 
@@ -60,6 +63,28 @@ def validate_bangumi_token(token):
         colored_message(f"⚠️ 网络错误：{str(e)}", Fore.RED)
         colored_message("是否跳过验证？(y/n)", Fore.YELLOW)
         return colored_input().lower() in ['y', 'yes']
+
+
+def validate_komga_access(password):
+    """验证Komga账户密码有效性"""
+    base_url = config_values.get("KOMGA_BASE_URL")
+    email = config_values.get("KOMGA_EMAIL")
+    if not all([base_url, email, password]):
+        return False  # 依赖项未满足时跳过验证
+    try:
+        colored_message("🔗 正在验证Komga凭据...", Fore.YELLOW)
+        api = KomgaApi(base_url, email, password)
+        url = f"{base_url}/api/v1/login/set-cookie"
+        response = api.r.get(url, auth=(email, password))
+        if response.status_code == 204:
+            colored_message("✅ Komga账户验证成功", Fore.GREEN)
+            return True
+        else:
+            colored_message("❌ 无效的Komga账户凭证", Fore.RED)
+            return False
+    except Exception as e:
+        colored_message(f"⚠️ 验证失败: {str(e)}", Fore.RED)
+        return False
 
 
 def configurate_komga_libraries(base_url, email, password):
@@ -253,6 +278,9 @@ def get_validated_template_input(prompt, default, var_type, required=False, allo
             colored_message(f"❌ 输入错误: {e}", Fore.RED)
 
 
+config_values = {}
+
+
 def main():
     colored_message("🎮 欢迎使用交互式配置生成器", Fore.GREEN)
     colored_message("🔍 正在解析模板文件...", Fore.YELLOW)
@@ -267,8 +295,6 @@ def main():
     except Exception as e:
         colored_message(f"❌ 模板解析失败: {str(e)}", Fore.RED)
         return
-
-    config_values = {}
 
     # 处理配置项
     for item in config_schema:
@@ -288,6 +314,7 @@ def main():
             )
             # 处理Komga库获取
             if item["name"] == 'KOMGA_LIBRARY_LIST':
+                komga_libraries = None
                 if "KOMGA_BASE_URL" in config_values and "KOMGA_EMAIL" in config_values and "KOMGA_EMAIL_PASSWORD" in config_values:
                     komga_libraries = configurate_komga_libraries(
                         config_values["KOMGA_BASE_URL"],
@@ -345,6 +372,7 @@ def main():
                     name = match.group(1)
                     if name in config_values:
                         value = config_values[name]
+                        # 可配置的写入格式
                         if isinstance(value, str):
                             f.write(f"{name} = '{value}'\n")
                         elif isinstance(value, bool):

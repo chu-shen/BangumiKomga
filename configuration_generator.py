@@ -20,6 +20,7 @@ TIMEOUT = 20
 USER_AGENT = "chu-shen/BangumiKomga (https://github.com/chu-shen/BangumiKomga)"
 TEMPLATE_FILE = os.path.join(os.getcwd(), 'config', 'config.template.py')
 OUTPUT_FILE = os.path.join(os.getcwd(), 'config', 'config.generated.py')
+PRESENT_FILE = os.path.join(os.getcwd(), 'config', 'config.py')
 
 
 def validate_email(email):
@@ -444,6 +445,26 @@ def start_config_generate():
         colored_message(f"🎉 配置文件生成成功！路径: {OUTPUT_FILE} 🎉", Fore.GREEN)
     else:
         colored_message("❌ 交互式配置生成已被取消", Fore.RED)
+    if os.path.exists(PRESENT_FILE):
+        while True:
+            confirm = colored_input(
+                "是否需要用生成的配置文件作为当前设置？(y/n): ", Fore.GREEN).lower()
+            re_confirm = colored_input("你确定吗？(y/n): ", Fore.GREEN).lower()
+            if confirm in ['y', 'yes', 'true'] and re_confirm in ['y', 'yes', 'true']:
+                import shutil
+                try:
+                    shutil.copy(OUTPUT_FILE, PRESENT_FILE)
+                except FileNotFoundError:
+                    colored_message("❗ 不存在当前的配置文件或生成的配置文件", Fore.RED)
+                except PermissionError:
+                    colored_message("❗ 没有足够的权限覆盖配置文件", Fore.RED)
+                except Exception as e:
+                    colored_message("❗ 发生了未知错误", Fore.RED)
+                colored_message(f"🎉 已成功覆盖配置文件: {PRESENT_FILE} ", Fore.GREEN)
+            elif confirm in ['n', 'no', 'false']:
+                colored_message("❗ 当前配置文件没有变更, 请手动覆盖配置文件", Fore.RED)
+            else:
+                colored_message("❗ 请输入 y 或 n", Fore.RED)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@
 # ------------------------------------------------------------------
 
 
-from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
+from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST, KOMGA_COLLECTION_LIST
 import time
 import json
 from tools.log import logger

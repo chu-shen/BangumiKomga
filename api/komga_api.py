@@ -345,6 +345,7 @@ class KomgaApi:
         """
         search collection by name
         return series id list.
+        https://komga.org/docs/openapi/get-collection-by-id
         """
         try:
             collection_id = self.get_collection_id_by_search_name(name)

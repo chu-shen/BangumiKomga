@@ -140,7 +140,7 @@ def configurate_komga_collections(base_url, email, password):
                     lib_choice = colored_input(
                         f"是否包含收藏 '{coll['name']}' (ID: {coll['id']})? (y/n): ", Fore.CYAN).lower()
                     if lib_choice in ['y', 'yes', 'true']:
-                        specific_collection['LIBRARY'] = coll['id']
+                        specific_collection['COLLECTION'] = coll['id']
                         novel_choice = colored_input(
                             f"收藏 '{coll['name']}' (ID: {coll['id']})是否为小说收藏集? (y/n): ", Fore.CYAN).lower()
                         if novel_choice in ['y', 'yes', 'true']:
@@ -365,19 +365,19 @@ def start_config_generate():
                     # 无需验证器介入
                     break
 
-            # # 处理 Komga 收藏配置
-            # if item["name"] == 'KOMGA_COLLECTION_LIST':
-            #     komga_collections = None
-            #     if "KOMGA_BASE_URL" in config_values and "KOMGA_EMAIL" in config_values and "KOMGA_EMAIL_PASSWORD" in config_values:
-            #         komga_collections = configurate_komga_collections(
-            #             config_values["KOMGA_BASE_URL"],
-            #             config_values["KOMGA_EMAIL"],
-            #             config_values["KOMGA_EMAIL_PASSWORD"]
-            #         )
-            #     if komga_collections is not None:
-            #         config_values["KOMGA_COLLECTION_LIST"] = komga_collections
-            #         # 无需验证器介入
-            #         break
+            # 处理 Komga 收藏配置
+            if item["name"] == 'KOMGA_COLLECTION_LIST':
+                komga_collections = None
+                if "KOMGA_BASE_URL" in config_values and "KOMGA_EMAIL" in config_values and "KOMGA_EMAIL_PASSWORD" in config_values:
+                    komga_collections = configurate_komga_collections(
+                        config_values["KOMGA_BASE_URL"],
+                        config_values["KOMGA_EMAIL"],
+                        config_values["KOMGA_EMAIL_PASSWORD"]
+                    )
+                if komga_collections is not None:
+                    config_values["KOMGA_COLLECTION_LIST"] = komga_collections
+                    # 无需验证器介入
+                    break
 
             # 转交给验证器处理
             validator_name = item.get("validator")

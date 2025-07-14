@@ -10,6 +10,7 @@ import json
 import requests
 import atexit
 import base64
+import datetime
 from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
 from threading import Thread, Lock
@@ -281,6 +282,10 @@ class KomgaSseApi:
         self.series_modified_callbacks = []
         # 保护回调列表的互斥访问
         self.series_callback_lock = Lock()
+        # 记录 series_id 最后刷新时间
+        self.series_refresh_history = {}
+        # 刷新间隔阈值
+        self.refresh_interval = datetime.timedelta(seconds=20)
 
         # 绑定回调
         self.sse_client.on_message = self.on_message
@@ -347,9 +352,18 @@ class KomgaSseApi:
         series_id = series_info['event_data'].get('seriesId')
         if not series_id:
             return
+
+        now = datetime.datetime.now()
         with self._get_series_lock(series_id):
             for callback in list(self.series_modified_callbacks):
+                if series_id in self.series_refresh_history:
+                    last_time = self.series_refresh_history[series_id]
+                    if now - last_time < self.refresh_interval:
+                        logger.debug(f"{series_id} 已在 {last_time} 刷新，跳过重复请求")
+                        return
                 try:
+                    # 更新时间戳并执行刷新
+                    self.series_refresh_history[series_id] = now
                     # 提交任务到线程池
                     self.executor.submit(callback, series_info)
                 except Exception as e:

@@ -349,6 +349,8 @@ class KomgaApi:
         """
         try:
             collection_id = self.get_collection_id_by_search_name(name)
+            if not collection_id:
+                return None
             response = self.r.get(
                 f"{self.base_url}/collections/{collection_id}")
             response.raise_for_status()

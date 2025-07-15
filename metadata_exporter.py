@@ -90,6 +90,58 @@ def prettify_comic_info(elem):
     return reparsed.toprettyxml(indent="  ")
 
 
+def generate_eze_info(json_data):
+    """
+    将Komga的JSON转换为eze info.json格式
+    """
+    # 解析创建日期
+    release_date = datetime.strptime(
+        json_data['metadata']['releaseDate'], '%Y-%m-%d')
+
+    # 提取链接信息
+    links = json_data['metadata'].get('links', [])
+
+    # 构建tags对象
+    tags = {
+        "tag": json_data['metadata'].get('tags', []),
+        # FIXME: 假设固定值, 也许需要从文件名或其他字段确定原本的语言
+        "language": [],
+        # 假设固定值，可根据需要修改
+        "category": ["manga"],
+        "artist": [author['name'] for author in json_data['metadata']['authors']],
+        "group": []  # komga似乎没有该字段, 也许该填Publisher? 或是删去
+    }
+
+    # 添加翻译状态
+    # FIXME: 只是关注了 translated 字样, 也许需要从文件名或其他字段确定是否已经翻译
+    if "translated" not in tags["tag"]:
+        tags["tag"].append("translated")
+
+    # 上传日期取元数据中的发布日期
+    upload_date = [
+        release_date.year,
+        release_date.month,
+        release_date.day,
+    ]
+
+    # 构建最终JSON结构
+    return {
+        "gallery_info": {
+            "title": json_data['metadata']['title'],
+            "title_original": json_data['name'],
+            "link": links,
+            "category": "manga",
+            "tags": tags,
+            "language": "chinese",  # 假设固定值中文
+            "translated": True,
+            "upload_date": upload_date,
+            "source": {
+                # FIXME: 尚未实现
+            }
+        }
+    }
+
+
 def save_comic_info_to_file(json_input):
     comic_xml = generate_comic_info(json_input)
     # 格式化输出
@@ -101,9 +153,19 @@ def save_comic_info_to_file(json_input):
     print(f"书籍 {json_input['id']} 的 ComicInfo.xml 已成功生成！")
 
 
+def save_eze_info_to_file(json_input):
+    info_json = generate_eze_info(json_input)
+    # 保存到文件
+    with open('info.json', 'w', encoding='utf-8') as f:
+        f.write(json.dumps(info_json, ensure_ascii=False))
+    # 输出提示
+    print(f"书籍 {json_input['id']} 的 info.json 已成功生成！")
+
+
 if __name__ == '__main__':
     # 您提供的JSON数据
     env = InitEnv()
     komga = env.komga
     json_input = komga.get_book_metadata("0M9Z5S7QS6514")
-    # 生成ComicInfo XML
+    save_comic_info_to_file(json_input)
+    save_eze_info_to_file(json_input)

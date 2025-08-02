@@ -166,6 +166,6 @@ if __name__ == '__main__':
     # 您提供的JSON数据
     env = InitEnv()
     komga = env.komga
-    json_input = komga.get_book_metadata("0M9Z5S7QS6514")
+    json_input = komga.get_book_metadata("0JW1ZC34BJC62")
     save_comic_info_to_file(json_input)
     save_eze_info_to_file(json_input)

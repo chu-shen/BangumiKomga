@@ -5,6 +5,7 @@
 # ------------------------------------------------------------------
 
 
+import threading
 import time
 import json
 import requests
@@ -309,7 +310,9 @@ class KomgaSseApi:
             logger.warning("SSE 线程已运行，跳过重复启动")
             return
         self.sse_thread = Thread(
-            target=self._start_client, daemon=True
+            target=self._start_client,
+            daemon=True,  # 设置为守护线程
+            name="SSE_Client_Thread"
         )
         self.sse_thread.start()
 
@@ -327,8 +330,11 @@ class KomgaSseApi:
     def _stop_client(self):
         # 停止 SSE 客户端
         self.sse_client.running = False
+
+        # 等待SSE线程结束
         if self.sse_client.thread and self.sse_client.thread.is_alive():
-            self.sse_client.thread.join(timeout=1)
+            self.sse_client.thread.join(timeout=5)
+
         # 关闭线程池
         self.executor.shutdown(wait=True)
         logger.info("SSE 客户端和线程池已关闭")
@@ -355,6 +361,7 @@ class KomgaSseApi:
 
         now = datetime.datetime.now()
         with self._get_series_lock(series_id):
+            # 检查刷新间隔
             for callback in list(self.series_modified_callbacks):
                 if series_id in self.series_refresh_history:
                     last_time = self.series_refresh_history[series_id]
@@ -369,11 +376,20 @@ class KomgaSseApi:
                 except Exception as e:
                     self.on_error(e)
 
+    def _restart_sse_client(self):
+        """安全重启SSE客户端"""
+        try:
+            self.sse_client.stop()
+            time.sleep(2)  # 等待2秒后重启
+            self.sse_client.start()
+        except Exception as e:
+            logger.critical("重启SSE客户端失败", exc_info=True)
+
     # 为每个 series_id 提供一个独立的锁对象, lru_cache 会根据传入的参数来缓存不同的结果
     # 300是随手填的, 非经验最优值
     @lru_cache(maxsize=300)
     def _get_series_lock(self, series_id):
-        return Lock()
+        return threading.Lock()
 
     def on_message(self, data):
         logger.debug(f"收到非订阅 SSE 消息: {data}")
@@ -382,7 +398,9 @@ class KomgaSseApi:
         """错误事件回调函数"""
         # 错误处理行为
         logger.error(f"遇到 SSE 错误: {e} ", exc_info=True)
-        return
+        # 错误自动重连
+        if "connection" in str(e).lower():
+            self._restart_sse_client()
 
     def on_event(self, event_type, event_data):
         """订阅事件回调函数"""

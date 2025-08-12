@@ -8,15 +8,15 @@ import requests
 from requests.adapters import HTTPAdapter
 
 from tools.log import logger
-from bangumiArchive.archiveAutoupdater import check_archive
-from bangumiArchive.localArchiveHelper import (
+from bangumi_archive.archive_autoupdater import check_archive
+from bangumi_archive.local_archive_searcher import (
     parse_infobox,
-    search_line_with_index,
-    search_list_with_index,
-    search_all_data_batch_optimized,
+    search_line,
+    search_list,
+    search_all_data,
 )
-from tools.resortSearchResultsList import resort_search_list
-from tools.slideWindowRateLimiter import SlideWindowRateLimiter
+from tools.resort_search_results_list import resort_search_list
+from tools.slide_window_rate_limiter import slide_window_rate_limiter
 from zhconv import convert
 from urllib.parse import quote_plus
 from abc import ABC, abstractmethod
@@ -44,7 +44,7 @@ class DataSource(ABC):
         pass
 
     @abstractmethod
-    def get_subject_thumbnail(self, subject_metadata):
+    def get_subject_thumbnail(self, subject_metadata, image_size):
         pass
 
 
@@ -76,7 +76,7 @@ class BangumiApiDataSource(DataSource):
         # https://next.bgm.tv/demo/access-token
         return
 
-    @SlideWindowRateLimiter()
+    @slide_window_rate_limiter()
     def search_subjects(self, query, threshold=80):
         """
         获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
@@ -108,10 +108,10 @@ class BangumiApiDataSource(DataSource):
                 return []
 
         return resort_search_list(
-            query=query, results=results, threshold=threshold, DataSource=self
+            query=query, results=results, threshold=threshold, data_source=self
         )
 
-    @SlideWindowRateLimiter()
+    @slide_window_rate_limiter()
     def get_subject_metadata(self, subject_id):
         """
         获取漫画元数据
@@ -128,7 +128,7 @@ class BangumiApiDataSource(DataSource):
             return []
         return response.json()
 
-    @SlideWindowRateLimiter()
+    @slide_window_rate_limiter()
     def get_related_subjects(self, subject_id):
         """
         获取漫画的关联条目
@@ -142,7 +142,7 @@ class BangumiApiDataSource(DataSource):
             return []
         return response.json()
 
-    @SlideWindowRateLimiter()
+    @slide_window_rate_limiter()
     def update_reading_progress(self, subject_id, progress):
         """
         更新漫画系列卷阅读进度
@@ -157,18 +157,20 @@ class BangumiApiDataSource(DataSource):
             logger.error(f"出现错误: {e}")
         return response.status_code == 204
 
-    @SlideWindowRateLimiter()
-    def get_subject_thumbnail(self, subject_metadata):
+    @slide_window_rate_limiter()
+    def get_subject_thumbnail(self, subject_metadata, image_size="large"):
         """
         获取漫画封面
+
+        image_size可选值:
+        large, common, medium,small, grid
         """
         try:
             if subject_metadata["images"]:
-                image = subject_metadata["images"]["large"]
+                image = subject_metadata["images"][image_size]
             else:
-                image = self.get_subject_metadata(subject_metadata["id"])["images"][
-                    "large"
-                ]
+                image = self.get_subject_metadata(subject_metadata["id"])[
+                    "images"][image_size]
             thumbnail = self.r.get(image).content
         except Exception as e:
             logger.error(f"出现错误: {e}")
@@ -177,7 +179,7 @@ class BangumiApiDataSource(DataSource):
         return files
 
 
-class BangumiArchiveDataSource(DataSource):
+class bangumi_archiveDataSource(DataSource):
     """
     离线数据源类
     """
@@ -191,7 +193,7 @@ class BangumiArchiveDataSource(DataSource):
 
     def _get_metadata_from_archive(self, subject_id):
         # return search_line_batch_optimized(
-        return search_line_with_index(
+        return search_line(
             file_path=self.subject_metadata_file,
             subject_id=subject_id,
             target_field="id",
@@ -199,7 +201,7 @@ class BangumiArchiveDataSource(DataSource):
 
     def _get_relations_from_archive(self, subject_id):
         # return search_list_batch_optimized(
-        return search_list_with_index(
+        return search_list(
             file_path=self.subject_relation_file,
             subject_id=subject_id,
             target_field="subject_id",
@@ -207,7 +209,7 @@ class BangumiArchiveDataSource(DataSource):
 
     # 将10s+的全文件扫描性能提升到1s左右
     def _get_search_results_from_archive(self, query):
-        return search_all_data_batch_optimized(
+        return search_all_data(
             file_path=self.subject_metadata_file, query=query
         )
 
@@ -240,7 +242,7 @@ class BangumiArchiveDataSource(DataSource):
                 }
                 search_results.append(result)
         return resort_search_list(
-            query=query, results=search_results, threshold=threshold, DataSource=self
+            query=query, results=search_results, threshold=threshold, data_source=self
         )
 
     def get_subject_metadata(self, subject_id):
@@ -248,6 +250,8 @@ class BangumiArchiveDataSource(DataSource):
         离线数据源获取条目元数据
         """
         data = self._get_metadata_from_archive(subject_id)
+        if not data:
+            return {}
         try:
             result = {
                 "date": data.get("date"),
@@ -328,7 +332,7 @@ class BangumiArchiveDataSource(DataSource):
         NotImplementedError("离线数据源不支持更新阅读进度")
         return False
 
-    def get_subject_thumbnail(self, subject_metadata):
+    def get_subject_thumbnail(self, subject_metadata, image_size):
         """
         离线数据源获取封面
         """
@@ -346,7 +350,7 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get("access_token"))
 
         if config.get("use_local_archive", False):
-            offline = BangumiArchiveDataSource(
+            offline = bangumi_archiveDataSource(
                 config.get("local_archive_folder"))
             return FallbackDataSource(offline, online)
 
@@ -368,6 +372,11 @@ class FallbackDataSource(DataSource):
 
         # 如果结果为空/False（根据业务逻辑判断），则尝试 secondary 数据源
         if not result:
+            logger.warning(
+                "主数据源: %s 失败，尝试备用数据源: %s",
+                self.primary.__class__.__name__,
+                self.secondary.__class__.__name__,
+            )
             result = getattr(self.secondary, method_name)(*args, **kwargs)
         return result
 
@@ -383,5 +392,7 @@ class FallbackDataSource(DataSource):
     def update_reading_progress(self, subject_id, progress):
         self._fallback_call("update_reading_progress", subject_id, progress)
 
-    def get_subject_thumbnail(self, subject_metadata):
-        return self._fallback_call("get_subject_thumbnail", subject_metadata)
+    def get_subject_thumbnail(self, subject_metadata, image_size):
+        return self._fallback_call(
+            "get_subject_thumbnail", subject_metadata, image_size
+        )

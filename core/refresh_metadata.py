@@ -1,19 +1,20 @@
 import os
-from api.bangumiModel import SubjectRelation
-from tools.getTitle import ParseTitle
-import processMetadata
+from api.bangumi_model import SubjectRelation
+from tools.get_title import ParseTitle
+import core.process_metadata as process_metadata
 from time import strftime, localtime
-from tools.getNumber import getNumber, NumberType
+from tools.get_number import get_number, NumberType
 from tools.env import *
 from tools.log import logger
 from tools.notification import send_notification
-from tools.db import initSqlite3, record_series_status, record_book_status
-from tools.cacheTime import TimeCacheManager
+from tools.db import init_sqlite3, record_series_status, record_book_status
+from tools.cache_time import TimeCacheManager
+
 
 env = InitEnv()
 bgm = env.bgm
 komga = env.komga
-cursor, conn = initSqlite3()
+cursor, conn = init_sqlite3()
 
 
 def refresh_metadata(series_list=None):
@@ -21,7 +22,7 @@ def refresh_metadata(series_list=None):
     刷新书籍系列元数据
     """
     if series_list is None or series_list == []:
-        series_list = getSeries()
+        series_list = get_series()
 
     parse_title = ParseTitle()
 
@@ -70,7 +71,8 @@ def refresh_metadata(series_list=None):
                         "SELECT subject_id FROM refreshed_series WHERE series_id=?",
                         (series_id,),
                     ).fetchone()[0]
-                    refresh_book_metadata(subject_id, series_id, force_refresh_flag)
+                    refresh_book_metadata(
+                        subject_id, series_id, force_refresh_flag)
                     continue
 
                 # recheck or skip failed series
@@ -115,7 +117,7 @@ def refresh_metadata(series_list=None):
             logger.warning("无法获取元数据: %s", series_name)
             continue
 
-        komga_metadata = processMetadata.setKomangaSeriesMetadata(
+        komga_metadata = process_metadata.set_komga_series_metadata(
             metadata, series_name, bgm
         )
 
@@ -166,14 +168,29 @@ def refresh_metadata(series_list=None):
                 USE_BANGUMI_THUMBNAIL
                 and len(komga.get_series_thumbnails(series_id)) == 0
             ):
-                thumbnail = bgm.get_subject_thumbnail(metadata)
-                replace_thumbnail_result = komga.update_series_thumbnail(
-                    series_id, thumbnail
-                )
-                if replace_thumbnail_result:
-                    logger.debug("替换系列: %s 的海报", series_name)
+                # 尝试多尺寸海报上传
+                for thumbnail_size in ['large', 'common', 'medium']:
+                    # 获取当前尺寸的封面
+                    thumbnail = bgm.get_subject_thumbnail(
+                        metadata, image_size=thumbnail_size)
+
+                    # 尝试更新封面
+                    replace_thumbnail_result = komga.update_series_thumbnail(
+                        series_id, thumbnail)
+
+                    if replace_thumbnail_result:
+                        logger.debug("成功替换系列: %s 的海报", series_name)
+                        # 成功则跳出海报更新循环
+                        break
+                    else:
+                        logger.debug(
+                            "以尺寸 %s 替换系列: %s 的海报失败，正在尝试下一个尺寸...",
+                            thumbnail_size,
+                            series_name,
+                        )
+                # 所有尺寸都失败时
                 else:
-                    logger.error("替换系列: %s 的海报失败", series_name)
+                    logger.warning("替换系列: %s 的海报失败", series_name)
         else:
             failed_count, failed_comic = record_series_status(
                 conn,
@@ -231,22 +248,25 @@ def refresh_metadata(series_list=None):
     )
 
 
-def getSeries():
+def get_series(series_ids=[]):
     series_list = []
-
-    if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
-        logger.error("KOMGA_LIBRARY_LIST 和 KOMGA_COLLECTION_LIST 只能配置一种")
-    elif KOMGA_LIBRARY_LIST:
-        series_list.extend(
-            komga.get_series_with_libraryid(KOMGA_LIBRARY_LIST)["content"]
-        )
-    elif KOMGA_COLLECTION_LIST:
-        series_list.extend(
-            komga.get_series_with_collection(KOMGA_COLLECTION_LIST)["content"]
-        )
+    if len(series_ids) > 0:
+        for series_id in series_ids:
+            series_list.append(komga.get_specific_series(series_id))
     else:
-        series_list = komga.get_all_series()["content"]
-
+        if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
+            logger.error("KOMGA_LIBRARY_LIST 和 KOMGA_COLLECTION_LIST 只能配置一种")
+        elif KOMGA_LIBRARY_LIST:
+            series_list.extend(
+                komga.get_series_with_libraryid(KOMGA_LIBRARY_LIST)["content"]
+            )
+        elif KOMGA_COLLECTION_LIST:
+            series_list.extend(
+                komga.get_series_with_collection(
+                    KOMGA_COLLECTION_LIST)["content"]
+            )
+        else:
+            series_list = komga.get_all_series()["content"]
     return series_list
 
 
@@ -254,6 +274,7 @@ def _filter_new_modified_series(library_id=None):
     """
     过滤出新更改系列元数据
     """
+    os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
     # 读取上次修改时间
     LastModifiedCacheFilePath = os.path.join(
         ARCHIVE_FILES_DIR, "komga_last_modified_time.json"
@@ -265,7 +286,8 @@ def _filter_new_modified_series(library_id=None):
     new_series = []
     stop_paging_flag = False
     while not stop_paging_flag:
-        temp_series = komga.get_latest_series(library_id=library_id, page=page_index)
+        temp_series = komga.get_latest_series(
+            library_id=library_id, page=page_index)
 
         if not temp_series:
             break
@@ -321,7 +343,7 @@ def refresh_partial_metadata():
 
 def update_book_metadata(book_id, related_subject, book_name, number):
     # Get the metadata for the book from bangumi
-    book_metadata = processMetadata.setKomangaBookMetadata(
+    book_metadata = process_metadata.set_komga_book_metadata(
         related_subject["id"], number, book_name, bgm
     )
     if book_metadata.isvalid == False:
@@ -345,7 +367,8 @@ def update_book_metadata(book_id, related_subject, book_name, number):
     # Update the metadata for the series on komga
     is_success = komga.update_book_metadata(book_id, book_data)
     if is_success:
-        record_book_status(conn, book_id, related_subject["id"], 1, book_name, "")
+        record_book_status(
+            conn, book_id, related_subject["id"], 1, book_name, "")
 
         # 使用 Bangumi 图片替换原封面
         # 确保没有上传过海报，避免重复上传，排除 komga 生成的封面
@@ -354,7 +377,8 @@ def update_book_metadata(book_id, related_subject, book_name, number):
             and len(komga.get_book_thumbnails(book_id)) == 1
         ):
             thumbnail = bgm.get_subject_thumbnail(related_subject)
-            replace_thumbnail_result = komga.update_book_thumbnail(book_id, thumbnail)
+            replace_thumbnail_result = komga.update_book_thumbnail(
+                book_id, thumbnail)
             if replace_thumbnail_result:
                 logger.debug("替换书籍: %s 的海报 ", book_name)
             else:
@@ -398,8 +422,10 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
         # Get the subject id from the Correct Bgm Link (CBL) if it exists
         for link in book["metadata"]["links"]:
             if link["label"].lower() == "cbl":
-                cbl_subject = bgm.get_subject_metadata(link["url"].split("/")[-1])
-                number, _ = getNumber(cbl_subject["name"] + cbl_subject["name_cn"])
+                cbl_subject = bgm.get_subject_metadata(
+                    link["url"].split("/")[-1])
+                number, _ = get_number(
+                    cbl_subject["name"] + cbl_subject["name_cn"])
                 update_book_metadata(book_id, cbl_subject, book_name, number)
                 break
 
@@ -429,7 +455,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
             # Get the number for each related subject by finding the last number in the name or name_cn field
             subjects_numbers = []
             for subject in related_subjects:
-                number, _ = getNumber(subject["name"] + subject["name_cn"])
+                number, _ = get_number(subject["name"] + subject["name_cn"])
                 try:
                     subjects_numbers.append(number)
                 except ValueError:
@@ -441,7 +467,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
                     )
 
         # get nunmber from book name
-        book_number, number_type = getNumber(book_name)
+        book_number, number_type = get_number(book_name)
         ep_flag = True
         if number_type not in (NumberType.CHAPTER, NumberType.NONE):
             # Update the metadata for the book if its number matches a related subject number

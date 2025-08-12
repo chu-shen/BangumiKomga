@@ -11,12 +11,14 @@
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
-  - [以后台服务形式运行](#以后台服务形式运行)
+  - [服务运行方式](#服务运行方式)
+    - [SSE 事件服务搭配 Nginx](#sse-事件服务搭配-nginx)
   - [为小说添加元数据](#为小说添加元数据)
   - [如何修正错误元数据](#如何修正错误元数据)
   - [同步阅读进度](#同步阅读进度)
   - [命名建议](#命名建议)
   - [Issues \& Pull Requests](#issues--pull-requests)
+  - [Contributors](#contributors)
   - [致谢](#致谢)
 
 > [!WARNING]
@@ -29,8 +31,8 @@
 该脚本获取您 Komga 实例上可用的漫画列表, 挨个在 [Bangumi](https://bgm.tv/) 上查询, 并按配置获取指定系列的元数据。
 然后将这些元数据转换为与 Komga 兼容的格式, 并更新到 Komga 服务器的具体漫画条目中。
 
-![sample](img/sample.jpg)
-![detail](img/detail.jpg)
+![sample](docs/images/sample.jpg)
+![detail](docs/images/detail.jpg)
 
 ## 功能
 
@@ -61,11 +63,12 @@
 - [ ] 更新 Komga 封面时，判断：类型（'GENERATED'）、大小
 - [ ] 重构元数据更新范围及覆盖逻辑
 - [ ] 增强文件名解析
-- [ ] 自动化测试
+- [ ] ~~自动化测试~~ 完善测试用例
+- [ ] 支持在匹配书籍后导出 [comicinfo.xml](https://github.com/anansi-project/comicinfo) 和 [info.json(eze)](https://github.com/Difegue/LANraragi)
 
 ## 先决条件
 
-- 一个有 admin 权限的 Komga 实例
+- 一个有 ADMIN 权限的 Komga 用户，最低版本[1.19.0](https://github.com/gotson/komga/releases/tag/1.19.0)
 - 使用 Windows/Linux/MAc 等主流操作系统, 也可在其上使用 Docker
 - 如需在 Windows, Linux 或 Mac 上直接执行脚本, 应安装有Python
 
@@ -89,9 +92,10 @@
         image: chu1shen/bangumikomga:main
         container_name: bangumikomga
         volumes:
-        - /path/BangumiKomga/config.py:/app/config/config.py   # see step.2
+        - /path/BangumiKomga/config.py:/app/config/config.py   # 内容更改见 step.2
         - /path/BangumiKomga/recordsRefreshed.db:/app/recordsRefreshed.db
         - /path/BangumiKomga/logs:/app/logs
+        - /path/BangumiKomga/archivedata:/app/archivedata # 离线元数据（可选），详见`ARCHIVE_FILES_DIR`
     ```
 
 2. 将 `config/config.template.py` 重命名为 `config/config.py`, 并修改 `KOMGA_BASE_URL`, `KOMGA_EMAIL` 和 `KOMGA_EMAIL_PASSWORD` 以便程序访问你的 Komga 实例(此用户需要有 Komga 元数据修改权限)。
@@ -100,7 +104,7 @@
 
     `KOMGA_COLLECTION_LIST` 处理指定收藏中的书籍系列。komga界面点击收藏（对应链接）即可获得，形如：`'0B79XX3NP97K9'`。填写时以英文引号`''`包裹，英文逗号`,`分割。与`KOMGA_LIBRARY_LIST`不能同时使用
 
-3. 用 `python refreshMetadata.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(执行后容器将自动关闭)
+3. 用 `python main.py` 执行脚本, 或者用 `docker start bangumikomga` 启动Docker容器(默认执行后容器将自动关闭，详细说明见[服务运行方式](#服务运行方式))
 
 > [!TIP]
 >
@@ -180,14 +184,60 @@
     - [chu-shen/BangumiKomga#37](https://github.com/chu-shen/BangumiKomga/issues/37)
   - 如果要对此功能启用前的系列进行修改，请在`scripts`目录下手动运行一次`python sortTitleByLetter.py`
 
-## 以后台服务形式运行
+## 服务运行方式
 
-- `USE_BANGUMI_KOMGA_SERVICE`：设置为`True`时，以后台服务形式运行
+- `BANGUMI_KOMGA_SERVICE_TYPE`：服务运行方式，可选值：'once', 'poll', 'sse'
+  - `'once'`：以单次任务方式启动。执行后程序自动退出。推荐使用
+  - `'sse'`：以事件服务方式启动。官方 API 支持，常驻后台，持续接收新变化。推荐有频繁更新需求的使用
+  - `'poll'`：以轮询服务方式启动。常驻后台，需搭配以下配置使用
+    - `BANGUMI_KOMGA_SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
+    - `BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
 
-- `SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
+### SSE 事件服务搭配 Nginx
 
-- `SERVICE_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
+推荐在 LAN 环境中连接 Komga 实例。若以 SSE 事件服务方式启动`BANGUMI KOMGA`，并且出于安全考虑将 Komga 置于 Nginx 后端, 需更改 Nginx 配置来支持 SSE 长连接。
 
+在[该issue中](https://github.com/gotson/komga/issues/2012#issuecomment-3143750732)发现`HTTP 1.1`会触发浏览器的SSE连接数限制, 请务必在server块中至少使用 `HTTP 2`, `HTTP 2`要求`HTTPS`
+
+以下为`nginx.conf`的`server`(以监听443端口为例)和`location`块配置参考:
+
+```conf
+  server {
+    listen                443 ssl http2;
+    access_log            /var/log/nginx/komga.access.log;
+    error_log             /var/log/nginx/komga.error.log;
+    server_name           komga.example.com;
+    ssl_certificate       /SSL/komga.example.com.fullchain;
+    ssl_certificate_key   /SSL/komga.example.com.key;
+    ......
+  }
+  location / {
+    # KOMGA实例地址
+    proxy_pass http://komga_backend;
+    # 关闭URL自动调整功能。
+    proxy_redirect off;
+    # 将客户端请求的 Host 头传递给后端服务器，而非使用 Nginx 代理的虚拟主机配置。
+    proxy_set_header Host $http_host;
+    # 传递客户端请求的原始协议（http 或 https），帮助后端处理 SSL 终止
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # 显式指定 HTTP/1.1 协议以便支持长连接
+    proxy_http_version 1.1;
+    # proxy_set_header Upgrade $http_upgrade;
+    # 关闭 Nginx 缓冲，实时转发后端数据到客户端，避免延迟。
+    proxy_buffering off;
+    # 禁用缓存，确保每次请求SSE返回最新数据
+    proxy_cache off;
+    # 禁用 Nginx 自动添加的 Connection: keep-alive 头，避免后端服务器提前关闭长连接。
+    proxy_set_header Connection '';
+    # 强制客户端或中间代理不缓存请求结果
+    proxy_set_header Cache-Control 'no-cache';
+    # 禁用分块传输编码，确保后端直接控制数据流
+    # 后端应正确设置 Content-Type: text/event-stream
+    chunked_transfer_encoding off;
+    ......
+ }
+```
+  
 ## 为小说添加元数据
 
 Komga 并没有区分漫画与小说，建议不同类型使用不同库
@@ -198,7 +248,7 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
 
 人工修正错误元数据可以使用`cbl(Correct Bangumi Link)`，只需在系列元数据的链接中填入`cbl`和该漫画系列的 bangumi 地址。将强制使用此链接，不再进行刮削。与`RECHECK_FAILED_SERIES`配置无关
 
-![cbl](img/cbl.png)
+![cbl](docs/images/cbl.png)
 
 下面分三种情况说明具体操作：
 
@@ -233,7 +283,7 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
 
     注意：
     - 同步当前获取的**所有系列**的漫画进度（当前有3种范围：所有、仅指定库、仅指定收藏）。**为避免污染时间线，请谨慎操作**
-3. `python updateReadProgress.py`
+3. `python scripts/updateReadProgress.py`
 
 ## 命名建议
 
@@ -261,6 +311,14 @@ _命名建议修改自某喵_
 ## Issues & Pull Requests
 
 欢迎提交新规则、问题、功能……
+
+## Contributors
+
+<a href="https://github.com/chu-shen/BangumiKomga/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=chu-shen/BangumiKomga" />
+</a>
+
+Made with [contrib.rocks](https://contrib.rocks).
 
 ## 致谢
 

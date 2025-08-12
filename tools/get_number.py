@@ -8,7 +8,7 @@ class NumberType:
     NONE = "none"
 
 
-def getNumberWithPrefix(s):
+def get_number_with_prefix(s):
     pattern = r"vol\.(\d+)|chap\.(\d+)"
     match = re.search(pattern, s, re.IGNORECASE)
 
@@ -21,7 +21,11 @@ def getNumberWithPrefix(s):
 
 
 def roman_to_integer(s):
-    roman_numerals = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+    # FIXME: 遵循罗马数字规则
+    # FIXME: 检查重复规则, V, L, D 不能重复
+    # FIXME: 检查是否包含非法字符
+    roman_numerals = {"I": 1, "V": 5, "X": 10,
+                      "L": 50, "C": 100, "D": 500, "M": 1000}
 
     total = 0
     prev_value = 0
@@ -39,7 +43,7 @@ def roman_to_integer(s):
     return total
 
 
-def getRomanNumber(s):
+def get_roman_number(s):
     # 罗马数字紧邻前后无英文字母
     roman_pattern = r"(?<![A-Z])[IVXLCDM]+(?![A-Z])"
     match = re.search(roman_pattern, s, re.IGNORECASE)
@@ -53,7 +57,7 @@ def getRomanNumber(s):
 
 def normal(s):
     # Define the pattern to match decimal numbers in the format of "xx.xx"
-    decimal_pattern = r"\d+\.\d"
+    decimal_pattern = r"\d+\.\d+"
     # Use the `re.findall` function to search for all occurrences of the pattern in the input string
     match = re.findall(decimal_pattern, s)
     # If no decimal numbers are found, change the pattern to match integer numbers
@@ -66,16 +70,16 @@ def normal(s):
     return None, NumberType.NONE
 
 
-def formatString(s):
+def format_string(s):
     # e.g. 16-5
     return s.replace("-", ".").replace("_", ".")
 
 
-def getNumber(s):
+def get_number(s):
 
-    s = formatString(s)
+    s = format_string(s)
 
-    parsers = [getNumberWithPrefix, getRomanNumber, normal]
+    parsers = [get_number_with_prefix, get_roman_number, normal]
 
     for parser in parsers:
         number, type = parser(s)

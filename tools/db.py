@@ -49,7 +49,7 @@ def upsert_book_record(conn, book_id, subject_id, update_success, book_name):
     conn.commit()
 
 
-def initSqlite3():
+def init_sqlite3():
     # Create a connection to the sqlite database
     conn = sqlite3.connect("recordsRefreshed.db", check_same_thread=False)
     cursor = conn.cursor()

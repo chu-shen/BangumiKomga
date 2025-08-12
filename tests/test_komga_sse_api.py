@@ -172,36 +172,70 @@ class TestKomgaSseApi(unittest.TestCase):
     # 而应该使用:
     # patch('api.komga_sse_api.KOMGA_LIBRARY_LIST', new=[])
 
+    # KomgaSseApi 中的 self.executor = ThreadPoolExecutor(max_workers=5) 是异步的, 应在替换为同步执行器后再 assert, 否则会因为断言执行时机不同而产生不稳定的测试结果
+
     def test_library_filtering_with_empty_list(self):
         """测试SSE API - 空KOMGA_LIBRARY_LIST时的事件分发逻辑"""
         with patch('api.komga_sse_api.KOMGA_LIBRARY_LIST', new=[]):
             api = self.api
+
+            # 替换executor为同步执行器
+            class SyncExecutor:
+                def submit(self, fn, *args, **kwargs):
+                    fn(*args, **kwargs)
+
+                def shutdown(self, wait=True):
+                    pass
+            api.executor = SyncExecutor()
+
             callback_data = []
 
             def test_callback(data):
                 callback_data.append(data)
 
             api.register_series_update_callback(test_callback)
-            api.on_event("SeriesAdded", {"libraryId": "lib1"})
+            api.on_event("SeriesAdded", {
+                         "libraryId": "lib1", "seriesId": "series1"})
             self.assertEqual(len(callback_data), 1)
 
     def test_library_filtering_with_matching_id(self):
         """测试SSE API - 匹配KOMGA_LIBRARY_LIST时的事件分发逻辑"""
         with patch('api.komga_sse_api.KOMGA_LIBRARY_LIST', new=['lib1']):
             api = self.api
+
+            # 替换executor为同步执行器
+            class SyncExecutor:
+                def submit(self, fn, *args, **kwargs):
+                    fn(*args, **kwargs)
+
+                def shutdown(self, wait=True):
+                    pass
+            api.executor = SyncExecutor()
+
             callback_data = []
 
             def test_callback(data):
                 callback_data.append(data)
 
             api.register_series_update_callback(test_callback)
-            api.on_event("SeriesAdded", {"libraryId": "lib1"})
+            api.on_event("SeriesAdded", {
+                         "libraryId": "lib1", "seriesId": "series1"})
             self.assertEqual(len(callback_data), 1)
 
     def test_library_filtering_with_non_matching_id(self):
         """测试SSE API - 不匹配KOMGA_LIBRARY_LIST时的事件分发逻辑"""
         with patch('config.config.KOMGA_LIBRARY_LIST', new=['lib2']):
             api = self.api
+
+            # 替换executor为同步执行器
+            class SyncExecutor:
+                def submit(self, fn, *args, **kwargs):
+                    fn(*args, **kwargs)
+
+                def shutdown(self, wait=True):
+                    pass
+            api.executor = SyncExecutor()
+
             callback_data = []
 
             def test_callback(data):

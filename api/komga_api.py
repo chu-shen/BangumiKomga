@@ -341,6 +341,27 @@ class KomgaApi:
         else:
             return None
 
+    def get_series_ids_by_collection_name(self, name):
+        """
+        search collection by name
+        return series id list.
+        https://komga.org/docs/openapi/get-collection-by-id
+        """
+        try:
+            collection_id = self.get_collection_id_by_search_name(name)
+            if not collection_id:
+                return None
+            response = self.r.get(
+                f"{self.base_url}/collections/{collection_id}")
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"出现错误: {e}")
+        seriesIds = response.json()["seriesIds"]
+        if seriesIds:
+            return seriesIds
+        else:
+            return None
+
     def delete_collection(self, id):
         """
         delete collection.

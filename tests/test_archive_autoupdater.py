@@ -10,6 +10,7 @@ class TestFileIntegrityVerifier(unittest.TestCase):
     """测试文件完整性验证工具"""
 
     def setUp(self):
+        import hashlib
         self.temp_dir = tempfile.TemporaryDirectory()
         self.file_path = os.path.join(self.temp_dir.name, "test_file.txt")
         self.content = b"test content"

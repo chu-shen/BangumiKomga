@@ -248,26 +248,26 @@ def refresh_metadata(series_list=None):
     )
 
 
-def get_series(series_ids=[]):
-    series_list = []
+def get_series(series_ids=[]) -> list:
+    series_details = []
     if len(series_ids) > 0:
         for series_id in series_ids:
-            series_list.append(komga.get_specific_series(series_id))
+            series_details.append(komga.get_specific_series(series_id))
     else:
         if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
             logger.error("KOMGA_LIBRARY_LIST 和 KOMGA_COLLECTION_LIST 只能配置一种")
         elif KOMGA_LIBRARY_LIST:
-            series_list.extend(
+            series_details.extend(
                 komga.get_series_with_libraryid(KOMGA_LIBRARY_LIST)["content"]
             )
         elif KOMGA_COLLECTION_LIST:
-            series_list.extend(
+            series_details.extend(
                 komga.get_series_with_collection(
                     KOMGA_COLLECTION_LIST)["content"]
             )
         else:
-            series_list = komga.get_all_series()["content"]
-    return series_list
+            series_details = komga.get_all_series()["content"]
+    return series_details
 
 
 def _filter_new_modified_series(library_id=None):

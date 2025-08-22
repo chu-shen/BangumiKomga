@@ -12,8 +12,10 @@ def run_service():
     service_type = BANGUMI_KOMGA_SERVICE_TYPE.lower()
 
     if service_type == "poll":
+        refresh_metadata()
         poll_service()
     elif service_type == "sse":
+        refresh_metadata()
         sse_service()
     elif service_type == "once":
         refresh_metadata()

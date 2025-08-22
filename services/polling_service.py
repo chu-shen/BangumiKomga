@@ -48,9 +48,10 @@ class PollingCaller:
         """
 
         def poll():
+            # 执行定时轮询
             while True:
                 try:
-                    # 执行定时轮询
+                    # 定时全量刷新
                     if self.refresh_counter >= self.refresh_all_metadata_interval:
                         success = self._safe_refresh(refresh_metadata)
                         self.refresh_counter = 0

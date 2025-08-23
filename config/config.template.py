@@ -34,7 +34,7 @@ KOMGA_EMAIL_PASSWORD = "password"
 
 
 # @@name: KOMGA_LIBRARY_LIST
-# @@prompt: 开始 KOMGA 库交互式设置设置
+# @@prompt: 开始 KOMGA 库交互式设置
 # @@type: string
 # @@required: False
 # @@validator: validate_komga_libraries

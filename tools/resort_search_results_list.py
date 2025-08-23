@@ -38,9 +38,12 @@ def resort_search_list(query, results, threshold, data_source):
         if not manga_metadata["series"]:
             continue
         # bangumi书籍类型包括：漫画、小说、画集、其他
-        platform=SubjectPlatform.parse(manga_metadata["platform"])
+        platform = SubjectPlatform.parse(manga_metadata["platform"])
+
+        # TODO: 适配不同库的 IS_NOVEL_ONLY 参数
         # 根据 IS_NOVEL_ONLY 配置判断是否只应用于 Komga 的小说库
-        is_target_platform = (platform == SubjectPlatform.Novel) == IS_NOVEL_ONLY
+        is_target_platform = (
+            platform == SubjectPlatform.Novel) == IS_NOVEL_ONLY
         if is_target_platform:
             # 计算得分
             score = compute_name_score_by_fuzzy(

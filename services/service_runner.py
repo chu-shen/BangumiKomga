@@ -13,26 +13,72 @@ def run_service():
     """
     service_type = BANGUMI_KOMGA_SERVICE_TYPE.lower()
 
+    refresh_metadata()
+
     if service_type == "poll":
-        refresh_metadata()
-        refresh_service_thread = threading.Thread(target=poll_service, daemon=True)
-        archive_check_thread= periodical_archive_check_service()
-        refresh_service_thread.start()
+        run_poll_service()
     elif service_type == "sse":
-        refresh_metadata()
-        refresh_service_thread = threading.Thread(target=sse_service, daemon=True)
-        archive_check_thread= periodical_archive_check_service()
-        refresh_service_thread.start()
+        run_sse_service()
     elif service_type == "once":
-        refresh_metadata()
+        run_once_service()
     else:
         logger.error(
             "无效的服务类型: '%s'，请检查配置文件",
             BANGUMI_KOMGA_SERVICE_TYPE,
         )
         exit(1)
+
+
+def run_poll_service():
+    """运行轮询服务"""
+    # 启动主服务线程
+    service_thread = threading.Thread(
+        target=poll_service, daemon=True, name="PollService"
+    )
+    service_thread.start()
+
+    # 启动Archive检查服务
+    archive_thread = periodical_archive_check_service()
+
+    # 等待服务结束
+    wait_for_services(service_thread, archive_thread)
+
+
+def run_sse_service():
+    """运行SSE服务"""
+    # 启动主服务线程
+    service_thread = threading.Thread(
+        target=sse_service, daemon=True, name="SSEService"
+    )
+    service_thread.start()
+
+    # 启动Archive检查服务
+    archive_thread = periodical_archive_check_service()
+
+    # 等待服务结束
+    wait_for_services(service_thread, archive_thread)
+
+
+def run_once_service():
+    """运行一次性服务"""
+    pass
+
+
+def wait_for_services(service_thread, archive_thread=None):
+    """
+    等待服务线程结束
+
+    Args:
+        service_thread: 主服务线程
+        archive_thread: Archive检查线程（可选）
+    """
     try:
-        refresh_service_thread.join()
-        archive_check_thread.join()
+        # 等待主服务线程结束
+        service_thread.join()
+        # 如果有Archive线程，等待其结束
+        if archive_thread is not None:
+            archive_thread.join()
     except KeyboardInterrupt:
         logger.warning("服务手动终止: 退出 BangumiKomga 服务")
+    finally:
+        logger.info("BangumiKomga 服务已停止")

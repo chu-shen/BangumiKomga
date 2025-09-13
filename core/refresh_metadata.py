@@ -212,54 +212,22 @@ def refresh_metadata(series_list=None):
 
         # TODO: 匹配错误的系列其update_success也是1, 需要找到一种方法将之筛选出来
 
-        # # 将db中update_success为0且本次进行了匹配的 series_ids 筛选出来
-        # all_failed_series_ids = [
-        #     row[0]
-        #     for row in cursor.execute(
-        #         "SELECT series_id FROM refreshed_series WHERE update_success = 0 and series_id IN ({})".format(
-        #             ",".join("?" for _ in series_ids)
-        #         ),
-        #         series_ids,
-        #     ).fetchall()
-        # ]
-        # 将 db 中 update_success 为 1 且本次进行了匹配的 series_ids 筛选出来
-        successed_series_ids = [
+        # 将db中update_success为0的series_ids筛选出来
+        all_failed_series_ids = [
             row[0]
             for row in cursor.execute(
-                "SELECT series_id FROM refreshed_series WHERE update_success = 1 and series_id IN ({})".format(
+                "SELECT series_id FROM refreshed_series WHERE update_success = 0 and series_id IN ({})".format(
                     ",".join("?" for _ in series_ids)
                 ),
                 series_ids,
             ).fetchall()
         ]
-
-        all_failed_series_ids = komga.get_series_ids_by_collection_name(
-            collection_name)
-
-        # 已存在 FAILED_COLLECTION, 用 all_failed_series_ids 创建 FAILED_COLLECTION
+        # 用all_failed_series_ids 创建 FAILED_COLLECTION
         if all_failed_series_ids:
-            # 从 all_failed_series_ids 中去掉本次成功匹配的系列ID successed_series_ids
-            all_failed_series_ids = [
-                id for id in all_failed_series_ids if id not in successed_series_ids]
-        # 不存在 FAILED_COLLECTION
-        else:
-            all_failed_series_ids = [
-                row[0]
-                for row in cursor.execute(
-                    "SELECT series_id FROM refreshed_series WHERE update_success = 0 and series_id IN ({})".format(
-                        ",".join("?" for _ in series_ids)
-                    ),
-                    series_ids,
-                ).fetchall()]
-
-        # failed_series_ids = [id for id in series_ids if id not in successed_series_ids]
-        # # 将本次失败匹配并入全部记录中
-        # all_failed_series_ids.extend(failed_series_ids)
-        # 用 all_failed_series_ids 替换收藏集内容
-        if komga.replace_collection(collection_name, True, all_failed_series_ids):
-            logger.info("成功替换收藏: %s", collection_name)
-        else:
-            logger.error("替换收藏失败: %s", collection_name)
+            if komga.replace_collection(collection_name, True, all_failed_series_ids):
+                logger.info("成功替换收藏: %s", collection_name)
+            else:
+                logger.error("替换收藏失败: %s", collection_name)
 
     logger.info(
         "执行完成! 刮削成功: %s 个, 刮削失败: %s 个", success_count, failed_count

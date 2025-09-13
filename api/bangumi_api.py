@@ -8,7 +8,6 @@ import requests
 from requests.adapters import HTTPAdapter
 
 from tools.log import logger
-from bangumi_archive.archive_autoupdater import check_archive
 from bangumi_archive.local_archive_searcher import (
     parse_infobox,
     search_line,
@@ -179,7 +178,7 @@ class BangumiApiDataSource(DataSource):
         return files
 
 
-class bangumi_archiveDataSource(DataSource):
+class BangumiArchiveDataSource(DataSource):
     """
     离线数据源类
     """
@@ -189,7 +188,6 @@ class bangumi_archiveDataSource(DataSource):
             local_archive_folder + "subject-relations.jsonlines"
         )
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
-        check_archive()
 
     def _get_metadata_from_archive(self, subject_id):
         # return search_line_batch_optimized(
@@ -350,7 +348,7 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get("access_token"))
 
         if config.get("use_local_archive", False):
-            offline = bangumi_archiveDataSource(
+            offline = BangumiArchiveDataSource(
                 config.get("local_archive_folder"))
             return FallbackDataSource(offline, online)
 

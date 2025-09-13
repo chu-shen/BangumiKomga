@@ -5,16 +5,20 @@
 # ------------------------------------------------------------------
 
 
-from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
+import threading
 import time
 import json
-from tools.log import logger
 import requests
+import atexit
+import base64
+import datetime
+from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
 from threading import Thread, Lock
-import base64
 from concurrent.futures import ThreadPoolExecutor
-import atexit
+from functools import lru_cache
+from tools.log import logger
+from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
 
 # 可配置的订阅事件类型
 RefreshEventType = ["SeriesAdded",
@@ -31,19 +35,25 @@ RefreshEventType = ["SeriesAdded",
                     # `BookImported` 我还没见过, 可能是我从来不用导入功能
                     # "BookImported"
                     ]
+# TODO: 修复已知bug
+# (等待复现方案) 观察到执行后有概率会自动退出，未输出错误信息
 
 
 class KomgaSseClient:
     def __init__(self, base_url, username, password, api_key=None, timeout=30, retries=5):
+        # 基本设置
+        self.base_url = base_url
         self.url = f"{base_url}/sse/v1/events"
         self.auth = (username, password)
-        self.running = False
-        self.timeout = timeout
         self.thread = None
-        self.delay = 1
+        self.api_key = api_key
+        self.timeout = timeout
         self.max_retries = retries
-        self._current_event = ""
-        self._current_data = ""
+
+        # 连接状态管理
+        self.running = False
+        self.retry_count = 0
+        self.delay = 1
 
         # 用于Debug的默认回调函数
         self.on_open = lambda: logger.info("成功连接 Komga SSE 服务端点")
@@ -54,26 +64,42 @@ class KomgaSseClient:
         self.on_event = lambda event_type, data: logger.info(
             f"Event [{event_type}]: {data}")
 
-        self.session = requests.Session()
-        # 传输层自动重连, 重试 self.max_retries 次
-        self.session.mount(
-            "http://", HTTPAdapter(max_retries=self.max_retries))
-        self.session.mount(
-            "https://", HTTPAdapter(max_retries=self.max_retries))
-        self.session.headers.update(
-            {
-                # 客户端向服务器表明自身能够接收事件流格式数据的关键标识
-                # 见MDN: https://developer.mozilla.org/zh-CN/docs/Web/API/Server-sent_events/Using_server-sent_events
-                "Accept": "text/event-stream",
-                "User-Agent": "chu-shen/BangumiKomga (https://github.com/chu-shen/BangumiKomga)",
-                # 防止缓存干扰实时数据流
-                "Cache-Control": "no-cache",
-            }
+        self.session = self._create_session()
+        self._setup_headers()
+
+    def _create_session(self, pool_size=5) -> requests.Session:
+        """创建带连接池和重试策略的会话"""
+        session = requests.Session()
+        retries = Retry(
+            total=self.max_retries,
+            backoff_factor=0.5,
+            status_forcelist=[500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET"]
         )
-        # 使用API_KEY
-        if api_key:
-            self.session.headers["X-API-Key"] = api_key
-            test_url = f"{base_url}/api/v2/users/me"
+        adapter = HTTPAdapter(max_retries=retries,
+                              pool_connections=pool_size,
+                              pool_maxsize=pool_size)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        return session
+
+    def _setup_headers(self):
+        """设置请求头并验证身份"""
+        headers = {
+            # 客户端向服务器表明自身能够接收事件流格式数据的关键标识
+            # 见MDN: https://developer.mozilla.org/zh-CN/docs/Web/API/Server-sent_events/Using_server-sent_events
+            "Accept": "text/event-stream",
+            "User-Agent": "chu-shen/BangumiKomga (https://github.com/chu-shen/BangumiKomga)",
+            # 防止缓存干扰实时数据流
+            "Cache-Control": "no-cache",
+        }
+
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
+            self.session.headers.update(headers)
+            # 验证身份
+            test_url = f"{self.base_url}/api/v2/users/me"
+            response = None  # 提前声明变量
             try:
                 response = self.session.get(test_url)
                 if response.status_code != 200:
@@ -82,19 +108,14 @@ class KomgaSseClient:
             except requests.exceptions.RequestException as e:
                 logger.error(f"API_KEY 身份验证失败: {e}")
                 return
-        # 使用账号凭据
-        else:
+        elif self.auth:
             # 构建认证字符串
             credentials = f"{self.auth[0]}:{self.auth[1]}"
             encoded = base64.b64encode(
                 credentials.encode("utf-8")).decode("utf-8")
-            auth_text = f"Basic {encoded}"
-            # 向header加入认证字段
-            self.session.headers.update(
-                {
-                    "Authorization": auth_text
-                }
-            )
+            headers["Authorization"] = f"Basic {encoded}"
+            self.session.headers.update(headers)
+            response = None  # 提前声明变量
             # 测试连接
             try:
                 response = self.session.get(
@@ -104,15 +125,18 @@ class KomgaSseClient:
                 )
             # 防止取不到response.status_code
             except requests.exceptions.ConnectionError as e:
-                logger.error(f"Komga SSE 连接错误: {e}")
-            except Exception as e:
                 logger.error(
-                    f"Komga SSE HTTP错误, HTTP {response.status_code}: {response.reason}")
+                    f"Komga SSE 连接错误, HTTP {response.status_code}: {response.reason}")
+                return
+            except Exception as e:
+                logger.error(f"Komga SSE 连接错误: {e}")
                 self.on_error(e)
-                exit(1)
+                return
             if response.status_code != 200:
                 logger.error("Komga 账户凭据验证失败!")
                 return
+        else:
+            return
 
     def start(self):
         """启动 SSE 监听"""
@@ -122,6 +146,7 @@ class KomgaSseClient:
         self.running = True
         self.thread = Thread(target=self._connect)
         self.thread.start()
+        self.on_open()
 
     def stop(self):
         """停止 SSE 监听"""
@@ -164,29 +189,30 @@ class KomgaSseClient:
                 time.sleep(delay)
                 self.on_retry()
 
-    def _parse_message_line(self, line):
+    def _parse_message_line(self, line, current_event, current_data):
         """事件行消息解析器"""
         if not line:
             # 空行表示事件结束, 分发事件
-            self._dispatch_event(self._current_event, self._current_data)
-            self._current_event = ""
-            self._current_data = ""
-            return
+            self._dispatch_event(current_event, current_data)
+            # 重置 current_event 和 current_data
+            return "", ""
         # 解析事件类型
         if line.startswith("event:"):
-            self._current_event = line[6:].strip()
+            current_event = line[6:].strip()
         # 解析数据
         elif line.startswith("data:"):
             data_part = line[5:].strip()
-            if self._current_data is None:
-                self._current_data = data_part
+            if current_data is None:
+                current_data = data_part
             else:
-                # 处理多行data
-                self._current_data += "\n" + data_part
+                current_data += "\n" + data_part
+        return current_event, current_data
 
     def _process_stream(self, response):
         """事件流解析器"""
         buffer = ""
+        current_event = ""
+        current_data = ""
         try:
             # iter_lines() 没有线程安全, 应配合 self.running 使用
             # https://tedboy.github.io/requests/generated/generated/requests.Response.iter_lines.html
@@ -209,20 +235,22 @@ class KomgaSseClient:
                             lines = lines[:-1]
                         # 处理所有完整行
                         for line in lines:
-                            self._parse_message_line(line.strip())
+                            current_event, current_data = self._parse_message_line(
+                                line.strip(), current_event, current_data)
                     else:
                         # 空行表示事件分隔符
-                        self._parse_message_line("")  # 触发事件分隔处理
+                        current_event, current_data = self._parse_message_line(
+                            "", current_event, current_data)  # 触发事件分隔处理
                 except Exception as e:
-                    self.on_error(f"SSE数据行 {line} 处理异常, {e}")
+                    self.on_error(f"SSE 数据行 {line} 处理异常, {e}")
                     continue
         except requests.exceptions.RequestException as re:
             # 处理网络层异常（连接超时、断开等）
-            self.on_error(f"网络连接中断, {e}")
+            self.on_error(f"读取 SSE 流数据时网络连接中断, {e}")
 
         except Exception as e:
             # 处理其他未知异常
-            self.on_error(f"系统级错误, {e}")
+            self.on_error(f"遇到未知错误, {e}")
 
     def _dispatch_event(self, event_type, data):
         """分发事件到对应处理器"""
@@ -233,7 +261,7 @@ class KomgaSseClient:
             # 确保 json_data 是字典
             if not isinstance(json_data, dict):
                 raise Exception(f"事件数据不是有效的JSON格式")
-            # 忽略refresh_event_type外的其他事件类型
+            # 事件过滤, 忽略refresh_event_type外的其他事件类型
             if event_type in RefreshEventType:
                 self.on_event(event_type, json_data)
             else:
@@ -253,23 +281,40 @@ class KomgaSseApi:
             base_url, username, password, api_key, timeout, retries)
 
         self.series_modified_callbacks = []
+        # 保护回调列表的互斥访问
         self.series_callback_lock = Lock()
+        # 记录 series_id 最后刷新时间
+        self.series_refresh_history = {}
+        # 刷新间隔阈值
+        self.refresh_interval = datetime.timedelta(seconds=20)
 
         # 绑定回调
         self.sse_client.on_message = self.on_message
         self.sse_client.on_error = self.on_error
         self.sse_client.on_event = self.on_event
 
-        self.series_callback_lock = Lock()
         self.series_modified_callbacks = []
-        # 使用守护线程启动SSE客户端
-        self.sse_thread = Thread(target=self._start_client, daemon=True)
-        # 立即启动线程
-        self.sse_thread.start()
+        # 使用守护线程启动SSE客户端，确保线程唯一性
+        self.sse_thread = None
+        self._start_sse_thread()
         # 使用线程池管理回调线程
         self.executor = ThreadPoolExecutor(max_workers=5)
+        # 记录每个 series ID 的锁
+        self.series_locks = {}
         # 程序退出时自动调用
         atexit.register(self._stop_client)
+
+    def _start_sse_thread(self):
+        """确保 SSE 线程唯一且安全启动"""
+        if self.sse_thread and self.sse_thread.is_alive():
+            logger.warning("SSE 线程已运行，跳过重复启动")
+            return
+        self.sse_thread = Thread(
+            target=self._start_client,
+            daemon=True,  # 设置为守护线程
+            name="SSE_Client_Thread"
+        )
+        self.sse_thread.start()
 
     def _start_client(self):
         try:
@@ -285,18 +330,21 @@ class KomgaSseApi:
     def _stop_client(self):
         # 停止 SSE 客户端
         self.sse_client.running = False
+
+        # 等待SSE线程结束
         if self.sse_client.thread and self.sse_client.thread.is_alive():
-            self.sse_client.thread.join(timeout=1)
+            self.sse_client.thread.join(timeout=5)
+
         # 关闭线程池
         self.executor.shutdown(wait=True)
         logger.info("SSE 客户端和线程池已关闭")
 
     def register_series_update_callback(self, callback):
         """注册系列更新回调函数"""
-        # with self.series_callback_lock:
-        if callback not in self.series_modified_callbacks:
-            self.series_modified_callbacks.append(callback)
-            logger.debug(f"已注册回调函数: {callback.__name__}")
+        with self.series_callback_lock:
+            if callback not in self.series_modified_callbacks:
+                self.series_modified_callbacks.append(callback)
+                logger.debug(f"已注册回调函数: {callback.__name__}")
 
     def unregister_series_update_callback(self, callback):
         """取消注册回调函数"""
@@ -307,16 +355,41 @@ class KomgaSseApi:
 
     def _notify_callbacks(self, series_info):
         """通告所有已注册的回调函数"""
-        callbacks = []
-        with self.series_callback_lock:
-            # 复制列表，释放锁
-            callbacks = list(self.series_modified_callbacks)
-        for callback in callbacks:
-            try:
-                # 提交任务到线程池
-                self.executor.submit(callback, series_info)
-            except Exception as e:
-                self.on_error(e)
+        series_id = series_info['event_data'].get('seriesId')
+        if not series_id:
+            return
+
+        now = datetime.datetime.now()
+        with self._get_series_lock(series_id):
+            # 检查刷新间隔
+            for callback in list(self.series_modified_callbacks):
+                if series_id in self.series_refresh_history:
+                    last_time = self.series_refresh_history[series_id]
+                    if now - last_time < self.refresh_interval:
+                        logger.debug(f"{series_id} 已在 {last_time} 刷新，跳过重复请求")
+                        return
+                try:
+                    # 更新时间戳并执行刷新
+                    self.series_refresh_history[series_id] = now
+                    # 提交任务到线程池
+                    self.executor.submit(callback, series_info)
+                except Exception as e:
+                    self.on_error(e)
+
+    def _restart_sse_client(self):
+        """安全重启SSE客户端"""
+        try:
+            self.sse_client.stop()
+            time.sleep(2)  # 等待2秒后重启
+            self.sse_client.start()
+        except Exception as e:
+            logger.critical("重启SSE客户端失败", exc_info=True)
+
+    # 为每个 series_id 提供一个独立的锁对象, lru_cache 会根据传入的参数来缓存不同的结果
+    # 300是随手填的, 非经验最优值
+    @lru_cache(maxsize=300)
+    def _get_series_lock(self, series_id):
+        return threading.Lock()
 
     def on_message(self, data):
         logger.debug(f"收到非订阅 SSE 消息: {data}")
@@ -325,7 +398,9 @@ class KomgaSseApi:
         """错误事件回调函数"""
         # 错误处理行为
         logger.error(f"遇到 SSE 错误: {e} ", exc_info=True)
-        return
+        # 错误自动重连
+        if "connection" in str(e).lower():
+            self._restart_sse_client()
 
     def on_event(self, event_type, event_data):
         """订阅事件回调函数"""

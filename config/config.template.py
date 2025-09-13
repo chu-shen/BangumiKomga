@@ -58,6 +58,8 @@ USE_BANGUMI_ARCHIVE = False
 # @@validator:
 # @@info: 可以指定自建目录
 ARCHIVE_FILES_DIR = "./archivedata/"
+# 离线元数据的更新间隔, 单位为小时, 0表示不检查更新
+ARCHIVE_UPDATE_INTERVAL = 168
 
 # @@name: BANGUMI_KOMGA_SERVICE_TYPE
 # @@prompt: BangumiKomga 服务运行方式

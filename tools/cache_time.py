@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from tools.log import logger
 
@@ -30,6 +30,17 @@ class TimeCacheManager:
         with open(file_path, "w") as f:
             json.dump({"last_updated": last_updated}, f)
 
+    def convert_to_timedelta(input_seconds: int) -> Optional[datetime]:
+        """
+        将分钟数转换为 datetime 对象
+        """
+        try:
+            result = timedelta(minutes=input_seconds)
+        except Exception as e:
+            logger.warning(f"时间值 {input_seconds} 转换失败: {str(e)}")
+            return None
+        return result
+
     def convert_to_datetime(time_str: str) -> Optional[datetime]:
         """
         将 ISO 格式字符串转换为 datetime 对象
@@ -37,6 +48,6 @@ class TimeCacheManager:
         try:
             result = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
         except Exception as e:
-            logger.warning(f"更新时间 {time_str} 获取失败: {str(e)}")
+            logger.warning(f"时间字符串 {time_str} 转换失败: {str(e)}")
             return None
         return result

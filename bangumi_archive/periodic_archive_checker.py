@@ -1,13 +1,16 @@
 import threading
 import time
 from tools.log import logger
-from config.config import ARCHIVE_UPDATE_INTERVAL
+from config.config import USE_BANGUMI_ARCHIVE, ARCHIVE_UPDATE_INTERVAL
 from bangumi_archive.archive_autoupdater import check_archive
 
 
 def periodical_archive_check_service():
     """守护线程执行定时检查"""
-    # 处理间隔为 0 的情况（只在启动时检查）
+    if not USE_BANGUMI_ARCHIVE:
+        logger.debug("Bangumi Archive 未启用，跳过 Archive 检查服务")
+        return None
+
     if ARCHIVE_UPDATE_INTERVAL == 0:
         logger.debug("ARCHIVE_UPDATE_INTERVAL 为 0，跳过定时检查线程创建")
         return None

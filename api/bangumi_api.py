@@ -8,7 +8,6 @@ import requests
 from requests.adapters import HTTPAdapter
 
 from tools.log import logger
-from bangumi_archive.archive_autoupdater import check_archive
 from bangumi_archive.local_archive_searcher import (
     parse_infobox,
     search_line,
@@ -179,7 +178,7 @@ class BangumiApiDataSource(DataSource):
         return files
 
 
-class bangumi_archiveDataSource(DataSource):
+class BangumiArchiveDataSource(DataSource):
     """
     离线数据源类
     """
@@ -349,7 +348,7 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get("access_token"))
 
         if config.get("use_local_archive", False):
-            offline = bangumi_archiveDataSource(
+            offline = BangumiArchiveDataSource(
                 config.get("local_archive_folder"))
             return FallbackDataSource(offline, online)
 

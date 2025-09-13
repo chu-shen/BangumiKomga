@@ -2,16 +2,14 @@ import os
 import zipfile
 import requests
 import json
-from datetime import datetime ,timezone
-from config.config import ARCHIVE_FILES_DIR, ARCHIVE_CHECK_INTERVAL
+from config.config import ARCHIVE_FILES_DIR
 from tools.log import logger
 from bangumi_archive.indexed_jsonlines_read import IndexedDataReader
 from tools.cache_time import TimeCacheManager
 
+
 UpdateTimeCacheFilePath = os.path.join(
     ARCHIVE_FILES_DIR, "archive_update_time.json")
-CheckTimeCacheFilePath = os.path.join(
-    ARCHIVE_FILES_DIR, "archive_check_time.json")
 
 
 def file_integrity_verifier(file_path, expected_hash=None, expected_size=None):
@@ -130,28 +128,18 @@ def update_archive(url, target_dir=ARCHIVE_FILES_DIR, expected_size=None):
 
 def check_archive():
     os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
-    # 读取本地缓存时间
-    local_update_time = TimeCacheManager.convert_to_datetime(
-        TimeCacheManager.read_time(UpdateTimeCacheFilePath))
-
-    if ARCHIVE_CHECK_INTERVAL:
-        # 转换 ARCHIVE_CHECK_INTERVAL
-        check_interval = TimeCacheManager.convert_to_timedelta(
-            ARCHIVE_CHECK_INTERVAL)
-
-        # 判断当前是否在 ARCHIVE_CHECK_INTERVAL 内
-        if (datetime.now(timezone.utc) - local_update_time) < check_interval:
-            logger.info("依设置跳过 Bangumi Archive 更新步骤")
-            return
 
     download_url, latest_update_time, zip_file_size = (
         get_latest_url_update_time_and_size()
     )
     if download_url == "":
-        logger.warning("无法获取 Bangumi Archive 下载链接, 跳过Archive更新步骤")
+        logger.warning("无法获取 Bangumi Archive 下载链接, 跳过Archive更新")
         return
 
-    # 获取Archive最新更新时间
+    # 读取本地缓存时间
+    local_update_time = TimeCacheManager.convert_to_datetime(
+        TimeCacheManager.read_time(UpdateTimeCacheFilePath)
+    )
     remote_update_time = TimeCacheManager.convert_to_datetime(
         latest_update_time)
     if remote_update_time > local_update_time:

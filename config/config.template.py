@@ -38,9 +38,12 @@ KOMGA_EMAIL_PASSWORD = "password"
 # @@type: string
 # @@required: False
 # @@validator: validate_komga_libraries
-# @@info: 将使用 KOMGA_BASE_URL, KOMGA_EMAIL 和 KOMGA_EMAIL_PASSWORD 读取库列表
+# @@info: TODO: 未兼容此模式，此配置暂不可用。将使用 KOMGA_BASE_URL, KOMGA_EMAIL 和 KOMGA_EMAIL_PASSWORD 读取库列表
 KOMGA_LIBRARY_LIST = []
 KOMGA_COLLECTION_LIST = []
+# 只应用于 Komga 的小说库
+# TODO 适配不同库的 IS_NOVEL_ONLY 参数
+IS_NOVEL_ONLY = False
 
 
 # @@name: USE_BANGUMI_ARCHIVE
@@ -83,7 +86,7 @@ BANGUMI_KOMGA_SERVICE_POLL_INTERVAL = 20
 # @@type: integer
 # @@required: False
 # @@validator:
-# @@info: 多少次轮询后执行一次全量刷新, 单位秒
+# @@info: 多少次轮询后执行一次全量刷新
 BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL = 10000
 
 # Misc

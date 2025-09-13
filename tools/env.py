@@ -38,15 +38,11 @@ class InitEnv:
             # 自动创建db文件
             with sqlite3.connect(os.path.join(PROJECT_ROOT, "recordsRefreshed.db")) as conn:
                 pass
-            if os.path.exists(config_file):
-                if os.path.getsize(config_file) == 0:
+            if not os.path.exists(config_file) or os.path.getsize(config_file) == 0:
                     start_config_generate()
                     if os.path.exists(generated_config_file):
                         os.rename(generated_config_file, config_file)
-            else:
-                start_config_generate()
-                if os.path.exists(generated_config_file):
-                    os.rename(generated_config_file, config_file)
+
         except PermissionError as e:
             logger.warning(f"权限不足，无法创建目录/文件: {e}")
         except OSError as e:

@@ -40,10 +40,7 @@ def validate_bangumi_token(token):
     try:
         colored_message("🔗 正在验证BGM令牌...", Fore.YELLOW)
         session = requests.Session()
-        # 使用工口漫画<求愛エトランゼ> https://bangumi.tv/subject/278395 进行测试
-        test_URL = 'https://api.bgm.tv/v0/subjects/278395'
-        # 剑风传奇 9640
-        # test_URL = 'https://api.bgm.tv/v0/subjects/9640'
+        test_URL = 'https://api.bgm.tv/v0/me'
         response = session.get(test_URL, headers=headers, timeout=TIMEOUT)
         if response.status_code == 200:
             colored_message("✅ BGM令牌验证成功", Fore.GREEN)

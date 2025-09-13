@@ -1,0 +1,111 @@
+[
+  {
+    "name": "BANGUMI_ACCESS_TOKEN",
+    "prompt": "BGM访问令牌",
+    "default": "gruUsn***************************SUSSn",
+    "type": "password",
+    "required": true,
+    "validator": "validate_bangumi_token",
+    "info": "获取地址: https://next.bgm.tv/demo/access-token"
+  },
+  {
+    "name": "KOMGA_BASE_URL",
+    "prompt": "KOMGA访问地址",
+    "default": "http://IP:PORT",
+    "type": "url",
+    "required": true,
+    "validator": "validate_url",
+    "info": ""
+  },
+  {
+    "name": "KOMGA_EMAIL",
+    "prompt": "KOMGA账户邮箱地址",
+    "default": "email",
+    "type": "string",
+    "required": true,
+    "validator": "validate_email",
+    "info": ""
+  },
+  {
+    "name": "KOMGA_EMAIL_PASSWORD",
+    "prompt": "KOMGA账户密码",
+    "default": "password",
+    "type": "password",
+    "required": true,
+    "validator": "validate_komga_access",
+    "info": ""
+  },
+  {
+    "name": "KOMGA_LIBRARY_LIST",
+    "prompt": "开始 KOMGA 库交互式设置",
+    "default": [],
+    "type": "string",
+    "required": false,
+    "validator": "validate_komga_libraries",
+    "info": "TODO: 未兼容此模式，此配置暂不可用。将使用 KOMGA_BASE_URL, KOMGA_EMAIL 和 KOMGA_EMAIL_PASSWORD 读取库列表"
+  },
+  {
+    "name": "USE_BANGUMI_ARCHIVE",
+    "prompt": "是否启用本地离线元数据",
+    "default": false,
+    "type": "boolean",
+    "required": false,
+    "validator": "",
+    "info": "指定是否启用本地 bangumi/Archive 离线元数据"
+  },
+  {
+    "name": "ARCHIVE_FILES_DIR",
+    "prompt": "本地离线元数据存储目录",
+    "default": "./archivedata/",
+    "type": "string",
+    "required": false,
+    "validator": "",
+    "info": "可以指定自建目录"
+  },
+  {
+    "name": "BANGUMI_KOMGA_SERVICE_TYPE",
+    "prompt": "BangumiKomga 服务运行方式",
+    "default": "once",
+    "type": "string",
+    "required": false,
+    "validator": "",
+    "info": "可选值：'once', 'poll', 'sse'",
+    "allowed_values": [
+      "once",
+      "poll",
+      "sse"
+    ]
+  },
+  {
+    "name": "BANGUMI_KOMGA_SERVICE_POLL_INTERVAL",
+    "prompt": "轮询服务轮询间隔",
+    "default": 20,
+    "type": "integer",
+    "required": false,
+    "validator": "",
+    "info": "单位秒"
+  },
+  {
+    "name": "BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL",
+    "prompt": "轮询服务全量刷新间隔",
+    "default": 10000,
+    "type": "integer",
+    "required": false,
+    "validator": "",
+    "info": "多少次轮询后执行一次全量刷新"
+  },
+  {
+    "name": "NOTIF_TYPE_ENABLE",
+    "prompt": "设置消息通知类型",
+    "default": [],
+    "type": "string",
+    "required": false,
+    "validator": null,
+    "info": "可选值：'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'",
+    "allowed_values": [
+      "GOTIFY",
+      "WEBHOOK",
+      "HEALTHCHECKS"
+    ]
+  }
+]

@@ -14,10 +14,12 @@ def run_service():
     service_type = BANGUMI_KOMGA_SERVICE_TYPE.lower()
 
     if service_type == "poll":
+        refresh_metadata()
         refresh_service_thread = threading.Thread(target=poll_service, daemon=True)
         archive_check_thread= periodical_archive_check_service()
         refresh_service_thread.start()
     elif service_type == "sse":
+        refresh_metadata()
         refresh_service_thread = threading.Thread(target=sse_service, daemon=True)
         archive_check_thread= periodical_archive_check_service()
         refresh_service_thread.start()

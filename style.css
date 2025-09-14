@@ -74,3 +74,19 @@ button:hover:not(:disabled) {
 .hidden {
     display: none;
 }
+
+.privacy-notice {
+    background-color: #e8f4fc;
+    border-left: 4px solid var(--primary-color);
+    padding: 15px;
+    margin-bottom: 25px;
+    border-radius: 4px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.privacy-notice .icon {
+    font-size: 24px;
+    margin-right: 15px;
+    color: var(--primary-color);
+}

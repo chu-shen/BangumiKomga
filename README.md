@@ -127,9 +127,13 @@
   - 启用`USE_BANGUMI_ARCHIVE`后，程序会自动从Github下载解压元数据(可能较慢)
   - 离线元数据亦可提前手动解压至该目录中, 另外最好同时创建`archive_update_time.json`并添加日期，内容示例：`{"last_updated": "2025-04-22T21:03:01Z"}`
 
-> [!TIP]
+> [!TIP] 已过时
 >
-> - 如果将`archive_update_time.json`中时间修改为`2099`等较大值，可在很长时间内禁用自动更新
+> - ~~如果将`archive_update_time.json`中时间修改为`2099`等较大值，可在很长时间内禁用自动更新~~
+>  
+> 请使用`ARCHIVE_UPDATE_INTERVAL`↓↓↓
+
+- `ARCHIVE_UPDATE_INTERVAL`: 指定 [bangumi/Archive](https://github.com/bangumi/Archive) 离线元数据的更新间隔, 单位为小时。置为`0`表示不检查更新，其余值则会在启动时立即执行一次检查
 
 - `USE_BANGUMI_THUMBNAIL`: 设置为`True`且未曾上传过系列海报时，使用 Bangumi 封面替换系列海报
   - 旧海报为 Komga 生成的缩略图，因此还可以通过调整`Komga 服务器设置->缩略图尺寸（默认 300px，超大 1200px）`来获得更清晰的封面

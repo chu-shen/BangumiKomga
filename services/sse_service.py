@@ -1,12 +1,26 @@
 import threading
 from tools.log import logger
+
 from config.config import KOMGA_LIBRARY_LIST
 from core.refresh_metadata import refresh_metadata, get_series
 from api.komga_sse_api import KomgaSseApi
 import threading
 
+# 已无引用, 留待下版本删除
+
+
+def isSeriesRefreshed(series_id: str) -> bool:
+    if series_id:
+        return None
+    from tools.db import init_sqlite3, get_series_update_status
+    cursor, conn = init_sqlite3()
+    result = get_series_update_status(conn=conn, series_id=series_id)
+    if result:
+        return bool(result)
+
 
 def series_update_sse_handler(data):
+    # TODO: 处理 series_id, library_id 或者 series_detail 的场景
     series_id = data["event_data"]["seriesId"]
     library_id = data["event_data"]["libraryId"]
     # 获取指定系列的详细信息
@@ -14,6 +28,7 @@ def series_update_sse_handler(data):
     # 筛选有效的 SeriesChanged 事件
     if data["event_type"] == "SeriesChanged":
         # 判断 SeriesChanged 是否为CBL更改
+        # 或者该系列并未匹配元数据
         if any(
             link["label"].lower() == "cbl"
             for link in series_detail[0]["metadata"]["links"]
@@ -39,7 +54,7 @@ def sse_service():
 
     # 注册回调函数
     komga_api.register_series_update_callback(series_update_sse_handler)
-    # 主线程保持运行（实际应用中可能有其他逻辑）
+
     # 防止服务主线程退出
     try:
         threading.Event().wait()

@@ -61,7 +61,13 @@ USE_BANGUMI_ARCHIVE = False
 # @@validator:
 # @@info: 可以指定自建目录
 ARCHIVE_FILES_DIR = "./archivedata/"
-# 离线元数据的更新间隔, 单位为小时, 0表示不检查更新
+
+# @@name: ARCHIVE_UPDATE_INTERVAL
+# @@prompt: 离线元数据的更新间隔
+# @@type: integer
+# @@required: False
+# @@validator:
+# @@info: 单位为小时的整数值, 置为 0 表示不检查离线元数据更新
 ARCHIVE_UPDATE_INTERVAL = 168
 
 # @@name: BANGUMI_KOMGA_SERVICE_TYPE
@@ -78,7 +84,7 @@ BANGUMI_KOMGA_SERVICE_TYPE = "once"
 # @@type: integer
 # @@required: False
 # @@validator:
-# @@info: 单位秒
+# @@info: 单位为秒的整数值
 BANGUMI_KOMGA_SERVICE_POLL_INTERVAL = 20
 
 # @@name: BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL
@@ -86,7 +92,7 @@ BANGUMI_KOMGA_SERVICE_POLL_INTERVAL = 20
 # @@type: integer
 # @@required: False
 # @@validator:
-# @@info: 多少次轮询后执行一次全量刷新
+# @@info: 整数值, 指定多少次轮询后执行一次全量刷新
 BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL = 10000
 
 # Misc

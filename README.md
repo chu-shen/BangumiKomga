@@ -64,7 +64,8 @@
 - [ ] 重构元数据更新范围及覆盖逻辑
 - [ ] 增强文件名解析
 - [ ] ~~自动化测试~~ 完善测试用例
-- [ ] 支持在匹配书籍后导出 [comicinfo.xml](https://github.com/anansi-project/comicinfo) 和 [info.json(eze)](https://github.com/Difegue/LANraragi)
+- [ ] 无有效配置文件时, 可用命令行交互式配置生成器和网页配置生成器生成配置
+- [ ] 支持在匹配书籍后导出 [comicinfo.xml](https://github.com/anansi-project/comicinfo), [info.json(eze)](https://github.com/Difegue/LANraragi) 和 [series.json](https://github.com/mylar3/mylar3/wiki/series.json-schema-%28version-1.0.2%29)
 
 ## 先决条件
 
@@ -118,14 +119,14 @@
   - 在 <https://next.bgm.tv/demo/access-token> 创建个人令牌
   - 如果不使用，请设置为`''`
 
-- `USE_BANGUMI_ARCHIVE`: 指定是否优先使用[bangumi/Archive](https://github.com/bangumi/Archive)离线元数据
-  - 需搭配`ARCHIVE_FILES_DIR`使用
-  - 不含图像数据因此无法离线刷新封面。如果开启`USE_BANGUMI_THUMBNAIL`，则仍需调用 BGM API 才能替换海报
+- `USE_BANGUMI_ARCHIVE`: 指定是否优先使用 [bangumi/Archive](https://github.com/bangumi/Archive)离线元数据
+  - 需搭配 `ARCHIVE_FILES_DIR` 使用
+  - 不含图像数据因此无法离线刷新封面。如果开启 `USE_BANGUMI_THUMBNAIL`，则仍需调用 BGM API 才能替换海报
   - 可选值为 `True` 和 `False`
 
-- `ARCHIVE_FILES_DIR`: 指定储存[bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./archivedata/`
-  - 启用`USE_BANGUMI_ARCHIVE`后，程序会自动从Github下载解压元数据(可能较慢)
-  - 离线元数据亦可提前手动解压至该目录中, 另外最好同时创建`archive_update_time.json`并添加日期，内容示例：`{"last_updated": "2025-04-22T21:03:01Z"}`
+- `ARCHIVE_FILES_DIR`: 指定储存 [bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./archivedata/`
+  - 启用 `USE_BANGUMI_ARCHIVE` 后，程序会自动从Github下载并解压元数据(可能较慢)
+  - 离线元数据亦可提前手动解压至该目录中, 另外最好同时创建 `archive_update_time.json` 并添加日期，内容示例：`{"last_updated": "2025-04-22T21:03:01Z"}`
 
 > [!TIP] 已过时
 >
@@ -187,6 +188,44 @@
     - <https://komga.org/docs/guides/edit-metadata#sort-titles>
     - [chu-shen/BangumiKomga#37](https://github.com/chu-shen/BangumiKomga/issues/37)
   - 如果要对此功能启用前的系列进行修改，请在`scripts`目录下手动运行一次`python sortTitleByLetter.py`
+
+## 交互式配置生成
+
+- 上文中的配置项亦可通过交互式配置生成器生成。
+- 若 BangumiKomga 启动后发现在 `config` 目录下不存在有效的 `config.py` 文件，将会以命令行启动交互式配置生成器，无论 BangumiKomga 是否为初次启动。
+- 用户可手动启动命令行交互式配置生成器：
+  - 以名为 BangumiKomga 的容器为例，通过 `docker exec` 命令启动: `sudo docker exec -it BangumiKomga python conifg/configuration_generator.py`。
+  - 原生部署的实例，可直接启动： `python conifg/configuration_generator.py`。
+- 命令行交互式配置生成器将读取 `config` 目录下的配置模板文件 `config.template.py`, 文件中附有 `# @@` 的配置项将允许用户进行交互式配置, 而无需手动编辑配置文件; 而其他配置项则跳过交互式配置，以默认值直接写入配置生成文件 `config.generated.py`。命令行交互式配置生成器成功生成 `config.generated.py` 文件后，将会用配置生成文件 `config.generated.py` 覆盖 `config.py`，因此请在启动交互式配置生成流程前备份已有的配置文件。
+- 命令行交互式配置生成器的配置模板文件包含多个描述行，此处以配置项 `KOMGA_BASE_URL` 为例:
+
+  ```python
+  # @@name: KOMGA_BASE_URL
+  # @@prompt: KOMGA访问地址
+  # @@type: url
+  # @@required: True
+  # @@validator: validate_url
+  # @@info:
+  KOMGA_BASE_URL = "http://IP:PORT"
+  ```
+
+  - `# @@name` 表示命令行交互式配置生成器中该配置项的显示名称 `KOMGA_BASE_URL`。
+  - `# @@prompt` 表示命令行交互式配置生成器中该配置项的输入提示。
+  - `# @@type` 表示该配置项在命令行交互式配置生成器中被视为何种数据类型，其可选值为 `password`, `string`, `url`, `boolean`, `integer`, 该例中使用 `url`。
+  - `# @@validator` 表示该配置项在命令行交互式配置生成器中应调用哪个验证器来验证有效性, 其可选值为`validate_email`，`validate_url`，`validate_bangumi_token` 和 `validate_komga_access`, 该例中使用 `validate_url`。
+  - `# @@required` 表示该配置项在命令行交互式配置生成器中是否为必填项，其可选值为 `True` 和 `False`，该例中使用 `True`。
+  - `# @@info` 表示命令行交互式配置生成器中该配置项所显示的解释文本。
+  - `KOMGA_BASE_URL = "http://IP:PORT"` 表示配置项 `KOMGA_BASE_URL` 的默认值为 `http://IP:PORT`
+  
+- 用户可以直接编辑配置生成文件 `config.generated.py` 和实际配置文件 `config.py`, 各配置项具体含义及推荐值请请仔细阅读文档前文。
+- 若命令行交互式配置生成器在 `config` 目录下没有足够的文件读写权限，可能会导致配置生成失败或配置文件覆盖失败，请检查目录和 Linux 账户的读写权限，或使用 `mv` 命令手动覆盖 `config.py` 文件。
+
+> [!TIP]
+>
+> 网页配置生成器尚未实装
+>
+- 用户亦可手动启动网页配置生成器：
+  - 浏览器访问 `web` 目录下的 `index.html` 即可
 
 ## 服务运行方式
 

@@ -127,9 +127,13 @@
   - 启用`USE_BANGUMI_ARCHIVE`后，程序会自动从Github下载解压元数据(可能较慢)
   - 离线元数据亦可提前手动解压至该目录中, 另外最好同时创建`archive_update_time.json`并添加日期，内容示例：`{"last_updated": "2025-04-22T21:03:01Z"}`
 
-> [!TIP]
+> [!TIP] 已过时
 >
-> - 如果将`archive_update_time.json`中时间修改为`2099`等较大值，可在很长时间内禁用自动更新
+> - ~~如果将`archive_update_time.json`中时间修改为`2099`等较大值，可在很长时间内禁用自动更新~~
+>  
+> 请使用`ARCHIVE_UPDATE_INTERVAL`↓↓↓
+
+- `ARCHIVE_UPDATE_INTERVAL`: 指定 [bangumi/Archive](https://github.com/bangumi/Archive) 离线元数据的更新间隔, 单位为小时。置为`0`表示不检查更新，其余值则会在启动时立即执行一次检查
 
 - `USE_BANGUMI_THUMBNAIL`: 设置为`True`且未曾上传过系列海报时，使用 Bangumi 封面替换系列海报
   - 旧海报为 Komga 生成的缩略图，因此还可以通过调整`Komga 服务器设置->缩略图尺寸（默认 300px，超大 1200px）`来获得更清晰的封面
@@ -195,9 +199,22 @@
 
 ### SSE 事件服务搭配 Nginx
 
-推荐在 LAN 环境中连接 Komga 实例。若以 SSE 事件服务方式启动`BANGUMI KOMGA`，并且出于安全考虑将 Komga 置于 Nginx 后端, 需更改 Nginx 配置来支持 SSE 长连接。以下为`nginx.conf`的`location`块配置参考:
+推荐在 LAN 环境中连接 Komga 实例。若以 SSE 事件服务方式启动`BANGUMI KOMGA`，并且出于安全考虑将 Komga 置于 Nginx 后端, 需更改 Nginx 配置来支持 SSE 长连接。
+
+在[该issue中](https://github.com/gotson/komga/issues/2012#issuecomment-3143750732)发现`HTTP 1.1`会触发浏览器的SSE连接数限制, 请务必在server块中至少使用 `HTTP 2`, `HTTP 2`要求`HTTPS`
+
+以下为`nginx.conf`的`server`(以监听443端口为例)和`location`块配置参考:
 
 ```conf
+  server {
+    listen                443 ssl http2;
+    access_log            /var/log/nginx/komga.access.log;
+    error_log             /var/log/nginx/komga.error.log;
+    server_name           komga.example.com;
+    ssl_certificate       /SSL/komga.example.com.fullchain;
+    ssl_certificate_key   /SSL/komga.example.com.key;
+    ......
+  }
   location / {
     # KOMGA实例地址
     proxy_pass http://komga_backend;
@@ -221,6 +238,7 @@
     # 禁用分块传输编码，确保后端直接控制数据流
     # 后端应正确设置 Content-Type: text/event-stream
     chunked_transfer_encoding off;
+    ......
  }
 ```
   

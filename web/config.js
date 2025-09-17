@@ -64,7 +64,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                 return `
                     <label class="checkbox">
                         <input type="checkbox" name="${item.name}" ${item.default ? 'checked' : ''}>
-                        启用
                     </label>
                 `;
             case 'password':

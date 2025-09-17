@@ -11,8 +11,8 @@
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
+  - [交互式配置生成](#交互式配置生成)
   - [服务运行方式](#服务运行方式)
-    - [SSE 事件服务搭配 Nginx](#sse-事件服务搭配-nginx)
   - [为小说添加元数据](#为小说添加元数据)
   - [如何修正错误元数据](#如何修正错误元数据)
   - [同步阅读进度](#同步阅读进度)
@@ -64,7 +64,8 @@
 - [ ] 重构元数据更新范围及覆盖逻辑
 - [ ] 增强文件名解析
 - [ ] ~~自动化测试~~ 完善测试用例
-- [ ] 支持在匹配书籍后导出 [comicinfo.xml](https://github.com/anansi-project/comicinfo) 和 [info.json(eze)](https://github.com/Difegue/LANraragi)
+- [ ] 使用命令行交互式配置生成器或网页配置生成器生成配置
+- [ ] 支持在匹配书籍后导出 [comicinfo.xml](https://github.com/anansi-project/comicinfo), [info.json(eze)](https://github.com/Difegue/LANraragi) 和 [series.json](https://github.com/mylar3/mylar3/wiki/series.json-schema-%28version-1.0.2%29)
 
 ## 先决条件
 
@@ -118,14 +119,14 @@
   - 在 <https://next.bgm.tv/demo/access-token> 创建个人令牌
   - 如果不使用，请设置为`''`
 
-- `USE_BANGUMI_ARCHIVE`: 指定是否优先使用[bangumi/Archive](https://github.com/bangumi/Archive)离线元数据
-  - 需搭配`ARCHIVE_FILES_DIR`使用
-  - 不含图像数据因此无法离线刷新封面。如果开启`USE_BANGUMI_THUMBNAIL`，则仍需调用 BGM API 才能替换海报
+- `USE_BANGUMI_ARCHIVE`: 指定是否优先使用 [bangumi/Archive](https://github.com/bangumi/Archive)离线元数据
+  - 需搭配 `ARCHIVE_FILES_DIR` 使用
+  - 不含图像数据因此无法离线刷新封面。如果开启 `USE_BANGUMI_THUMBNAIL`，则仍需调用 BGM API 才能替换海报
   - 可选值为 `True` 和 `False`
 
-- `ARCHIVE_FILES_DIR`: 指定储存[bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./archivedata/`
-  - 启用`USE_BANGUMI_ARCHIVE`后，程序会自动从Github下载解压元数据(可能较慢)
-  - 离线元数据亦可提前手动解压至该目录中, 另外最好同时创建`archive_update_time.json`并添加日期，内容示例：`{"last_updated": "2025-04-22T21:03:01Z"}`
+- `ARCHIVE_FILES_DIR`: 指定储存 [bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./archivedata/`
+  - 启用 `USE_BANGUMI_ARCHIVE` 后，程序会自动从Github下载并解压元数据(可能较慢)
+  - 离线元数据亦可提前手动解压至该目录中, 另外最好同时创建 `archive_update_time.json` 并添加日期，内容示例：`{"last_updated": "2025-04-22T21:03:01Z"}`
 
 > [!TIP] 已过时
 >
@@ -188,6 +189,28 @@
     - [chu-shen/BangumiKomga#37](https://github.com/chu-shen/BangumiKomga/issues/37)
   - 如果要对此功能启用前的系列进行修改，请在`scripts`目录下手动运行一次`python sortTitleByLetter.py`
 
+## 交互式配置生成
+
+- 大部分配置项可通过交互式配置生成器生成
+- 若 BangumiKomga 启动后发现在 `config` 目录下不存在有效的 `config.py` 文件，将会以命令行启动交互式配置生成器
+
+修改配置的几种方式：
+
+1. 将 `config/config.template.py` 重命名为 `config/config.py`，手动修改配置项
+2. 用户可手动启动命令行交互式配置生成器：
+   - 以名为 BangumiKomga 的容器为例，通过 `docker exec` 命令启动: `sudo docker exec -it BangumiKomga python conifg/configuration_generator.py`。
+   - 原生部署的实例，可直接启动： `python conifg/configuration_generator.py`。
+
+    > [!TIP]
+    >
+    > 若命令行交互式配置生成器在 `config` 目录下没有足够的文件读写权限，可能会导致配置生成失败或配置文件覆盖失败，请检查目录和 Linux 账户的读写权限，或使用 `mv` 命令手动覆盖 `config.py` 文件。
+
+3. 用户亦可手动启动网页配置生成器：
+   - 方式一：浏览器访问 `web` 目录下的 `index.html` 即可
+   - 方式二：访问[Github Pages](https://bangumikomga.chushen.xyz/)
+
+更多细节，详见[文档](docs/generate_config.md)
+
 ## 服务运行方式
 
 - `BANGUMI_KOMGA_SERVICE_TYPE`：服务运行方式，可选值：'once', 'poll', 'sse'
@@ -197,51 +220,8 @@
     - `BANGUMI_KOMGA_SERVICE_POLL_INTERVAL`：后台增量更新轮询间隔，单位秒
     - `BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL`：多少次轮询后执行一次全量刷新
 
-### SSE 事件服务搭配 Nginx
+高级配置：[SSE 事件服务搭配 Nginx](docs/Nginx.md)
 
-推荐在 LAN 环境中连接 Komga 实例。若以 SSE 事件服务方式启动`BANGUMI KOMGA`，并且出于安全考虑将 Komga 置于 Nginx 后端, 需更改 Nginx 配置来支持 SSE 长连接。
-
-在[该issue中](https://github.com/gotson/komga/issues/2012#issuecomment-3143750732)发现`HTTP 1.1`会触发浏览器的SSE连接数限制, 请务必在server块中至少使用 `HTTP 2`, `HTTP 2`要求`HTTPS`
-
-以下为`nginx.conf`的`server`(以监听443端口为例)和`location`块配置参考:
-
-```conf
-  server {
-    listen                443 ssl http2;
-    access_log            /var/log/nginx/komga.access.log;
-    error_log             /var/log/nginx/komga.error.log;
-    server_name           komga.example.com;
-    ssl_certificate       /SSL/komga.example.com.fullchain;
-    ssl_certificate_key   /SSL/komga.example.com.key;
-    ......
-  }
-  location / {
-    # KOMGA实例地址
-    proxy_pass http://komga_backend;
-    # 关闭URL自动调整功能。
-    proxy_redirect off;
-    # 将客户端请求的 Host 头传递给后端服务器，而非使用 Nginx 代理的虚拟主机配置。
-    proxy_set_header Host $http_host;
-    # 传递客户端请求的原始协议（http 或 https），帮助后端处理 SSL 终止
-    proxy_set_header X-Forwarded-Proto $scheme;
-    # 显式指定 HTTP/1.1 协议以便支持长连接
-    proxy_http_version 1.1;
-    # proxy_set_header Upgrade $http_upgrade;
-    # 关闭 Nginx 缓冲，实时转发后端数据到客户端，避免延迟。
-    proxy_buffering off;
-    # 禁用缓存，确保每次请求SSE返回最新数据
-    proxy_cache off;
-    # 禁用 Nginx 自动添加的 Connection: keep-alive 头，避免后端服务器提前关闭长连接。
-    proxy_set_header Connection '';
-    # 强制客户端或中间代理不缓存请求结果
-    proxy_set_header Cache-Control 'no-cache';
-    # 禁用分块传输编码，确保后端直接控制数据流
-    # 后端应正确设置 Content-Type: text/event-stream
-    chunked_transfer_encoding off;
-    ......
- }
-```
-  
 ## 为小说添加元数据
 
 Komga 并没有区分漫画与小说，建议不同类型使用不同库

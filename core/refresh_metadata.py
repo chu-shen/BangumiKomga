@@ -21,8 +21,8 @@ def refresh_metadata(series_list=None):
     """
     刷新书籍系列元数据
     """
-    if series_list is None or series_list == []:
-        series_list = get_series()
+    if not series_list:
+        series_list = get_series_metadata()
 
     parse_title = ParseTitle()
 
@@ -45,15 +45,16 @@ def refresh_metadata(series_list=None):
     for series in series_list:
         series_id = series["id"]
         series_name = series["name"]
+        is_novel_series = series["is_novel"]
 
-        # Get the subject id from the Correct Bgm Link (CBL) if it exists
+        # 若存在 Correct Bgm Link (CBL) 则获取其中的 subject_id
         subject_id = None
         force_refresh_flag = False
         for link in series["metadata"]["links"]:
             if link["label"].lower() == "cbl":
                 subject_id = int(link["url"].split("/")[-1])
                 logger.debug("将 cbl %s 匹配于 %s", subject_id, series_name)
-                # Get the metadata for the series from bangumi
+                # 从 bangumi 获取系列元数据
                 metadata = bgm.get_subject_metadata(subject_id)
                 force_refresh_flag = True
                 break
@@ -64,7 +65,7 @@ def refresh_metadata(series_list=None):
                 (record for record in series_records if record[0] == series_id), None
             )
             # series_record=c.execute("SELECT * FROM refreshed_series WHERE series_id=?", (series_id,)).fetchone()
-            # Check if the series has already been refreshed
+            # 检查系列是否已匹配
             if series_record:
                 if series_record[2] == 1:
                     subject_id = cursor.execute(
@@ -80,7 +81,7 @@ def refresh_metadata(series_list=None):
                     logger.debug("跳过刮削失败的系列: %s", series_name)
                     continue
 
-        # Use the bangumi API to search for the series by title on komga
+        # 使用 bangumi API 搜索 komga 中系列标题
         if subject_id == None:
             logger.debug("在 Bangumi 中搜索: %s ", series_name)
             title = parse_title.get_title(series_name)
@@ -96,7 +97,8 @@ def refresh_metadata(series_list=None):
                     failed_comic,
                 )
                 continue
-            search_results = bgm.search_subjects(title, FUZZ_SCORE_THRESHOLD)
+            search_results = bgm.search_subjects(
+                title, FUZZ_SCORE_THRESHOLD, is_novel_series)
             if len(search_results) > 0:
                 subject_id = search_results[0]["id"]
                 metadata = search_results[0]
@@ -206,7 +208,7 @@ def refresh_metadata(series_list=None):
 
         refresh_book_metadata(subject_id, series_id, force_refresh_flag)
 
-    # Add the series that failed to obtain metadata to the collection
+    # 将匹配失败的系列加入收藏 FAILED_COLLECTION
     if CREATE_FAILED_COLLECTION:
         collection_name = "FAILED_COLLECTION"
 
@@ -222,7 +224,7 @@ def refresh_metadata(series_list=None):
                 series_ids,
             ).fetchall()
         ]
-        # 用all_failed_series_ids 创建 FAILED_COLLECTION
+        # 用 all_failed_series_ids 创建 FAILED_COLLECTION
         if all_failed_series_ids:
             if komga.replace_collection(collection_name, True, all_failed_series_ids):
                 logger.info("成功替换收藏: %s", collection_name)
@@ -248,26 +250,67 @@ def refresh_metadata(series_list=None):
     )
 
 
-def get_series(series_ids=[]) -> list:
-    series_details = []
-    if len(series_ids) > 0:
-        for series_id in series_ids:
-            series_details.append(komga.get_specific_series(series_id))
-    else:
-        if KOMGA_LIBRARY_LIST and KOMGA_COLLECTION_LIST:
-            logger.error("KOMGA_LIBRARY_LIST 和 KOMGA_COLLECTION_LIST 只能配置一种")
-        elif KOMGA_LIBRARY_LIST:
-            series_details.extend(
-                komga.get_series_with_libraryid(KOMGA_LIBRARY_LIST)["content"]
-            )
-        elif KOMGA_COLLECTION_LIST:
-            series_details.extend(
-                komga.get_series_with_collection(
-                    KOMGA_COLLECTION_LIST)["content"]
-            )
+def _is_novel_series(series_metadata):
+    # 元数据字典仅包含 libraryId
+    library_id = series_metadata["libraryId"]
+    for item in KOMGA_LIBRARY_LIST:
+        if item["LIBRARY"] == library_id:
+            return item["IS_NOVEL_ONLY"]
+    return False
+
+
+def _series_list_deduplicate(series_list, unique_keys=["id"], flag_key="is_novel"):
+    unique_dict = {}
+
+    for d in series_list:
+        key = tuple((k, d[k]) for k in unique_keys)
+        current_flag = d.get(flag_key)
+
+        if key not in unique_dict:
+            unique_dict[key] = d
         else:
-            series_details = komga.get_all_series()["content"]
-    return series_details
+            existing = unique_dict[key]
+            existing_flag = existing.get(flag_key)
+
+            # 优先保留 flag_key 为 True 的字典
+            if current_flag is True and (existing_flag is None or existing_flag is False):
+                unique_dict[key] = d
+
+    return list(unique_dict.values())
+
+
+def get_series_metadata(series_ids=[]) -> list:
+    # 每个 series 均应包含布尔值 is_novel
+    series_metadata_list = []
+    if series_ids:
+        for series_id in series_ids:
+            metadata_item = komga.get_specific_series(series_id)
+            metadata_item["is_novel"] = _is_novel_series(metadata_item)
+            series_metadata_list.append(metadata_item)
+    # 未指定 ID 列表, 从配置文件中获取系列列表
+    else:
+        if KOMGA_LIBRARY_LIST:
+            for libray_item in KOMGA_LIBRARY_LIST:
+                series_list = komga.get_series_with_libraryid(
+                    libray_item["LIBRARY"])["content"]
+                for series in series_list:
+                    series["is_novel"] = libray_item["IS_NOVEL_ONLY"]
+                series_metadata_list.extend(series_list)
+        if KOMGA_COLLECTION_LIST:
+            for collection_item in KOMGA_COLLECTION_LIST:
+                series_list = komga.get_series_with_collection(
+                    collection_item["COLLECTION"])["content"]
+                for series in series_list:
+                    series["is_novel"] = collection_item["IS_NOVEL_ONLY"]
+                series_metadata_list.extend(series_list)
+        # 列表去重
+        series_metadata_list = _series_list_deduplicate(series_metadata_list)
+    # 未设置 KOMGA_LIBRARY_LIST 和 KOMGA_COLLECTION_LIST
+    if not series_metadata_list:
+        series_metadata_list = komga.get_all_series()["content"]
+        for series in series_metadata_list:
+            series["is_novel"] = False
+    return series_metadata_list
 
 
 def _filter_new_modified_series(library_id=None):
@@ -317,14 +360,21 @@ def refresh_partial_metadata():
     """
     # FIXME: 未处理有 cbl 的系列
     recent_modified_series = []
+    # NOTE: 仅处理 library, 因无法通过系列 ID 快速反查所在的 collection
     # 指定了 LIBRARY_ID
     if KOMGA_LIBRARY_LIST:
-        recent_modified_series.extend(
-            _filter_new_modified_series(library_id=KOMGA_LIBRARY_LIST)
-        )
-    # FIXME: 未处理 collection
+        for libray_item in KOMGA_LIBRARY_LIST:
+            series_list = _filter_new_modified_series(
+                libray_item["LIBRARY"])["content"]
+            for series in series_list:
+                series["is_novel"] = libray_item["IS_NOVEL_ONLY"]
+            recent_modified_series.extend(series_list)
+
     else:
-        recent_modified_series.extend(_filter_new_modified_series())
+        series_list = _filter_new_modified_series()
+        for series in series_list:
+            series["is_novel"] = False
+        recent_modified_series.extend(series_list)
 
     if recent_modified_series:
         refresh_metadata(recent_modified_series)

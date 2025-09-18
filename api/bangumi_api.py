@@ -27,7 +27,7 @@ class DataSource(ABC):
     """
 
     @abstractmethod
-    def search_subjects(self, query, threshold=80):
+    def search_subjects(self, query, threshold=80, is_novel=False):
         pass
 
     @abstractmethod
@@ -76,7 +76,7 @@ class BangumiApiDataSource(DataSource):
         return
 
     @slide_window_rate_limiter()
-    def search_subjects(self, query, threshold=80):
+    def search_subjects(self, query, threshold=80, is_novel=False):
         """
         获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
         """
@@ -107,7 +107,7 @@ class BangumiApiDataSource(DataSource):
                 return []
 
         return resort_search_list(
-            query=query, results=results, threshold=threshold, data_source=self
+            query=query, results=results, threshold=threshold, data_source=self, is_novel=is_novel
         )
 
     @slide_window_rate_limiter()
@@ -211,12 +211,11 @@ class BangumiArchiveDataSource(DataSource):
             file_path=self.subject_metadata_file, query=query
         )
 
-    def search_subjects(self, query, threshold=80):
+    def search_subjects(self, query, threshold=80, is_novel=False):
         """
         离线数据源搜索条目
         """
-        # TODO: 当前未限制返回列表的长度
-        # 长度限制应该和threshold搭配使用, 在resort_search_list()中实现
+        # 长度限制应搭配 threshold 使用, 于 resort_search_list() 中实现
         search_results = []
         results = self._get_search_results_from_archive(query)
         for item in results:
@@ -240,7 +239,7 @@ class BangumiArchiveDataSource(DataSource):
                 }
                 search_results.append(result)
         return resort_search_list(
-            query=query, results=search_results, threshold=threshold, data_source=self
+            query=query, results=search_results, threshold=threshold, data_source=self, is_novel=is_novel
         )
 
     def get_subject_metadata(self, subject_id):
@@ -378,8 +377,8 @@ class FallbackDataSource(DataSource):
             result = getattr(self.secondary, method_name)(*args, **kwargs)
         return result
 
-    def search_subjects(self, query, threshold=80):
-        return self._fallback_call("search_subjects", query, threshold=threshold)
+    def search_subjects(self, query, threshold=80, is_novel=False):
+        return self._fallback_call("search_subjects", query, threshold=threshold, is_novel=is_novel)
 
     def get_subject_metadata(self, subject_id):
         return self._fallback_call("get_subject_metadata", subject_id)

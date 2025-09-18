@@ -281,6 +281,7 @@ def generate_mylar_info(json_data):
     }
 
 
+# TODO: 多本书籍可能需要临时重命名该元数据文件
 def save_comic_info_to_file(json_input):
     comic_xml = generate_comic_info(json_input)
     # 格式化输出
@@ -290,6 +291,8 @@ def save_comic_info_to_file(json_input):
         f.write(xml_str)
     # 输出提示
     print(f"书籍 {json_input['id']} 的 ComicInfo.xml 已成功保存")
+
+# TODO: 多本书籍可能需要临时重命名该元数据文件
 
 
 def save_eze_info_to_file(json_input):
@@ -308,6 +311,20 @@ def save_mylar_info_to_file(json_input):
         f.write(json.dumps(info_json, ensure_ascii=False))
     # 输出提示
     print(f"系列 {json_input['id']} 的 series.json 已成功保存")
+
+# TODO: 这压缩包上哪儿去操作啊? 且不说权限, Komga给的目录搞不好是个容器卷根本访问不到, 难道要用户为每个 library 写一个目录地址?
+
+
+def send_comic_or_eze_to_zip(jsonfile, destinationZip):
+    """把ComicInfo.xml或info.json置入对应的书籍压缩包中"""
+    pass
+
+# TODO: 这目录上哪儿去获取啊? 且不说权限, Komga给的目录搞不好是个容器卷根本访问不到, 难道要用户为每个 library 写一个目录地址?
+
+
+def send_mylar_to_directory(jsonfile, destinationDirctory):
+    """把ComicInfo.xml或info.json置入对应的系列目录中"""
+    pass
 
 
 if __name__ == '__main__':

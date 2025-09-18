@@ -142,6 +142,110 @@ def generate_eze_info(json_data):
     }
 
 
+def generate_mylar_info(json_data):
+    """
+    将Komga的JSON转换为完整的series.json格式
+    """
+
+    # 提取基础信息
+    metadata = json_data.get("metadata", {})
+    books_metadata = json_data.get("booksMetadata", {})
+
+    # 系列标题
+    series_title = metadata.get("title") or json_data.get("name", "")
+
+    # 出版商
+    publisher = metadata.get("publisher") or ""
+
+    # 年份 - 从发布日期或年份字段提取
+    year = 2001  # 默认值
+    release_date = books_metadata.get(
+        "releaseDate") or metadata.get("releaseDate")
+    if release_date and len(release_date) >= 4 and release_date[:4].isdigit():
+        year = int(release_date[:4])
+    elif metadata.get("year"):
+        year = int(metadata.get("year"))
+
+    # 简介 - 多源获取
+    description = (metadata.get("summary") or
+                   books_metadata.get("summary") or
+                   metadata.get("description") or
+                   "")
+
+    # 状态映射
+    komga_status = (metadata.get("status") or "").upper()
+    mylar_status = {
+        "ONGOING": "Continuing",
+        "HIATUS": "Continuing",
+        "ABANDONED": "Continuing",
+        "ENDED": "Ended"
+    }.get(komga_status, "Continuing")
+
+    # 书籍总数
+    total_issues = int(metadata.get("totalBookCount") or
+                       json_data.get("booksCount") or
+                       1)
+
+    # 年龄评级标准化
+    def normalize_age_rating(value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.strip().lower()
+            if value.isdigit():
+                value = int(value)
+            else:
+                return None
+        if value <= 0:
+            return "All"
+        elif value < 12:
+            return "9+"
+        elif value < 15:
+            return "12+"
+        elif value < 17:
+            return "15+"
+        elif value < 18:
+            return "17+"
+        else:
+            return "Adult"
+
+    age_rating = normalize_age_rating(metadata.get("ageRating"))
+
+    # 构建 Mylar3 series.json 格式
+    mylar_data = {
+        "version": "1.0.2",
+        "metadata": {
+            "type": "comicSeries",
+            "publisher": publisher,
+            "imprint": metadata.get("imprint"),
+            "name": series_title,
+            "comicid": int(metadata.get("comicId", 9527)),  # 默认值9527
+            "year": year,
+            "description_text": description.strip(),
+            "description_formatted": None,  # 通常与description_text相同，但保留格式
+            "volume": metadata.get("volume"),
+            "booktype": metadata.get("bookType") or "Print",
+            "age_rating": age_rating,
+            "collects": metadata.get("collects"),  # TPB/GN收集信息
+            "comic_image": metadata.get("comicImage") or "",  # 封面URL
+            "total_issues": total_issues,
+            "publication_run": metadata.get("publicationRun") or "",
+            "status": mylar_status,
+            # 额外字段（Mylar3 schema支持）
+            "language": metadata.get("language"),
+            "readingDirection": metadata.get("readingDirection"),
+            "releaseDate": release_date,
+            "authors": books_metadata.get("authors") or metadata.get("authors"),
+            "links": metadata.get("links"),
+            "alternateTitles": metadata.get("alternateTitles"),
+            "genres": metadata.get("genres"),
+            "tags": (metadata.get("tags") or
+                     books_metadata.get("tags") or
+                     json_data.get("tags")),
+        }
+    }
+
+
 def save_comic_info_to_file(json_input):
     comic_xml = generate_comic_info(json_input)
     # 格式化输出
@@ -150,7 +254,7 @@ def save_comic_info_to_file(json_input):
     with open('ComicInfo.xml', 'w', encoding='utf-8') as f:
         f.write(xml_str)
     # 输出提示
-    print(f"书籍 {json_input['id']} 的 ComicInfo.xml 已成功生成！")
+    print(f"书籍 {json_input['id']} 的 ComicInfo.xml 已成功保存")
 
 
 def save_eze_info_to_file(json_input):
@@ -159,13 +263,24 @@ def save_eze_info_to_file(json_input):
     with open('info.json', 'w', encoding='utf-8') as f:
         f.write(json.dumps(info_json, ensure_ascii=False))
     # 输出提示
-    print(f"书籍 {json_input['id']} 的 info.json 已成功生成！")
+    print(f"书籍 {json_input['id']} 的 info.json 已成功保存")
+
+
+def save_mylar_info_to_file(json_input):
+    info_json = generate_mylar_info(json_input)
+    # 保存到文件
+    with open('series.json', 'w', encoding='utf-8') as f:
+        f.write(json.dumps(info_json, ensure_ascii=False))
+    # 输出提示
+    print(f"系列 {json_input['id']} 的 series.json 已成功保存")
 
 
 if __name__ == '__main__':
-    # 您提供的JSON数据
+
     env = InitEnv()
     komga = env.komga
-    json_input = komga.get_book_metadata("0JW1ZC34BJC62")
-    save_comic_info_to_file(json_input)
-    save_eze_info_to_file(json_input)
+    book_json = komga.get_book_metadata("0JW1ZC34BJC62")
+    save_comic_info_to_file(book_json)
+    save_eze_info_to_file(book_json)
+    series_json = komga.get_specific_series("0JR3CFZ42GMGT")
+    save_mylar_info_to_file(series_json)

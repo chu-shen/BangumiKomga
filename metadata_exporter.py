@@ -157,14 +157,15 @@ def generate_mylar_info(json_data):
     # 出版商
     publisher = metadata.get("publisher") or ""
 
-    # 年份 - 从发布日期或年份字段提取
-    year = 2001  # 默认值
-    release_date = books_metadata.get(
-        "releaseDate") or metadata.get("releaseDate")
-    if release_date and len(release_date) >= 4 and release_date[:4].isdigit():
-        year = int(release_date[:4])
-    elif metadata.get("year"):
-        year = int(metadata.get("year"))
+    # 年份
+    # TODO: Bangumi 的作品年份和发布日期均以tag的形式写入series, 需要对tags进行精细化分离后才能着手提取保存
+    year = 1800  # 默认值
+    # release_date = books_metadata.get(
+    #     "releaseDate") or metadata.get("releaseDate")
+    # if release_date and len(release_date) >= 4 and release_date[:4].isdigit():
+    #     year = int(release_date[:4])
+    # elif metadata.get("year"):
+    #     year = int(metadata.get("year"))
 
     # 简介 - 多源获取
     description = (metadata.get("summary") or
@@ -182,11 +183,10 @@ def generate_mylar_info(json_data):
     }.get(komga_status, "Continuing")
 
     # 书籍总数
-    total_issues = int(metadata.get("totalBookCount") or
-                       json_data.get("booksCount") or
-                       1)
+    total_issues = int(json_data.get("booksCount"))
 
     # 年龄评级标准化
+    # 来自 https://github.com/dyphire/KomgaMylar/blob/cec6caa3607b1937c395aab47051260a56a9adfc/komga-mylar.py#L170
     def normalize_age_rating(value):
         if value is None:
             return None
@@ -211,37 +211,72 @@ def generate_mylar_info(json_data):
 
     age_rating = normalize_age_rating(metadata.get("ageRating"))
 
-    # 构建 Mylar3 series.json 格式
-    mylar_data = {
+    # 标准化 booktype
+    raw_booktype = (metadata.get("bookType") or "").strip().lower()
+    normalized_booktype = "Print"  # 默认值
+    if "trade" in raw_booktype or "tpb" in raw_booktype:
+        normalized_booktype = "TPB"
+    elif "graphic" in raw_booktype:
+        normalized_booktype = "GN"
+    elif "hardcover" in raw_booktype or "hc" in raw_booktype:
+        normalized_booktype = "HC"
+    elif "magazine" in raw_booktype:
+        normalized_booktype = "Magazine"
+    elif "digital" in raw_booktype:
+        normalized_booktype = "Digital"
+
+    # 判断是否是合订本, 如果有 collects 或者 booktype 则是 TPB/GN
+    collects = metadata.get("collects")
+    if collects is None and normalized_booktype in ["TPB", "GN", "HC"]:
+        # 如果是 TPB/GN 但没有 collects，则设为空数组
+        collects = []
+
+    # 如果有 collects，则强制设为 TPB
+    if collects:
+        normalized_booktype = "TPB"
+
+    # 构建最终输出
+    return {
         "version": "1.0.2",
         "metadata": {
             "type": "comicSeries",
             "publisher": publisher,
+            # 出版社的 副牌(imprint) 字段
             "imprint": metadata.get("imprint"),
             "name": series_title,
-            "comicid": int(metadata.get("comicId", 9527)),  # 默认值9527
+            # 此处使用了 Koamge series ID
+            # 而非 https://github.com/mylar3/mylar3/wiki/series.json-schema-%28version-1.0.2%29
+            # 中的 ComicVine comicid
+            "comicid": json_data.get("id"),
             "year": year,
             "description_text": description.strip(),
-            "description_formatted": None,  # 通常与description_text相同，但保留格式
+            "description_formatted": None,
+            # TODO: 暂未使用, 主要关注 total_issues 字段
             "volume": metadata.get("volume"),
-            "booktype": metadata.get("bookType") or "Print",
+            # 系列的目录位置
+            "url": json_data.get("url"),
+            "booktype": normalized_booktype,
             "age_rating": age_rating,
-            "collects": metadata.get("collects"),  # TPB/GN收集信息
-            "comic_image": metadata.get("comicImage") or "",  # 封面URL
+            "collects": collects,
+            # 此处省略了 Base URL
+            "comic_image": f'/api/v1/series/{json_data.get("id")}/thumbnail',
             "total_issues": total_issues,
             "publication_run": metadata.get("publicationRun") or "",
             "status": mylar_status,
-            # 额外字段（Mylar3 schema支持）
             "language": metadata.get("language"),
             "readingDirection": metadata.get("readingDirection"),
-            "releaseDate": release_date,
+            # TODO: 暂以 year 占位
+            "releaseDate": year,
+            # TODO: 唉, 作者字段老毛病了
             "authors": books_metadata.get("authors") or metadata.get("authors"),
             "links": metadata.get("links"),
             "alternateTitles": metadata.get("alternateTitles"),
             "genres": metadata.get("genres"),
-            "tags": (metadata.get("tags") or
-                     books_metadata.get("tags") or
-                     json_data.get("tags")),
+            "tags": (
+                metadata.get("tags") or
+                books_metadata.get("tags") or
+                json_data.get("tags")
+            ),
         }
     }
 
@@ -250,7 +285,7 @@ def save_comic_info_to_file(json_input):
     comic_xml = generate_comic_info(json_input)
     # 格式化输出
     xml_str = prettify_comic_info(comic_xml)
-    # 保存到文件
+    # 保存到文件 ComicInfo.xml
     with open('ComicInfo.xml', 'w', encoding='utf-8') as f:
         f.write(xml_str)
     # 输出提示
@@ -259,7 +294,7 @@ def save_comic_info_to_file(json_input):
 
 def save_eze_info_to_file(json_input):
     info_json = generate_eze_info(json_input)
-    # 保存到文件
+    # 保存到文件 info.json
     with open('info.json', 'w', encoding='utf-8') as f:
         f.write(json.dumps(info_json, ensure_ascii=False))
     # 输出提示
@@ -268,7 +303,7 @@ def save_eze_info_to_file(json_input):
 
 def save_mylar_info_to_file(json_input):
     info_json = generate_mylar_info(json_input)
-    # 保存到文件
+    # 保存到文件 series.json
     with open('series.json', 'w', encoding='utf-8') as f:
         f.write(json.dumps(info_json, ensure_ascii=False))
     # 输出提示

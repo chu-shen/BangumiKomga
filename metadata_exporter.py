@@ -158,7 +158,7 @@ def generate_mylar_info(json_data):
     publisher = metadata.get("publisher") or ""
 
     # 年份
-    # TODO: Bangumi 的作品年份和发布日期均以tag的形式写入series, 需要对tags进行精细化分离后才能着手提取保存
+    # TODO: Bangumi 的作品年份和发布日期均以 tag 的形式写入 series, 需要对 tags 进行精细化分离后才能着手提取保存
     year = 1800  # 默认值
     # release_date = books_metadata.get(
     #     "releaseDate") or metadata.get("releaseDate")
@@ -254,7 +254,7 @@ def generate_mylar_info(json_data):
             # TODO: 暂未使用, 主要关注 total_issues 字段
             "volume": metadata.get("volume"),
             # 系列的目录位置
-            "url": json_data.get("url"),
+            # "url": json_data.get("url"),
             "booktype": normalized_booktype,
             "age_rating": age_rating,
             "collects": collects,

@@ -6,7 +6,8 @@
     "type": "password",
     "required": true,
     "validator": "validate_bangumi_token",
-    "info": "获取地址: https://next.bgm.tv/demo/access-token"
+    "info": "获取地址: https://next.bgm.tv/demo/access-token",
+    "version": "0.1"
   },
   {
     "name": "KOMGA_BASE_URL",
@@ -15,7 +16,8 @@
     "type": "url",
     "required": true,
     "validator": "validate_url",
-    "info": ""
+    "info": "",
+    "version": "0.1"
   },
   {
     "name": "KOMGA_EMAIL",
@@ -24,7 +26,8 @@
     "type": "string",
     "required": true,
     "validator": "validate_email",
-    "info": ""
+    "info": "",
+    "version": "0.1"
   },
   {
     "name": "KOMGA_EMAIL_PASSWORD",
@@ -33,7 +36,8 @@
     "type": "password",
     "required": true,
     "validator": "validate_komga_access",
-    "info": ""
+    "info": "",
+    "version": "0.1"
   },
   {
     "name": "KOMGA_LIBRARY_LIST",
@@ -42,7 +46,8 @@
     "type": "string",
     "required": false,
     "validator": "validate_komga_libraries",
-    "info": "TODO: 未兼容此模式，此配置暂不可用。将使用 KOMGA_BASE_URL, KOMGA_EMAIL 和 KOMGA_EMAIL_PASSWORD 读取库列表"
+    "info": "将使用 KOMGA_BASE_URL, KOMGA_EMAIL 和 KOMGA_EMAIL_PASSWORD 读取库列表",
+    "version": "0.14.0"
   },
   {
     "name": "USE_BANGUMI_ARCHIVE",
@@ -51,7 +56,8 @@
     "type": "boolean",
     "required": false,
     "validator": "",
-    "info": "指定是否启用本地 bangumi/Archive 离线元数据"
+    "info": "指定是否启用本地 bangumi/Archive 离线元数据",
+    "version": "0.13.0"
   },
   {
     "name": "ARCHIVE_FILES_DIR",
@@ -60,7 +66,8 @@
     "type": "string",
     "required": false,
     "validator": "",
-    "info": "可以指定自建目录"
+    "info": "可以指定自建目录",
+    "version": "0.13.0"
   },
   {
     "name": "ARCHIVE_UPDATE_INTERVAL",
@@ -69,7 +76,8 @@
     "type": "integer",
     "required": false,
     "validator": "",
-    "info": "单位为小时的整数值, 置为 0 表示不检查离线元数据更新"
+    "info": "单位为小时的整数值, 置为 0 表示不检查离线元数据更新",
+    "version": "0.13.0"
   },
   {
     "name": "BANGUMI_KOMGA_SERVICE_TYPE",
@@ -79,6 +87,7 @@
     "required": false,
     "validator": "",
     "info": "可选值：'once', 'poll', 'sse'",
+    "version": "0.15.0",
     "allowed_values": [
       "once",
       "poll",
@@ -92,7 +101,8 @@
     "type": "integer",
     "required": false,
     "validator": "",
-    "info": "单位为秒的整数值"
+    "info": "单位为秒的整数值",
+    "version": "0.15.0"
   },
   {
     "name": "BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL",
@@ -101,7 +111,8 @@
     "type": "integer",
     "required": false,
     "validator": "",
-    "info": "整数值, 指定多少次轮询后执行一次全量刷新"
+    "info": "整数值, 指定多少次轮询后执行一次全量刷新",
+    "version": "0.15.0"
   },
   {
     "name": "USE_BANGUMI_THUMBNAIL",
@@ -110,7 +121,8 @@
     "type": "boolean",
     "required": false,
     "validator": "",
-    "info": "设置为`True`且未曾上传过系列海报时，使用 Bangumi 封面替换系列海报"
+    "info": "设置为`True`且未曾上传过系列海报时，使用 Bangumi 封面替换系列海报",
+    "version": "0.5.0"
   },
   {
     "name": "USE_BANGUMI_THUMBNAIL_FOR_BOOK",
@@ -119,7 +131,8 @@
     "type": "boolean",
     "required": false,
     "validator": "",
-    "info": "设置为`True`且未曾上传过单册海报时，使用 Bangumi 封面替换单册海报"
+    "info": "设置为`True`且未曾上传过单册海报时，使用 Bangumi 封面替换单册海报",
+    "version": "0.6.0"
   },
   {
     "name": "SORT_TITLE",
@@ -128,7 +141,8 @@
     "type": "boolean",
     "required": false,
     "validator": "",
-    "info": "设置为`True`时，在刷新元数据后会在系列元数据-排序标题前添加一个首字母用于导航。此为临时方案"
+    "info": "设置为`True`时，在刷新元数据后会在系列元数据-排序标题前添加一个首字母用于导航。此为临时方案",
+    "version": "0.10.0"
   },
   {
     "name": "FUZZ_SCORE_THRESHOLD",
@@ -137,7 +151,8 @@
     "type": "integer",
     "required": false,
     "validator": "",
-    "info": "整数值, 满分 100，默认值`80`。用于过滤搜索结果"
+    "info": "整数值, 满分 100，默认值`80`。用于过滤搜索结果",
+    "version": "0.12.0"
   },
   {
     "name": "RECHECK_FAILED_SERIES",
@@ -146,7 +161,8 @@
     "type": "boolean",
     "required": false,
     "validator": "",
-    "info": ""
+    "info": "",
+    "version": "0.1"
   },
   {
     "name": "RECHECK_FAILED_BOOKS",
@@ -155,7 +171,8 @@
     "type": "boolean",
     "required": false,
     "validator": "",
-    "info": ""
+    "info": "",
+    "version": "0.1"
   },
   {
     "name": "CREATE_FAILED_COLLECTION",
@@ -164,7 +181,8 @@
     "type": "boolean",
     "required": false,
     "validator": "",
-    "info": "置为`True`时，程序会在刷新完成后，将**本次**刷新失败的系列添加到指定收藏（默认名：`FAILED_COLLECTION`）。"
+    "info": "置为`True`时，程序会在刷新完成后，将**本次**刷新失败的系列添加到指定收藏（默认名：`FAILED_COLLECTION`）。",
+    "version": "0.1"
   },
   {
     "name": "NOTIF_TYPE_ENABLE",
@@ -174,6 +192,7 @@
     "required": false,
     "validator": null,
     "info": "可选值：'GOTIFY', 'WEBHOOK', 'HEALTHCHECKS'",
+    "version": "0.1",
     "allowed_values": [
       "GOTIFY",
       "WEBHOOK",
@@ -187,7 +206,8 @@
     "type": "url",
     "required": false,
     "validator": "validate_url",
-    "info": ""
+    "info": "",
+    "version": "0.1"
   },
   {
     "name": "NOTIF_GOTIFY_TOKEN",
@@ -196,7 +216,8 @@
     "type": "string",
     "required": false,
     "validator": "",
-    "info": ""
+    "info": "",
+    "version": "0.1"
   },
   {
     "name": "NOTIF_GOTIFY_PRIORITY",
@@ -205,7 +226,18 @@
     "type": "integer",
     "required": false,
     "validator": "",
-    "info": ""
+    "info": "",
+    "version": "0.1"
+  },
+  {
+    "name": "NOTIF_GOTIFY_TIMEOUT",
+    "prompt": "GOTIFY 请求超时",
+    "default": 10,
+    "type": "integer",
+    "required": false,
+    "validator": "",
+    "info": "",
+    "version": "0.1"
   },
   {
     "name": "NOTIF_WEBHOOK_ENDPOINT",
@@ -214,7 +246,38 @@
     "type": "url",
     "required": false,
     "validator": "validate_url",
-    "info": "比如飞书、钉钉等"
+    "info": "比如飞书、钉钉等",
+    "version": "0.1"
+  },
+  {
+    "name": "NOTIF_WEBHOOK_METHOD",
+    "prompt": "WEBHOOK 方法",
+    "default": "POST",
+    "type": "string",
+    "required": false,
+    "validator": "",
+    "info": "",
+    "version": "0.1"
+  },
+  {
+    "name": "NOTIF_WEBHOOK_HEADER",
+    "prompt": "WEBHOOK 请求头",
+    "default": "{\"Content-Type\": \"application/json\"}",
+    "type": "string",
+    "required": false,
+    "validator": "",
+    "info": "",
+    "version": "0.1"
+  },
+  {
+    "name": "NOTIF_WEBHOOK_TIMEOUT",
+    "prompt": "WEBHOOK 请求超时",
+    "default": 10,
+    "type": "integer",
+    "required": false,
+    "validator": "",
+    "info": "",
+    "version": "0.1"
   },
   {
     "name": "NOTIF_HEALTHCHECKS_ENDPOINT",
@@ -223,6 +286,17 @@
     "type": "url",
     "required": false,
     "validator": "validate_url",
-    "info": ""
+    "info": "",
+    "version": "0.1"
+  },
+  {
+    "name": "NOTIF_HEALTHCHECKS_TIMEOUT",
+    "prompt": "HEALTHCHECKS 请求超时",
+    "default": 10,
+    "type": "integer",
+    "required": false,
+    "validator": "",
+    "info": "",
+    "version": "0.1"
   }
 ]

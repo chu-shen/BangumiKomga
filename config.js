@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     <label>
                         ${item.prompt}
                         ${item.required ? '<span class="required">*</span>' : ''}
+                        ${item.version ? `<span class="version">(v${item.version})</span>` : ''}
                     </label>
                     ${renderInput(item)}
                     ${item.info ? `<div class="help-text">${item.info}</div>` : ''}

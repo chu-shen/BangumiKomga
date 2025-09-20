@@ -41,13 +41,23 @@
   },
   {
     "name": "KOMGA_LIBRARY_LIST",
-    "prompt": "开始 KOMGA 库交互式设置",
+    "prompt": "配置 KOMGA 库",
     "default": [],
     "type": "string",
     "required": false,
-    "validator": "validate_komga_libraries",
+    "validator": "",
     "info": "将使用 KOMGA_BASE_URL, KOMGA_EMAIL 和 KOMGA_EMAIL_PASSWORD 读取库列表",
-    "version": "0.14.0"
+    "version": "0.18.0"
+  },
+  {
+    "name": "KOMGA_COLLECTION_LIST",
+    "prompt": "配置 KOMGA 库收藏",
+    "default": [],
+    "type": "string",
+    "required": false,
+    "validator": "",
+    "info": "将使用 KOMGA_BASE_URL, KOMGA_EMAIL 和 KOMGA_EMAIL_PASSWORD 读取收藏列表",
+    "version": "0.18.0"
   },
   {
     "name": "USE_BANGUMI_ARCHIVE",

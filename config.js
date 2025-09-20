@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             case 'password':
                 return `<input type="password" name="${item.name}" placeholder="${item.default || ''}">`;
             case 'integer':
-                return `<input type="number" name="${item.name}" value="${item.default || ''}">`;
+                return `<input type="number" name="${item.name}" value=${item.default || null}>`;
             case 'url':
                 return `<input type="url" name="${item.name}" placeholder="${item.default || ''}">`;
             case 'email':
@@ -136,7 +136,10 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
         } else if (input.type === 'checkbox') {
             configValues[name] = input.checked;
-        } else {
+        } else if (item && item.type === 'integer') { 
+            configValues[name] = parseInt(input.value);
+        }
+            else{
             configValues[name] = input.value;
         }
 

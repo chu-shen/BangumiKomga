@@ -38,19 +38,38 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         // 添加事件监听器
         configSchema.forEach(item => {
-            const input = document.querySelector(`[name="${item.name}"]`);
-            if (input) {
-                input.addEventListener('change', updateConfigValue);
-                input.addEventListener('input', updateConfigValue);
+            if (item.type === 'list') {
+                // 处理多选列表
+                const checkboxes = document.querySelectorAll(`input[name="${item.name}"]`);
+                checkboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', updateConfigValue);
+                });
 
                 // 设置默认值
-                if (item.default !== undefined && item.default !== null && item.default !== '') {
-                    if (input.type === 'checkbox') {
-                        input.checked = item.default;
-                    } else {
-                        input.value = item.default;
+                if (Array.isArray(item.default) && item.default.length > 0) {
+                    item.default.forEach(defaultValue => {
+                        const checkbox = document.querySelector(`input[name="${item.name}"][value="${defaultValue}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                    });
+                    updateConfigValue({ target: checkboxes[0] });
+                }
+            } else {
+                const input = document.querySelector(`[name="${item.name}"]`);
+                if (input) {
+                    input.addEventListener('change', updateConfigValue);
+                    input.addEventListener('input', updateConfigValue);
+
+                    // 设置默认值
+                    if (item.default !== undefined && item.default !== null && item.default !== '') {
+                        if (input.type === 'checkbox') {
+                            input.checked = item.default;
+                        } else {
+                            input.value = item.default;
+                        }
+                        updateConfigValue({ target: input });
                     }
-                    updateConfigValue({ target: input });
                 }
             }
         });
@@ -75,6 +94,18 @@ document.addEventListener('DOMContentLoaded', async function () {
                 return `<input type="url" name="${item.name}" placeholder="${item.default || ''}">`;
             case 'email':
                 return `<input type="email" name="${item.name}" placeholder="${item.default || ''}">`;
+            case 'list':
+                if (item.allowed_values && item.allowed_values.length > 0) {
+                    let checkboxes = item.allowed_values.map(value =>
+                        `<div class="checkbox-item">
+                                    <input type="checkbox" name="${item.name}" value="${value}" id="${item.name}-${value}">
+                                    <label for="${item.name}-${value}">${value}</label>
+                                </div>`
+                    ).join('');
+                    return `<div class="checkbox-group">${checkboxes}</div>`;
+                } else {
+                    return `<input type="text" name="${item.name}" placeholder="${item.default || ''}">`;
+                }
             default:
                 if (item.allowed_values && item.allowed_values.length > 0) {
                     let options = item.allowed_values.map(value =>
@@ -91,8 +122,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     function updateConfigValue(event) {
         const input = event.target;
         const name = input.name;
+        const item = configSchema.find(i => i.name === name);
 
-        if (input.type === 'checkbox') {
+        if (item && item.type === 'list') {
+            // 处理多选列表
+            const checkboxes = document.querySelectorAll(`input[name="${name}"]:checked`);
+            configValues[name] = Array.from(checkboxes).map(cb => cb.value);
+        } else if (input.type === 'checkbox') {
             configValues[name] = input.checked;
         } else {
             configValues[name] = input.value;

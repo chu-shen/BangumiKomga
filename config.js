@@ -3,6 +3,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     const generateBtn = document.getElementById('generate-btn');
     const downloadBtn = document.getElementById('download-btn');
     const output = document.getElementById('output');
+    const uploadBtn = document.getElementById('upload-btn');
+    const fileInput = document.getElementById('config-file');
 
     let configSchema = [];
     let configValues = {};
@@ -28,6 +30,8 @@ document.addEventListener('DOMContentLoaded', async function () {
                         ${item.required ? '<span class="required">*</span>' : ''}
                         ${item.version ? `<span class="version">(v${item.version})</span>` : ''}
                     </label>
+                    ${item.name === 'KOMGA_LIBRARY_LIST' || item.name === 'KOMGA_COLLECTION_LIST' ?
+                    `<div class="help-text">由于安全限制，请手动输入</div>` : ''}
                     ${renderInput(item)}
                     ${item.info ? `<div class="help-text">${item.info}</div>` : ''}
                 </div>
@@ -82,9 +86,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         switch (item.type) {
             case 'boolean':
                 return `
-                    <label class="checkbox">
                         <input type="checkbox" name="${item.name}" ${item.default ? 'checked' : ''}>
-                    </label>
                 `;
             case 'password':
                 return `<input type="password" name="${item.name}" placeholder="${item.default || ''}">`;
@@ -98,8 +100,8 @@ document.addEventListener('DOMContentLoaded', async function () {
                 if (item.allowed_values && item.allowed_values.length > 0) {
                     let checkboxes = item.allowed_values.map(value =>
                         `<div class="checkbox-item">
+                                    <div for="${item.name}-${value}">${value}</div>
                                     <input type="checkbox" name="${item.name}" value="${value}" id="${item.name}-${value}">
-                                    <label for="${item.name}-${value}">${value}</label>
                                 </div>`
                     ).join('');
                     return `<div class="checkbox-group">${checkboxes}</div>`;
@@ -127,7 +129,11 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (item && item.type === 'list') {
             // 处理多选列表
             const checkboxes = document.querySelectorAll(`input[name="${name}"]:checked`);
-            configValues[name] = Array.from(checkboxes).map(cb => cb.value);
+            if (input.type == 'checkbox') {
+                configValues[name] = Array.from(checkboxes).map(cb => cb.value);
+            } else {
+                configValues[name] = JSON.parse(toJSON(input.value));
+            }
         } else if (input.type === 'checkbox') {
             configValues[name] = input.checked;
         } else {
@@ -160,7 +166,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             } else if (typeof value === 'number') {
                 configContent += `${item.name} = ${value}\n`;
             } else if (Array.isArray(value)) {
-                configContent += `${item.name} = ${JSON.stringify(value)}\n`;
+                    configContent += `${item.name} = ${toPyhton(JSON.stringify(value)) }\n`;
             } else {
                 configContent += `${item.name} = '${value}'\n`;
             }
@@ -185,4 +191,132 @@ document.addEventListener('DOMContentLoaded', async function () {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     });
+
+    // 上传并解析配置文件
+    uploadBtn.addEventListener('click', function () {
+        if (!fileInput.files.length) {
+            alert('请选择要上传的配置文件');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+            try {
+                const content = e.target.result;
+                parseConfigFile(content);
+            } catch (error) {
+                alert('解析配置文件时出错: ' + error.message);
+            }
+        };
+
+        reader.readAsText(file);
+    });
+
+    // 解析Python配置文件
+    function parseConfigFile(content) {
+        const lines = content.split('\n');
+        const parsedConfig = {};
+
+        lines.forEach(line => {
+            // 跳过空行和注释
+            if (!line.trim() || line.trim().startsWith('#')) {
+                return;
+            }
+
+            // 解析配置行
+            const match = line.match(/^(\w+)\s*=\s*(.+)$/);
+            if (match) {
+                const key = match[1];
+                let value = match[2].trim();
+
+                // 处理字符串值（移除引号）
+                if (value.startsWith("'") && value.endsWith("'") ||
+                    value.startsWith('"') && value.endsWith('"')) {
+                    value = value.substring(1, value.length - 1);
+                }
+                // 处理布尔值
+                else if (value === 'True' || value === 'False') {
+                    value = value === 'True';
+                }
+                // 处理数字
+                else if (!isNaN(value) && value !== '') {
+                    value = Number(value);
+                }
+                // 处理列表
+                else if (value.startsWith('[') && value.endsWith(']')) {
+                    try {
+                        // 先将Python风格的布尔值和None转换为JSON格式
+                        let jsonStr = toJSON(value);
+
+                        // 将单引号字符串转换为双引号字符串
+                        jsonStr = jsonStr.replace(/'/g, '"');
+
+                        value = JSON.parse(jsonStr);
+                    } catch (e) {
+                        console.error('解析失败:', e);
+                    }
+                }
+
+                parsedConfig[key] = value;
+            }
+        });
+
+        // 更新表单值
+        configSchema.forEach(item => {
+            if (parsedConfig.hasOwnProperty(item.name)) {
+                const value = parsedConfig[item.name];
+                configValues[item.name] = value;
+
+                const input = document.querySelector(`[name="${item.name}"]`);
+                if (input) {
+                    if (item.type === 'list') {
+                        if (item.allowed_values && item.allowed_values.length > 0) {
+                            // 多选列表
+                            const checkboxes = document.querySelectorAll(`input[name="${item.name}"]`);
+                            checkboxes.forEach(checkbox => {
+                                checkbox.checked = Array.isArray(value) ? value.includes(checkbox.value) : false;
+                            });
+                        } else {
+                            // 文本列表
+                            input.value = JSON.stringify(value);
+                        }
+                    } else if (input.type === 'checkbox') {
+                        input.checked = Boolean(value);
+                    } else {
+                        input.value = value;
+                    }
+                }
+            }
+        });
+
+        validateForm();
+        alert('配置文件已成功加载！');
+    }
+
+    function toPyhton(value) {
+        
+        return value.replace(/: true/g, ': True')
+            .replace(/: true,/g, ': True,')
+            .replace(/: false/g, ': False')
+            .replace(/: false,/g, ': False,')
+            .replace(/: null/g, ': None')
+            .replace(/: null,/g, ': None,')
+            .replace(/true/g, 'True')
+            .replace(/false/g, 'False')
+            .replace(/null/g, 'None');
+    }
+
+    function toJSON(value) {
+        return value.replace(/: True/g, ': true')
+            .replace(/: True,/g, ': true,')
+            .replace(/: False/g, ': false')
+            .replace(/: False,/g, ': false,')
+            .replace(/: None/g, ': null')
+            .replace(/: None,/g, ': null,')
+            .replace(/True/g, 'true')
+            .replace(/False/g, 'false')
+            .replace(/None/g, 'null');
+    }
 });

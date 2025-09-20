@@ -46,7 +46,7 @@
     "type": "list",
     "required": false,
     "validator": "",
-    "info": "将使用 KOMGA_BASE_URL, KOMGA_EMAIL 和 KOMGA_EMAIL_PASSWORD 读取库列表",
+    "info": "将使用 KOMGA 配置读取库列表。配置示例：[{\"LIBRARY\": \"0BYYYYABE9EAV\", \"IS_NOVEL_ONLY\": False}]",
     "version": "0.18.0"
   },
   {
@@ -56,7 +56,7 @@
     "type": "list",
     "required": false,
     "validator": "",
-    "info": "将使用 KOMGA_BASE_URL, KOMGA_EMAIL 和 KOMGA_EMAIL_PASSWORD 读取收藏列表",
+    "info": "将使用 KOMGA 配置读取收藏列表。配置示例：[{\"COLLECTION\": \"0BCWTYYCYYY4C\", \"IS_NOVEL_ONLY\": True}]",
     "version": "0.18.0"
   },
   {

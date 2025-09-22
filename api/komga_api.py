@@ -228,6 +228,20 @@ class KomgaApi:
         # return the response as a JSON object
         return response.json()
 
+    def get_book_metadata(self, book_id):
+        """
+        Retrieves detailed metadata in a specified book in the komga comic.
+        """
+        try:
+            response = self.r.get(
+                f"{self.base_url}/books/{book_id}")
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"出现错误: {e}")
+            return []
+        # return the response as a JSON object
+        return response.json()
+
     def get_book_thumbnails(self, book_id):
         """
         Retrieves all thumbnails in a specified book in the komga comic.

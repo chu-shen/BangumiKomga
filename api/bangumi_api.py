@@ -190,7 +190,6 @@ class BangumiArchiveDataSource(DataSource):
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
 
     def _get_metadata_from_archive(self, subject_id):
-        # return search_line_batch_optimized(
         return search_line(
             file_path=self.subject_metadata_file,
             subject_id=subject_id,
@@ -198,7 +197,6 @@ class BangumiArchiveDataSource(DataSource):
         )
 
     def _get_relations_from_archive(self, subject_id):
-        # return search_list_batch_optimized(
         return search_list(
             file_path=self.subject_relation_file,
             subject_id=subject_id,

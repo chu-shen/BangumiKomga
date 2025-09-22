@@ -205,30 +205,30 @@ def _search_all_data_with_index(file_path: str, query: str):
     """
     使用索引读取器返回所有type==1的对象列表
     """
-    try:
-        indexed_data = IndexedDataReader(file_path)
-        results = []
-        # 遍历所有索引项进行过滤
-        for item in indexed_data:
-            try:
-                # 先检查类型匹配
-                if item.get("type", 0) != 1:
-                    continue
-                # 再检查查询字符串匹配（模糊匹配）
-                if query.encode() in json.dumps(item).encode():
-                    results.append(item)
-            except Exception as e:
-                logger.debug(f"索引项过滤异常: {str(e)}")
-                continue
-        if not results:
-            logger.debug(f"索引全量搜索无结果: {query}")
-        return results
-    except FileNotFoundError:
-        logger.error(f"Archive 文件未找到: {file_path}")
-    except Exception as e:
-        logger.error(f"读取 Archive 发生错误: {str(e)}")
-    # 搜索到多少就返回多少
-    return results
+    # try:
+    #     indexed_data = IndexedDataReader(file_path)
+    #     results = []
+    #     # 遍历所有索引项进行过滤
+    #     for item in indexed_data:
+    #         try:
+    #             # 先检查类型匹配
+    #             if item.get("type", 0) != 1:
+    #                 continue
+    #             # 再检查查询字符串匹配（模糊匹配）
+    #             if query.encode() in json.dumps(item).encode():
+    #                 results.append(item)
+    #         except Exception as e:
+    #             logger.debug(f"索引项过滤异常: {str(e)}")
+    #             continue
+    #     if not results:
+    #         logger.debug(f"索引全量搜索无结果: {query}")
+    #     return results
+    # except FileNotFoundError:
+    #     logger.error(f"Archive 文件未找到: {file_path}")
+    # except Exception as e:
+    #     logger.error(f"读取 Archive 发生错误: {str(e)}")
+    # # 搜索到多少就返回多少
+    # return results
 
 
 def _search_all_data_batch_optimized(file_path: str, query: str, batch_size: int = 1000):

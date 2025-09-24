@@ -3,7 +3,6 @@
 # Description: Bangumi API(https://github.com/bangumi/api)
 # ------------------------------------------------------------------
 
-
 import requests
 from requests.adapters import HTTPAdapter
 
@@ -19,6 +18,8 @@ from tools.slide_window_rate_limiter import slide_window_rate_limiter
 from zhconv import convert
 from urllib.parse import quote_plus
 from abc import ABC, abstractmethod
+
+# TODO： 在DataSource中添加一个本地缓存目录，将从 API 获取的封面图片保存为文件（如 cache/thumbnails/{subject_id}_{image_size}.jpg），下次直接读取本地文件，避免重复请求
 
 
 class DataSource(ABC):

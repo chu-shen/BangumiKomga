@@ -184,11 +184,12 @@ class BangumiArchiveDataSource(DataSource):
     离线数据源类
     """
 
-    def __init__(self, local_archive_folder):
+    def __init__(self, local_archive_folder, online_api=None):
         self.subject_relation_file = (
             local_archive_folder + "subject-relations.jsonlines"
         )
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
+        self.online_api = online_api
 
     def _get_metadata_from_archive(self, subject_id):
         return search_line(
@@ -328,12 +329,31 @@ class BangumiArchiveDataSource(DataSource):
         NotImplementedError("离线数据源不支持更新阅读进度")
         return False
 
+    @slide_window_rate_limiter()
     def get_subject_thumbnail(self, subject_metadata, image_size):
         """
         离线数据源获取封面
         """
-        NotImplementedError("离线数据源不支持获取封面")
-        return {}
+        # NotImplementedError("离线数据源不支持获取封面")
+        try:
+            # 尝试从离线元数据中获取封面URL（即使images字段为空，也可能有id）
+            if not subject_metadata or "id" not in subject_metadata:
+                logger.warning("无效的subject_metadata，无法获取封面")
+                return {}
+
+            # 如果离线数据中已有 image 则尝试使用它
+            # 但 BangumiArchiveDataSource 中 images 字段被设为空字符串，所以需要从ID获取
+            # 因此直接使用 API 获取，除非明确禁用回退
+            if self.online_api:
+                logger.debug(f"离线数据源无封面，回退到在线API获取 {subject_metadata['id']}")
+                return self.online_api.get_subject_thumbnail(subject_metadata, image_size)
+            else:
+                logger.warning(
+                    f"离线数据源无封面，且未配置在线API，无法获取封面: {subject_metadata.get('name', '未知')}")
+                return {}
+        except Exception as e:
+            logger.error(f"获取封面时发生异常: {e}")
+            return {}
 
 
 class BangumiDataSourceFactory:
@@ -347,7 +367,7 @@ class BangumiDataSourceFactory:
 
         if config.get("use_local_archive", False):
             offline = BangumiArchiveDataSource(
-                config.get("local_archive_folder"))
+                config.get("local_archive_folder"), online)
             return FallbackDataSource(offline, online)
 
         return online

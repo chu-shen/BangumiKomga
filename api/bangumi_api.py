@@ -329,7 +329,6 @@ class BangumiArchiveDataSource(DataSource):
         NotImplementedError("离线数据源不支持更新阅读进度")
         return False
 
-    @slide_window_rate_limiter()
     def get_subject_thumbnail(self, subject_metadata, image_size):
         """
         离线数据源获取封面

@@ -1,9 +1,9 @@
-from bangumi_archive.local_archive_searcher import _search_all_data_with_index, search_all_data
-import os
-import sys
-import random
-import mmap
 import json
+import mmap
+import random
+import sys
+import os
+from bangumi_archive.local_archive_searcher import search_all_data, _search_all_data_with_index
 
 # 添加项目根目录到 sys.path，确保可以导入模块
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -67,12 +67,10 @@ def evaluate_search_function(
 ):
     """
     动态评估任意搜索函数的召回效果。
-
     :param file_path: 数据文件路径 (.jsonlines)
     :param sample_size: 采样数量
     :param search_func: 要测试的搜索函数，必须接受 (file_path, query) 两个参数
     :param is_save_report: 是否保存评估结果到 JSON
-    :param query_key: 构建 query 的字段名，优先使用 name_cn，其次 name
     """
     print("🔍 开始采样...")
     data_samples = sample_subjects(file_path, sample_size)
@@ -91,14 +89,16 @@ def evaluate_search_function(
             "query": query,
             "ground_truth_id": item_id,
         })
-
     print(f"📌 成功构建 {len(query_gt_pairs)} 个 query-ground truth 对")
-    print(
-        f"示例 query: '{query_gt_pairs[0]['query']}' (ID: {query_gt_pairs[0]['ground_truth_id']})\n")
+    if query_gt_pairs:
+        print(
+            f"示例 query: '{query_gt_pairs[0]['query']}' (ID: {query_gt_pairs[0]['ground_truth_id']})\n")
 
     # 执行搜索评估
     results_per_query = []
-    tp_count = 0
+    tp_query_count = 0  # query-level recall 计数
+    tp_total = 0        # result-level precision 计数
+    fp_total = 0
     total_queries = len(query_gt_pairs)
 
     print(f"🔍 开始对每个 query 执行检索（使用函数: {search_func.__name__}）...")
@@ -106,40 +106,53 @@ def evaluate_search_function(
         query = pair["query"]
         gt_id = pair["ground_truth_id"]
 
-        # ✅ 动态调用传入的搜索函数
         search_results = search_func(file_path, query)
+        returned_ids = [r.get("id") for r in search_results]
 
-        found = any(result.get("id") == gt_id for result in search_results)
+        # Query-level recall
+        found_in_results = gt_id in returned_ids
+        if found_in_results:
+            tp_query_count += 1
+
+        # Result-level precision
+        tp_total += sum(1 for rid in returned_ids if rid == gt_id)
+        fp_total += sum(1 for rid in returned_ids if rid != gt_id)
+
         results_per_query.append({
             "query": query,
             "gt_id": gt_id,
-            "found": found,
-            "search_results_count": len(search_results),
-            "search_results_ids": [r.get("id") for r in search_results]
+            "found": found_in_results,
+            "search_results_count": len(returned_ids),
+            "search_results_ids": returned_ids
         })
-        if found:
-            tp_count += 1
 
         if i % 100 == 0:
-            print(f"  已处理 {i}/{total_queries}，已召回 {tp_count} 条")
+            print(f"  已处理 {i}/{total_queries}，已召回 {tp_query_count} 条")
 
     # 计算指标
-    recall = tp_count / total_queries if total_queries > 0 else 0.0
-    total_results = sum(r["search_results_count"] for r in results_per_query)
-    precision = tp_count / total_results if total_results > 0 else 0.0
+    recall = tp_query_count / total_queries if total_queries > 0 else 0.0
+    precision = tp_total / \
+        (tp_total + fp_total) if (tp_total + fp_total) > 0 else 0.0
     f1 = 2 * (precision * recall) / (precision +
                                      recall) if (precision + recall) > 0 else 0.0
+
+    # Top-1 Accuracy
+    top1_correct = sum(
+        1 for r in results_per_query if r["search_results_ids"] and r["search_results_ids"][0] == r["gt_id"])
+    top1_accuracy = top1_correct / total_queries if total_queries > 0 else 0.0
 
     print("\n" + "="*70)
     print("📊 评估报告")
     print("="*70)
     print(f"搜索函数: {search_func.__module__}.{search_func.__name__}")
     print(f"总查询数: {total_queries}")
-    print(f"成功召回 (TP): {tp_count}")
-    print(f"未召回 (FN): {total_queries - tp_count}")
-    print(f"平均检索结果数: {total_results / total_queries:.2f}")
-    print(f"召回率 (Recall): {recall:.4f} ({tp_count}/{total_queries})")
+    print(f"成功召回 (TP): {tp_query_count}")
+    print(f"未召回 (FN): {total_queries - tp_query_count}")
+    print(
+        f"平均检索结果数: {sum(r['search_results_count'] for r in results_per_query) / total_queries:.2f}")
+    print(f"召回率 (Recall): {recall:.4f} ({tp_query_count}/{total_queries})")
     print(f"精确率 (Precision): {precision:.4f}")
+    print(f"Top-1 准确率: {top1_accuracy:.4f}")
     print(f"F1-score: {f1:.4f}")
     print("="*70)
 
@@ -158,10 +171,11 @@ def evaluate_search_function(
     if is_save_report:
         output_eval = {
             "total_queries": total_queries,
-            "tp_count": tp_count,
+            "tp_count": tp_query_count,
             "recall": recall,
             "precision": precision,
             "f1": f1,
+            "top1_accuracy": top1_accuracy,
             "search_function": f"{search_func.__module__}.{search_func.__name__}",
             "failed_queries": [
                 {
@@ -182,18 +196,26 @@ def evaluate_search_function(
         "recall": recall,
         "precision": precision,
         "f1": f1,
+        "top1_accuracy": top1_accuracy,
         "search_function": f"{search_func.__module__}.{search_func.__name__}",
         "total_queries": total_queries,
-        "tp_count": tp_count
+        "tp_count": tp_query_count
     }
 
 
 if __name__ == "__main__":
     # 测试 search_all_data
-    print("\n测试 search_all_data")
+    # print("\n测试 search_all_data")
+    # evaluate_search_function(
+    #     file_path=file_path,
+    #     sample_size=samples_size,
+    #     search_func=search_all_data,
+    #     is_save_report=is_save_report
+    # )
+    print("\n测试 _search_all_data_with_index")
     evaluate_search_function(
         file_path=file_path,
         sample_size=samples_size,
-        search_func=search_all_data,
+        search_func=_search_all_data_with_index,
         is_save_report=is_save_report
     )

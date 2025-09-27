@@ -1,4 +1,4 @@
-from bangumi_archive.indexed_jsonlines_read import IndexedDataReader
+from bangumi_archive.local_archive_indexed_reader import IndexedDataReader
 from unittest.mock import patch, MagicMock, mock_open
 import pickle
 import json
@@ -72,7 +72,7 @@ class TestIndexedDataReader(unittest.TestCase):
 
         reader = IndexedDataReader(self.test_subject_file)
         self.assertTrue(hasattr(reader, 'id_offsets'))
-        self.assertIsInstance(reader.id_offsets, dict)
+        self.assertIsInstance(reader.index, dict)
 
     def test_load_index_file_found(self):
         """测试索引查询 - 加载已有索引文件"""
@@ -98,7 +98,7 @@ class TestIndexedDataReader(unittest.TestCase):
         reader = IndexedDataReader(test_data_file.name)
 
         # 验证索引文件正确加载
-        self.assertEqual(reader.id_offsets, test_index_data)
+        self.assertEqual(reader.index, test_index_data)
 
     # @patch('tools.log.logger')                       # 模拟日志记录器
     # @patch('pickle.dump')                            # 模拟索引文件写入
@@ -110,7 +110,7 @@ class TestIndexedDataReader(unittest.TestCase):
         reader = IndexedDataReader(self.test_subject_file)
 
         # 验证索引是否成功构建(非空)
-        self.assertIsNotNone(reader.id_offsets)
+        self.assertIsNotNone(reader.index)
 
         # 计算预期偏移量
         expected = {}
@@ -125,7 +125,7 @@ class TestIndexedDataReader(unittest.TestCase):
             current_offset += len(line_bytes)  # 使用字节长度
 
         # 验证索引构建结果
-        self.assertEqual(reader.id_offsets, expected)
+        self.assertEqual(reader.index, expected)
 
     def test_get_data_by_id(self):
         """测试索引查询 - 数据检索功能"""
@@ -209,7 +209,7 @@ class TestEdgeCases(unittest.TestCase):
         """测试索引查询 - 空数据文件"""
         empty_data = "empty.jsonlines"
         reader = IndexedDataReader(empty_data)
-        self.assertEqual(reader.id_offsets, {})
+        self.assertEqual(reader.index, {})
         if os.path.exists(f"{empty_data}.index"):
             os.remove(f"{empty_data}.index")
 
@@ -231,8 +231,8 @@ class TestEdgeCases(unittest.TestCase):
         reader = IndexedDataReader(test_corrupt_data_file.name)
 
         # 验证索引中包含正确的 ID
-        self.assertIn(328150, reader.id_offsets)
-        self.assertIn(252220, reader.id_offsets)
+        self.assertIn(328150, reader.index)
+        self.assertIn(252220, reader.index)
 
         # 调用 get_data_by_id 获取第一行数据
         result = reader.get_data_by_id(328150, "id")
@@ -244,10 +244,10 @@ class TestEdgeCases(unittest.TestCase):
         self.assertEqual(result[0]["name_cn"], "新常态")
 
         # 验证只包含两行正确数据的索引
-        self.assertEqual(len(reader.id_offsets), 2)
+        self.assertEqual(len(reader.index), 2)
         # 验证损坏行未被索引
         with self.assertRaises(KeyError):
-            reader.id_offsets['invalid']
+            reader.index['invalid']
 
     @patch('os.path.exists')  # 模拟索引文件存在
     @patch('pickle.load')     # 模拟 pickle 加载失败
@@ -266,8 +266,8 @@ class TestEdgeCases(unittest.TestCase):
             # 验证是否调用了重建索引方法
             self.assertTrue(hasattr(reader, 'id_offsets'))
             # 验证索引重建成功
-            self.assertIsInstance(reader.id_offsets, dict)
-            self.assertIn(328096, reader.id_offsets)
+            self.assertIsInstance(reader.index, dict)
+            self.assertIn(328096, reader.index)
 
             # 验证是否调用过错误日志
             mock_logger_error.assert_called()

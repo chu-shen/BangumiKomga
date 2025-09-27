@@ -3,6 +3,7 @@ import mmap
 import random
 import sys
 import os
+import time
 from bangumi_archive.local_archive_searcher import search_all_data, _search_all_data_with_index
 
 # 添加项目根目录到 sys.path，确保可以导入模块
@@ -21,7 +22,6 @@ def sample_subjects(input_file, sample_size: int, output_file=None):
     if file_size == 0:
         raise ValueError("文件为空")
     offsets = []
-    print("正在扫描文件，构建行偏移索引...")
     with open(input_file, 'rb') as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
             pos = 0
@@ -66,15 +66,17 @@ def evaluate_search_function(
     is_save_report: bool = False
 ):
     """
-    动态评估任意搜索函数的召回效果。
+    动态评估任意搜索函数的召回效果，并统计搜索耗时。
     :param file_path: 数据文件路径 (.jsonlines)
     :param sample_size: 采样数量
     :param search_func: 要测试的搜索函数，必须接受 (file_path, query) 两个参数
     :param is_save_report: 是否保存评估结果到 JSON
     """
-    print("🔍 开始采样...")
+    print("开始采样...")
+    start_total = time.time()  # 开始计时
+
     data_samples = sample_subjects(file_path, sample_size)
-    print(f"✅ 采样完成，共 {len(data_samples)} 条记录\n")
+    print(f"采样完成，共 {len(data_samples)} 个样本\n")
 
     # 构建 query-ground truth 对
     query_gt_pairs = []
@@ -89,7 +91,7 @@ def evaluate_search_function(
             "query": query,
             "ground_truth_id": item_id,
         })
-    print(f"📌 成功构建 {len(query_gt_pairs)} 个 query-ground truth 对")
+    print(f"成功构建 {len(query_gt_pairs)} 个 query-ground truth 对")
     if query_gt_pairs:
         print(
             f"示例 query: '{query_gt_pairs[0]['query']}' (ID: {query_gt_pairs[0]['ground_truth_id']})\n")
@@ -101,20 +103,24 @@ def evaluate_search_function(
     fp_total = 0
     total_queries = len(query_gt_pairs)
 
+    # 搜索耗时
+    total_search_time = 0.0
+
     print(f"🔍 开始对每个 query 执行检索（使用函数: {search_func.__name__}）...")
     for i, pair in enumerate(query_gt_pairs, 1):
         query = pair["query"]
         gt_id = pair["ground_truth_id"]
 
+        # 对每次搜索计时
+        start_search = time.time()
         search_results = search_func(file_path, query)
-        returned_ids = [r.get("id") for r in search_results]
+        search_duration = time.time() - start_search
+        total_search_time += search_duration
 
-        # Query-level recall
+        returned_ids = [r.get("id") for r in search_results]
         found_in_results = gt_id in returned_ids
         if found_in_results:
             tp_query_count += 1
-
-        # Result-level precision
         tp_total += sum(1 for rid in returned_ids if rid == gt_id)
         fp_total += sum(1 for rid in returned_ids if rid != gt_id)
 
@@ -123,11 +129,13 @@ def evaluate_search_function(
             "gt_id": gt_id,
             "found": found_in_results,
             "search_results_count": len(returned_ids),
-            "search_results_ids": returned_ids
+            "search_results_ids": returned_ids,
+            "search_time": search_duration  # 保留单次搜索耗时
         })
 
-        if i % 100 == 0:
-            print(f"  已处理 {i}/{total_queries}，已召回 {tp_query_count} 条")
+        if i % 50 == 0:
+            print(
+                f"  已处理 {i}/{total_queries}，已召回 {tp_query_count} 条，当前搜索已耗时: {total_search_time:.4f}s")
 
     # 计算指标
     recall = tp_query_count / total_queries if total_queries > 0 else 0.0
@@ -141,8 +149,12 @@ def evaluate_search_function(
         1 for r in results_per_query if r["search_results_ids"] and r["search_results_ids"][0] == r["gt_id"])
     top1_accuracy = top1_correct / total_queries if total_queries > 0 else 0.0
 
+    # 计时, 总流程结束
+    end_total = time.time()
+    total_time = end_total - start_total
+
     print("\n" + "="*70)
-    print("📊 评估报告")
+    print("评估报告")
     print("="*70)
     print(f"搜索函数: {search_func.__module__}.{search_func.__name__}")
     print(f"总查询数: {total_queries}")
@@ -154,6 +166,9 @@ def evaluate_search_function(
     print(f"精确率 (Precision): {precision:.4f}")
     print(f"Top-1 准确率: {top1_accuracy:.4f}")
     print(f"F1-score: {f1:.4f}")
+    print(f"总耗时: {total_time:.4f} 秒")
+    print(f"搜索总耗时: {total_search_time:.4f} 秒")
+    print(f"平均每次搜索耗时: {total_search_time / total_queries:.4f} 秒")
     print("="*70)
 
     # 错误样例
@@ -161,6 +176,19 @@ def evaluate_search_function(
     print(f"\n❌ 前 5 个未召回的查询（FN）:")
     for i, r in enumerate(failed_queries, 1):
         print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
+        print(f"     检索结果数: {r['search_results_count']}")
+        if r['search_results_ids']:
+            ids_str = r['search_results_ids'][:3]
+            suffix = "..." if len(r['search_results_ids']) > 3 else ""
+            print(f"     返回的 ID: {ids_str}{suffix}")
+
+    # 展示最慢的 5 次搜索
+    print(f"\n 最慢的 5 次查询:")
+    slowest_queries = sorted(
+        results_per_query, key=lambda x: x["search_time"], reverse=True)[:5]
+    for i, r in enumerate(slowest_queries, 1):
+        print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
+        print(f"     检索耗时: {r['search_time']:.4f} 秒")
         print(f"     检索结果数: {r['search_results_count']}")
         if r['search_results_ids']:
             ids_str = r['search_results_ids'][:3]
@@ -177,14 +205,28 @@ def evaluate_search_function(
             "f1": f1,
             "top1_accuracy": top1_accuracy,
             "search_function": f"{search_func.__module__}.{search_func.__name__}",
+            "total_time_seconds": total_time,
+            "search_total_time_seconds": total_search_time,
+            "avg_search_time_seconds": total_search_time / total_queries,
             "failed_queries": [
                 {
                     "query": r["query"],
                     "gt_id": r["gt_id"],
                     "search_results_count": r["search_results_count"],
-                    "search_results_ids": r["search_results_ids"]
+                    "search_results_ids": r["search_results_ids"],
+                    "search_time": r.get("search_time", 0.0)
                 }
                 for r in failed_queries
+            ],
+            "slowest_queries": [
+                {
+                    "query": r["query"],
+                    "gt_id": r["gt_id"],
+                    "search_results_count": r["search_results_count"],
+                    "search_results_ids": r["search_results_ids"],
+                    "search_time": r["search_time"]
+                }
+                for r in slowest_queries
             ]
         }
         eval_file = "evaluation_results.json"
@@ -199,19 +241,14 @@ def evaluate_search_function(
         "top1_accuracy": top1_accuracy,
         "search_function": f"{search_func.__module__}.{search_func.__name__}",
         "total_queries": total_queries,
-        "tp_count": tp_query_count
+        "tp_count": tp_query_count,
+        "total_time_seconds": total_time,
+        "search_total_time_seconds": total_search_time,
+        "avg_search_time_seconds": total_search_time / total_queries
     }
 
 
 if __name__ == "__main__":
-    # 测试 search_all_data
-    # print("\n测试 search_all_data")
-    # evaluate_search_function(
-    #     file_path=file_path,
-    #     sample_size=samples_size,
-    #     search_func=search_all_data,
-    #     is_save_report=is_save_report
-    # )
     print("\n测试 _search_all_data_with_index")
     evaluate_search_function(
         file_path=file_path,

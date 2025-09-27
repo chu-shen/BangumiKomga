@@ -31,8 +31,8 @@ def _search_line_with_index(file_path: str, subject_id: int, target_field: str):
     """
     try:
         indexed_data = IndexedDataReader(file_path)
-        result = indexed_data.get_data_by_id(
-            targetID=subject_id, targetField=target_field)
+        result = indexed_data.get_data_by_query(
+            **{target_field: subject_id})[0]
         if len(result) < 1:
             logger.debug(f"Archive 文件: {file_path} 中不包含 {subject_id} 相关数据")
             return None
@@ -121,8 +121,7 @@ def _search_list_with_index(
     """
     try:
         indexed_data = IndexedDataReader(file_path)
-        results = indexed_data.get_data_by_id(
-            targetID=subject_id, targetField=target_field)
+        results = indexed_data.get_data_by_query(**{target_field: subject_id})
         if len(results) < 1:
             logger.debug(f"Archive 文件: {file_path} 中不包含 {subject_id} 相关数据")
             return []
@@ -185,18 +184,21 @@ def _search_list_batch_optimized(
 
 def search_all_data(file_path: str, query: str):
     """
-    带模式回退的全量数据搜索函数, 首选索引模式, 索引失效时自动切换批量模式
+    带模式回退的全量数据搜索函数, 首选索引模式, 索引失效时自动切换到分块查询模式
     """
     try:
         # 尝试索引模式
         result = _search_all_data_with_index(file_path, query)
         if result:
             return result
-        logger.debug(f"索引全量搜索未命中: {query}")
+        # logger.debug(f"索引全量搜索未命中: {query}")
+        logger.info(f"索引全量搜索未命中: {query}")
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        logger.debug(f"索引异常: {str(e)}，触发回退")
+        # logger.debug(f"索引异常: {str(e)}，触发回退")
+        logger.info(f"索引异常: {str(e)}，触发回退")
     except Exception as e:
-        logger.debug(f"未知异常: {str(e)}")
+        # logger.debug(f"未知异常: {str(e)}")
+        logger.info(f"未知异常: {str(e)}")
     # 回退到批量查询模式
     return _search_all_data_batch_optimized(file_path, query)
 
@@ -205,30 +207,20 @@ def _search_all_data_with_index(file_path: str, query: str):
     """
     使用索引读取器返回所有type==1的对象列表
     """
-    # try:
-    #     indexed_data = IndexedDataReader(file_path)
-    #     results = []
-    #     # 遍历所有索引项进行过滤
-    #     for item in indexed_data:
-    #         try:
-    #             # 先检查类型匹配
-    #             if item.get("type", 0) != 1:
-    #                 continue
-    #             # 再检查查询字符串匹配（模糊匹配）
-    #             if query.encode() in json.dumps(item).encode():
-    #                 results.append(item)
-    #         except Exception as e:
-    #             logger.debug(f"索引项过滤异常: {str(e)}")
-    #             continue
-    #     if not results:
-    #         logger.debug(f"索引全量搜索无结果: {query}")
-    #     return results
-    # except FileNotFoundError:
-    #     logger.error(f"Archive 文件未找到: {file_path}")
-    # except Exception as e:
-    #     logger.error(f"读取 Archive 发生错误: {str(e)}")
-    # # 搜索到多少就返回多少
-    # return results
+    try:
+        # 按 query 模糊搜索, 得到偏移量列表
+        indexed_data = IndexedDataReader(file_path)
+        candidate_data = indexed_data.get_data_by_query(query)
+        # 确保 type == 1
+        results = [item for item in candidate_data if item.get("type") == 1]
+
+        if not results:
+            logger.debug(f"查询 Archive 无结果: {query}")
+        return results
+
+    except Exception as e:
+        logger.error(f"查询 Archive 时发生错误: {e}")
+        return []
 
 
 def _search_all_data_batch_optimized(file_path: str, query: str, batch_size: int = 1000):

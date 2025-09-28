@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 file_path = "archivedata/subject.jsonlines"
 samples_size = 200
 is_save_report = False
+show_sample_size = 10
 
 
 def sample_subjects(input_file, sample_size: int, output_file=None):
@@ -66,7 +67,7 @@ def evaluate_search_function(
     is_save_report: bool = False
 ):
     """
-    动态评估任意搜索函数的召回效果，并统计搜索耗时。
+    评估任意搜索函数的检索效果, 并统计检索耗时。
     :param file_path: 数据文件路径 (.jsonlines)
     :param sample_size: 采样数量
     :param search_func: 要测试的搜索函数，必须接受 (file_path, query) 两个参数
@@ -172,8 +173,9 @@ def evaluate_search_function(
     print("="*70)
 
     # 错误样例
-    failed_queries = [r for r in results_per_query if not r["found"]][:5]
-    print(f"\n❌ 前 5 个未召回的查询（FN）:")
+    failed_queries = [
+        r for r in results_per_query if not r["found"]][:show_sample_size]
+    print(f"\n❌ 前 {show_sample_size} 个未召回的查询（FN）:")
     for i, r in enumerate(failed_queries, 1):
         print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
         print(f"     检索结果数: {r['search_results_count']}")
@@ -183,9 +185,9 @@ def evaluate_search_function(
             print(f"     返回的 ID: {ids_str}{suffix}")
 
     # 展示最慢的 5 次搜索
-    print(f"\n 最慢的 5 次查询:")
+    print(f"\n 最慢的 {show_sample_size} 次查询:")
     slowest_queries = sorted(
-        results_per_query, key=lambda x: x["search_time"], reverse=True)[:5]
+        results_per_query, key=lambda x: x["search_time"], reverse=True)[:show_sample_size]
     for i, r in enumerate(slowest_queries, 1):
         print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
         print(f"     检索耗时: {r['search_time']:.4f} 秒")

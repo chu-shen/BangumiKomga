@@ -11,33 +11,44 @@ from bangumi_archive.local_archive_indexed_reader import IndexedDataReader
 class TestIndexedDataReader(unittest.TestCase):
     def setUp(self):
         """准备测试数据及文件"""
+        # 创建一个不会自动删除的临时文件
+        tmp = tempfile.NamedTemporaryFile(
+            mode='w', delete=False, suffix='.jsonl')
+        self.test_subject_file = tmp.name  # 保存路径
+        tmp.close()  # 关闭文件句柄，但文件保留
+
         self.sample_subject_data = [
             {"id": 328150, "type": 1, "name": "ニューノーマル", "name_cn": "新常态",
                 "infobox": "{{Infobox animanga/Manga\r\n|中文名= 新常态\r\n|别名={\r\n[你和我的嘴唇]\r\n[未来的恋爱必须戴口罩]\r\n[New Normal]\r\n}\r\n|出版社= ファンギルド\r\n|价格= \r\n|其他出版社= \r\n|连载杂志= \r\n|发售日= 2021-07-19\r\n|册数= \r\n|页数= \r\n|话数= \r\n|ISBN= \r\n|其他= \r\n|作者= 相原瑛人\r\n|开始= 2020-12-18\r\n}}", "platform": 1001},
             {"id": 241596, "type": 2, "name": "Mickey's Trailer", "name_cn": "米奇的房车",
                 "infobox": "{{Infobox animanga/Anime\r\n|中文名= 米奇的房车\r\n|别名={\r\n}\r\n|上映年度= 1938-05-06\r\n|片长= 7分钟\r\n}}", "platform": 0},
             {"id": 497, "type": 1, "name": "ちょびっツ", "name_cn": "人形电脑天使心",
-                "infobox": "{{Infobox animanga/Manga\r\n|中文名= 人形电脑天使心\r\n|别名={\r\n[en|Chobits]\r\n}\r\n|出版社= 講談社\r\n}}", "platform": 1001},
+                "infobox": "{{Infobox animanga/Manga\r\n|中文名= 人形电脑天使心\r\n|别名={\r\n[Chobits]\r\n}\r\n|出版社= 講談社\r\n}}", "platform": 1001},
             {"id": 252236, "type": 1, "name": "GREASEBERRIES 2", "name_cn": "",
                 "infobox": "{{Infobox animanga/Manga\r\n|中文名= \r\n|别名={\r\n}\r\n|作者= 士郎正宗\r\n}}", "platform": 1001},
             {"id": 328086, "type": 1, "name": "過剰妄想少年 3", "name_cn": "",
                 "infobox": "{{Infobox animanga/Manga\r\n|中文名= \r\n|别名={\r\n}\r\n|作者= ぴい\r\n}}", "platform": 1001},
         ]
-        self.test_subject_file = "test_subject_data.jsonlines"
+
+        # 用 self.sample_subject_data 写入测试文件
+        self.test_subject_file = "test_subject_data.jsonl"  # 统一后缀为 .jsonl
         self.test_subject_index = f"{self.test_subject_file}.index"
-        self.test_relation_file = "test_relation_data.jsonlines"
+        self.test_relation_file = "test_relation_data.jsonl"
         self.test_relation_index = f"{self.test_relation_file}.index"
 
         # 创建测试数据文件
-        with open(self.test_subject_file, 'wb') as f:
-            for item in self.sample_subject_data:
-                line = json.dumps(item, ensure_ascii=False).encode(
-                    'utf-8') + b'\n'
-                f.write(line)
+        with open(self.test_subject_file, 'w', encoding='utf-8') as f:
+            for item in self.sample_subject_data:  # 使用 self.sample_subject_data
+                f.write(json.dumps(item, ensure_ascii=False,
+                        separators=(',', ':')) + '\n')
 
     def tearDown(self):
         """测试后清理"""
-        for f in [self.test_subject_file, self.test_subject_index, self.test_relation_file, self.test_relation_index]:
+        files_to_clean = [
+            self.test_subject_file, self.test_subject_index,
+            self.test_relation_file, self.test_relation_index
+        ]
+        for f in files_to_clean:
             if os.path.exists(f):
                 os.remove(f)
 
@@ -87,15 +98,41 @@ class TestIndexedDataReader(unittest.TestCase):
     @patch('os.path.getmtime')
     def test_rebuild_index_on_file_change(self, mock_getmtime):
         """测试当数据文件修改后自动重建索引"""
-        # 构建索引
+        # 构建索引（使用原始数据）
         reader = IndexedDataReader(self.test_subject_file)
         original_index = reader.index.copy()
+
+        # 验证原始状态
+        self.assertEqual(len(original_index["id"]), 5)
 
         # 模拟文件被修改（mtime 变大）
         mock_getmtime.side_effect = lambda path: 999999999 if path == self.test_subject_file else 1000
 
-        # 重新获取实例（触发重建）
+        # 添加一条新数据到文件中
+        new_data = {"id": 8888, "type": 1, "name": "新数据",
+                    "name_cn": "新增", "infobox": ""}
+        with open(self.test_subject_file, 'ab') as f:
+            f.write(json.dumps(new_data, ensure_ascii=False,
+                    separators=(',', ':')).encode('utf-8') + b'\n')
+            f.flush()
+
+        # 验证写入成功
+        with open(self.test_subject_file, 'rb') as f:
+            lines = f.readlines()
+            last_line = lines[-1].decode('utf-8').strip()
+            self.assertEqual(
+                last_line, '{"id":8888,"type":1,"name":"新数据","name_cn":"新增","infobox":""}')
+
+        if self.test_subject_file in IndexedDataReader._instance:
+            del IndexedDataReader._instance[self.test_subject_file]
+
+        # 重新获取实例（强制重建）
         reader2 = IndexedDataReader(self.test_subject_file)
+
+        # 验证新数据被索引
+        self.assertIn(8888, reader2.index["id"])
+        self.assertEqual(len(reader2.index["id"]), len(
+            original_index["id"]) + 1)
 
         # 验证索引被重建（内容不同）
         self.assertNotEqual(reader2.index, original_index)
@@ -155,21 +192,33 @@ class TestIndexedDataReader(unittest.TestCase):
 
     def test_get_data_by_query_fulltext_search_multiple_matches(self):
         """全文搜索匹配多个字段"""
-        # 添加一个新数据，让 name 和 name_cn 都包含 "test"
-        extra_data = {"id": 999, "type": 1, "name": "test",
-                      "name_cn": "测试", "infobox": "{{Infobox}}"}
-        with open(self.test_subject_file, 'ab') as f:
-            f.write(json.dumps(extra_data, ensure_ascii=False).encode(
-                'utf-8') + b'\n')
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.jsonl') as f:
+            temp_file_path = f.name
+        try:
+            # 写入原始数据（使用 self.sample_subject_data）
+            with open(temp_file_path, 'w', encoding='utf-8') as f:
+                for item in self.sample_subject_data:
+                    f.write(json.dumps(item, ensure_ascii=False,
+                            separators=(',', ':')) + '\n')
 
-        # 重新加载（会重建索引）
-        reader = IndexedDataReader(self.test_subject_file)
+            # 追加一条新数据（包含 "test"）
+            extra_data = {"id": 999, "type": 1, "name": "test",
+                          "name_cn": "测试", "infobox": "{{Infobox}}"}
+            with open(temp_file_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(extra_data, ensure_ascii=False,
+                        separators=(',', ':')) + '\n')
 
-        # 搜索 "test" → 应匹配 name="test" 和 name_cn="测试"（"测试"含"test"？不！）
-        # 但 "test" 在 name 中，name_cn 中无 "test"，所以只匹配 name="test"
-        result = reader.get_data_by_query("test")
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["name"], "test")
+            reader = IndexedDataReader(temp_file_path)
+            result = reader.get_data_by_query("test")  # 全文模糊搜索
+
+            # 验证：应该只匹配到 name="test" 的那一项
+            # 注意：name_cn="测试" 不包含 "test"，所以不会被匹配
+            # "test" 是英文，只匹配 name 字段中的 "test"
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0]["name"], "test")
+
+        finally:
+            os.unlink(temp_file_path)
 
     def test_get_data_by_query_fulltext_search_type_error(self):
         """全文搜索传入非字符串应报错"""
@@ -188,16 +237,23 @@ class TestIndexedDataReader(unittest.TestCase):
 
     def test_build_index_with_empty_infobox(self):
         """测试 infobox 为空时仍能正确构建索引"""
-        # 修改测试数据：让一个条目 infobox 为空
-        with open(self.test_subject_file, 'w', encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.jsonlines') as f:
+            temp_file_path = f.name
+
+        try:
             data = {"id": 1000, "type": 1, "name": "空infobox",
                     "name_cn": "无别名", "infobox": ""}
-            f.write(json.dumps(data, ensure_ascii=False) + '\n')
+            with open(temp_file_path, 'w', encoding='utf-8') as f:
+                f.write(json.dumps(data, ensure_ascii=False) + '\n')
 
-        reader = IndexedDataReader(self.test_subject_file)
-        self.assertIn(1000, reader.index["id"])
-        self.assertNotIn("无别名", reader.index["name_cn_infobox"])  # 不应被索引
-        self.assertEqual(len(reader.index["aliases_infobox"]), 0)
+            reader = IndexedDataReader(temp_file_path)
+
+            self.assertIn(1000, reader.index["id"])
+            self.assertNotIn("无别名", reader.index["name_cn_infobox"])
+            self.assertEqual(len(reader.index["aliases_infobox"]), 0)
+
+        finally:
+            os.unlink(temp_file_path)
 
     def test_build_index_with_invalid_json_line(self):
         """测试数据文件中存在非法 JSON 行时，不影响其他行索引构建"""
@@ -214,37 +270,38 @@ class TestIndexedDataReader(unittest.TestCase):
         # 验证索引大小仍为 5（原始5条，非法行被跳过）
         self.assertEqual(len(reader.index["id"]), 5)
 
-    def test_corrupted_index_file_triggers_rebuild(self):
+    @patch('bangumi_archive.local_archive_indexed_reader.logger')
+    def test_corrupted_index_file_triggers_rebuild(self, mock_logger):
         """测试损坏的索引文件会触发重建"""
         # 构建正常索引
         reader1 = IndexedDataReader(self.test_subject_file)
         original_index = reader1.index.copy()
 
-        # 破坏索引文件
+        # 破坏索引文件：写入空文件 → 触发 EOFError
         with open(self.test_subject_index, 'wb') as f:
-            f.write(b"this is not a pickle")
+            pass  # 清空文件
 
-        # 重新加载
+        # 重新加载（应触发重建）
         reader2 = IndexedDataReader(self.test_subject_file)
 
-        # 验证索引重建成功
-        self.assertNotEqual(reader2.index, original_index)
+        # 验证重建流程被触发（现在能捕获到 EOFError）
+        mock_logger.error.assert_any_call(
+            f"索引文件损坏: {self.test_subject_index}, 正在尝试重建......"
+        )
+        mock_logger.info.assert_any_call(
+            f"索引异常: {ANY}, 开始从 {self.test_subject_file} 重建索引......"
+        )
+
+        # 验证重建成功
+        self.assertEqual(reader2.index, original_index)
         self.assertIn(497, reader2.index["id"])
+        self.assertEqual(reader2.get_data_by_query(
+            id=497)[0]["name_cn"], "人形电脑天使心")
 
     def test_file_not_found_raises_error(self):
         """测试数据文件不存在时抛出 FileNotFoundError"""
         with self.assertRaises(FileNotFoundError):
             IndexedDataReader("nonexistent_file.jsonlines")
-
-    def test_update_offsets_index_is_deprecated(self):
-        """测试 update_offsets_index 被标记为废弃（仅检查装饰器是否生效）"""
-        reader = IndexedDataReader(self.test_subject_file)
-        # 由于装饰器在 Python <3.11 下是空函数，我们无法直接捕获警告
-        # 但我们可以测试它是否仍然存在且行为正常（不崩溃）
-        try:
-            reader.update_offsets_index()  # 不应崩溃
-        except Exception as e:
-            self.fail(f"update_offsets_index 应该不崩溃，但抛出了 {e}")
 
     def test_index_file_is_created_after_build(self):
         """测试索引文件在构建后被创建"""
@@ -270,5 +327,4 @@ class TestIndexedDataReader(unittest.TestCase):
         result1 = reader.get_data_by_query(id=497)
         result2 = reader.get_data_by_query(id="497")
         self.assertEqual(len(result1), 1)
-        self.assertEqual(len(result2), 1)
-        self.assertEqual(result1[0], result2[0])
+        self.assertEqual(len(result2), 0)

@@ -60,7 +60,7 @@ class IndexedDataReader:
             raise FileNotFoundError(f"未找到 Archive 数据: {self.file_path}")
         if not os.path.exists(self.index_path):
             logger.warning(f"未找到索引文件: {self.index_path}")
-            self._build_index()
+            return self._build_index()
 
         data_mtime = os.path.getmtime(self.file_path)
         index_mtime = os.path.getmtime(self.index_path)
@@ -75,12 +75,12 @@ class IndexedDataReader:
             else:
                 logger.warning(f"索引版本或文件时间不匹配，将重建: {self.index_path}")
         except (pickle.UnpicklingError, EOFError) as e:
-            logger.error(f"索引文件损坏: {self.index_path}, 正在尝试重建......")
+            logger.error(f"索引文件 损坏: {self.index_path}, 正在尝试重建......")
         except Exception as e:
             logger.error(f"索引损坏或读取失败: {self.index_path}, {e}")
 
         # 重建索引
-        logger.info(f"索引异常: {e}, 开始从 {self.file_path} 重建索引......")
+        logger.info(f"开始从 {self.file_path} 重建索引......")
         return self._build_index()
 
     @deprecated("已废弃该函数")

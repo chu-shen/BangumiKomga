@@ -200,7 +200,7 @@ class TestKomgaSseApi(unittest.TestCase):
 
     def test_library_filtering_with_matching_id(self):
         """测试SSE API - 匹配KOMGA_LIBRARY_LIST时的事件分发逻辑"""
-        with patch('api.komga_sse_api.KOMGA_LIBRARY_LIST', new=['lib1']):
+        with patch('api.komga_sse_api.KOMGA_LIBRARY_LIST', new=[{"LIBRARY": "lib1"}]):
             api = self.api
 
             # 替换executor为同步执行器

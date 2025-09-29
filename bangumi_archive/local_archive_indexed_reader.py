@@ -86,9 +86,9 @@ class IndexedDataReader:
     @deprecated("已废弃该函数")
     def update_offsets_index(self):
         if "relation" in self.file_path:
-            return self._build_index(indexedFiled="subject_id")
+            return self._build_index(indexedField="subject_id")
         else:
-            return self._build_index(indexedFiled="id")
+            return self._build_index(indexedField="id")
 
     def _build_index(self) -> Dict[str, Dict[Union[int, str], List[int]]]:
         """
@@ -168,7 +168,7 @@ class IndexedDataReader:
 
             return result
 
-        logger.info(f"开始构建精简索引: {self.file_path}")
+        logger.info(f"开始构建索引: {self.file_path}")
         try:
             with open(self.file_path, 'rb') as f:
                 with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:

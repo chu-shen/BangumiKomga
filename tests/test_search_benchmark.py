@@ -6,7 +6,7 @@ import os
 import time
 import unittest
 from bangumi_archive.local_archive_searcher import search_all_data, _search_all_data_with_index
-
+from bangumi_archive.archive_autoupdater import check_archive, ARCHIVE_FILES_DIR
 # TODO: 加入在线 API 的 subject 检索测试
 
 # 添加项目根目录到 sys.path，确保可以导入模块
@@ -17,7 +17,7 @@ RECALL_THRESHOLD = 0.50
 TOP1_ACCURACY_THRESHOLD = 0.50
 
 # 配置
-file_path = "archivedata/subject.jsonlines"
+file_path = os.path.join(ARCHIVE_FILES_DIR, "subject.jsonlines")
 samples_size = 100
 is_save_report = False
 show_sample_size = 5
@@ -258,6 +258,19 @@ def evaluate_local_search_function(
 
 
 class TestSearchFunctionEvaluation(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        print("\n 正在准备 Bangumi Archive 数据文件...")
+        try:
+            check_archive()
+            # 验证文件是否存在且非空
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"Archive 文件不存在: {file_path}")
+            if os.path.getsize(file_path) == 0:
+                raise ValueError(f"Archive 文件为空: {file_path}")
+            print(f" Archive 文件准备完成: {file_path}")
+        except Exception as e:
+            cls.skipTest(f" Archive 准备失败，跳过测试: {str(e)}")
 
     def test_search_function_performance(self):
         """测试检索函数的召回率和Top-1准确率是否达标"""

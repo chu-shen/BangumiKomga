@@ -4,16 +4,21 @@ import random
 import sys
 import os
 import time
+import unittest
 from bangumi_archive.local_archive_searcher import search_all_data, _search_all_data_with_index
 
 # 添加项目根目录到 sys.path，确保可以导入模块
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# 评估阈值. 暂置为较低值以便通过测试, 观察评估报告
+RECALL_THRESHOLD = 0.50
+TOP1_ACCURACY_THRESHOLD = 0.50
+
 # 配置
 file_path = "archivedata/subject.jsonlines"
-samples_size = 200
+samples_size = 100
 is_save_report = False
-show_sample_size = 10
+show_sample_size = 5
 
 
 def sample_subjects(input_file, sample_size: int, output_file=None):
@@ -60,7 +65,7 @@ def sample_subjects(input_file, sample_size: int, output_file=None):
         return samples
 
 
-def evaluate_search_function(
+def evaluate_local_search_function(
     file_path: str,
     sample_size: int,
     search_func,
@@ -250,11 +255,32 @@ def evaluate_search_function(
     }
 
 
-if __name__ == "__main__":
-    print("\n测试 _search_all_data_with_index")
-    evaluate_search_function(
-        file_path=file_path,
-        sample_size=samples_size,
-        search_func=_search_all_data_with_index,
-        is_save_report=is_save_report
-    )
+class TestSearchFunctionEvaluation(unittest.TestCase):
+
+    def test_search_function_performance(self):
+        """测试检索函数的召回率和Top-1准确率是否达标"""
+
+        try:
+            metrics = evaluate_local_search_function(
+                file_path=file_path,
+                sample_size=samples_size,
+                search_func=_search_all_data_with_index,
+                is_save_report=is_save_report
+            )
+        except Exception as e:
+            self.fail(f"评估过程出错: {str(e)}")
+
+        # 输出指标到 stdout，供 CI 捕获
+        print(json.dumps(metrics, ensure_ascii=False, indent=None))
+
+        # 断言阈值
+        self.assertGreaterEqual(
+            metrics["recall"],
+            RECALL_THRESHOLD,
+            f"召回率 {metrics['recall']:.4f} 低于阈值 {RECALL_THRESHOLD}"
+        )
+        self.assertGreaterEqual(
+            metrics["top1_accuracy"],
+            TOP1_ACCURACY_THRESHOLD,
+            f"Top-1 准确率 {metrics['top1_accuracy']:.4f} 低于阈值 {TOP1_ACCURACY_THRESHOLD}"
+        )

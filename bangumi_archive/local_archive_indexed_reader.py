@@ -6,15 +6,6 @@ import mmap
 from threading import Lock
 from typing import Dict, List, Any, Callable, Union
 from tools.log import logger
-import sys
-if sys.version_info >= (3, 11):
-    from warnings import deprecated
-else:
-    # 一个什么都不做的装饰器
-    def deprecated(reason: str) -> Callable[[Any], Any]:
-        def decorator(func: Any) -> Any:
-            return func
-        return decorator
 
 
 class IndexedDataReader:
@@ -82,13 +73,6 @@ class IndexedDataReader:
         # 重建索引
         logger.info(f"开始从 {self.file_path} 重建索引......")
         return self._build_index()
-
-    @deprecated("已废弃该函数")
-    def update_offsets_index(self):
-        if "relation" in self.file_path:
-            return self._build_index(indexedField="subject_id")
-        else:
-            return self._build_index(indexedField="id")
 
     def _build_index(self) -> Dict[str, Dict[Union[int, str], List[int]]]:
         """

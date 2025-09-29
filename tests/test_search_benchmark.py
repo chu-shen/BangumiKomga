@@ -19,7 +19,8 @@ TOP1_ACCURACY_THRESHOLD = 0.50
 # 配置
 file_path = os.path.join(ARCHIVE_FILES_DIR, "subject.jsonlines")
 samples_size = 100
-is_save_report = False
+# 是否输出测试报告文件
+is_save_report = True
 show_sample_size = 5
 
 
@@ -238,10 +239,12 @@ def evaluate_local_search_function(
                 for r in slowest_queries
             ]
         }
-        eval_file = "evaluation_results.json"
+        # 确保目录存在
+        os.makedirs("test_results", exist_ok=True)
+        eval_file = "test_results/search_func_eval_results.json"
         with open(eval_file, 'w', encoding='utf-8') as f:
             json.dump(output_eval, f, ensure_ascii=False, indent=2)
-        print(f"\n 评估结果已保存至: {eval_file}")
+        print(f"\n 检索函数评估结果已保存至: {eval_file}")
 
     return {
         "recall": recall,

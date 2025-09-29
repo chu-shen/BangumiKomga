@@ -270,7 +270,7 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
                 raise ValueError(f"Archive 文件为空: {file_path}")
             print(f" Archive 文件准备完成: {file_path}")
         except Exception as e:
-            cls.skipTest(f" Archive 准备失败，跳过测试: {str(e)}")
+            raise unittest.SkipTest(f" Archive 准备失败，跳过测试: {str(e)}")
 
     def test_search_function_performance(self):
         """测试检索函数的召回率和Top-1准确率是否达标"""

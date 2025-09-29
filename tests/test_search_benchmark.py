@@ -7,6 +7,8 @@ import time
 import unittest
 from bangumi_archive.local_archive_searcher import search_all_data, _search_all_data_with_index
 
+# TODO: 加入在线 API 的 subject 检索测试
+
 # 添加项目根目录到 sys.path，确保可以导入模块
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

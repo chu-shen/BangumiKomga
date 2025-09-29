@@ -76,7 +76,7 @@ def update_index():
     ]
     for filePath in filePaths:
         archivefile = IndexedDataReader(filePath)
-        archivefile.update_offsets_index()
+        archivefile._build_index()
     return
 
 

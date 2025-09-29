@@ -4,6 +4,7 @@ import random
 import sys
 import os
 import time
+import datetime
 import unittest
 from bangumi_archive.local_archive_searcher import search_all_data, _search_all_data_with_index
 from bangumi_archive.archive_autoupdater import check_archive, ARCHIVE_FILES_DIR
@@ -239,9 +240,10 @@ def evaluate_local_search_function(
                 for r in slowest_queries
             ]
         }
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         # 确保目录存在
         os.makedirs("test_results", exist_ok=True)
-        eval_file = "test_results/search_func_eval_results.json"
+        eval_file = "test_results/search_func_eval_results{timestamp}.json"
         with open(eval_file, 'w', encoding='utf-8') as f:
             json.dump(output_eval, f, ensure_ascii=False, indent=2)
         print(f"\n 检索函数评估结果已保存至: {eval_file}")

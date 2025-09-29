@@ -4,7 +4,7 @@ import pickle
 import re
 import mmap
 from threading import Lock
-from typing import Dict, List, Any, Callable, Union
+from typing import Dict, List, Union
 from tools.log import logger
 
 
@@ -50,7 +50,10 @@ class IndexedDataReader:
         if not os.path.exists(self.file_path):
             raise FileNotFoundError(f"未找到 Archive 数据: {self.file_path}")
         if not os.path.exists(self.index_path):
-            logger.warning(f"未找到索引文件: {self.index_path}")
+            logger.error(f"未找到索引文件: {self.index_path}")
+            return self._build_index()
+        if os.path.getsize(self.index_path) == 0:
+            logger.error(f"索引文件为空: {self.index_path}")
             return self._build_index()
 
         data_mtime = os.path.getmtime(self.file_path)
@@ -66,12 +69,11 @@ class IndexedDataReader:
             else:
                 logger.warning(f"索引版本或文件时间不匹配，将重建: {self.index_path}")
         except (pickle.UnpicklingError, EOFError) as e:
-            logger.error(f"索引文件 损坏: {self.index_path}, 正在尝试重建......")
+            logger.error(f"索引文件损坏: {self.index_path}, 正在尝试重建......")
         except Exception as e:
-            logger.error(f"索引损坏或读取失败: {self.index_path}, {e}")
+            logger.error(f"索引读取失败: {self.index_path}, {e}")
 
         # 重建索引
-        logger.info(f"开始从 {self.file_path} 重建索引......")
         return self._build_index()
 
     def _build_index(self) -> Dict[str, Dict[Union[int, str], List[int]]]:

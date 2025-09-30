@@ -3,6 +3,7 @@ import json
 from tools.log import logger
 from bangumi_archive.local_archive_indexed_reader import IndexedDataReader
 from tools.resort_search_results_list import resort_search_list, compute_name_score_by_fuzzy
+from config.config import FUZZ_SCORE_THRESHOLD
 
 
 def search_line(file_path: str, subject_id: int, target_field: str):
@@ -217,6 +218,20 @@ def _search_all_data_with_index(file_path: str, query: str):
         # FIXME: 试图 from tools.resort_search_results_list import resort_search_list, compute_name_score_by_fuzzy 排序再返回检索结果列表, 但resort_search_list(query, results, threshold, data_source, is_novel=False)中的 data_source 该怎么写? 它只需要一个 data_source.get_subject_metadata(manga_id), 真的有必要传入整个对象吗?
         if not results:
             logger.debug(f"查询 Archive 无结果: {query}")
+
+        # FIXME: 构造的 data_source 回调函数, 但是该如何覆盖resort_search_list()中的data_source.get_subject_metadata()调用呢?
+        def data_source(subject_id: int):
+            for item in results:
+                if item.get("id") == subject_id:
+                    return item
+            return None
+
+        # return resort_search_list(
+        #     query=query,
+        #     results=results,
+        #     threshold=FUZZ_SCORE_THRESHOLD,
+        #     data_source=data_source
+        # )
         return results
 
     except Exception as e:

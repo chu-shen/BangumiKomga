@@ -8,7 +8,8 @@ from datetime import datetime
 import unittest
 from bangumi_archive.local_archive_searcher import search_all_data, _search_all_data_with_index
 from bangumi_archive.archive_autoupdater import check_archive, ARCHIVE_FILES_DIR
-# TODO: 加入在线 API 的 subject 检索测试
+from api.bangumi_api import BangumiApiDataSource
+from config.config import BANGUMI_ACCESS_TOKEN as ACCESS_TOKEN
 
 # 添加项目根目录到 sys.path，确保可以导入模块
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -23,6 +24,25 @@ samples_size = 100
 # 是否输出测试报告文件
 is_save_report = True
 show_sample_size = 5
+use_token = False
+if use_token:
+    bgm_api = BangumiApiDataSource(ACCESS_TOKEN)
+else:
+    bgm_api = BangumiApiDataSource()
+
+
+def bgm_api_search_func(file_path, query):
+    """
+    将BGM API 包装成符合 evaluate_local_search_function 接口的函数
+    忽略 file_path, 调用 BangumiApiDataSource.search_subjects(query)
+    """
+    try:
+        # 注意：这里必须传入 is_novel=False，与 Archive 搜索一致
+        results = bgm_api.search_subjects(query)
+        return results
+    except Exception as e:
+        print(f"API 搜索失败（query: {query}）: {e}")
+        return []  # 返回空列表，模拟无结果，便于评估
 
 
 def sample_subjects(input_file, sample_size: int, output_file=None):
@@ -277,7 +297,7 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
         except Exception as e:
             raise unittest.SkipTest(f" Archive 准备失败，跳过测试: {str(e)}")
 
-    def test_search_function_performance(self):
+    def test_offline_search_function(self):
         """测试检索函数的召回率和Top-1准确率是否达标"""
 
         try:
@@ -285,6 +305,33 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
                 file_path=file_path,
                 sample_size=samples_size,
                 search_func=_search_all_data_with_index,
+                is_save_report=is_save_report
+            )
+        except Exception as e:
+            self.fail(f"评估过程出错: {str(e)}")
+
+        # 输出指标到 stdout，供 CI 捕获
+        print(json.dumps(metrics, ensure_ascii=False, indent=None))
+
+        # 断言阈值
+        self.assertGreaterEqual(
+            metrics["recall"],
+            RECALL_THRESHOLD,
+            f"召回率 {metrics['recall']:.4f} 低于阈值 {RECALL_THRESHOLD}"
+        )
+        self.assertGreaterEqual(
+            metrics["top1_accuracy"],
+            TOP1_ACCURACY_THRESHOLD,
+            f"Top-1 准确率 {metrics['top1_accuracy']:.4f} 低于阈值 {TOP1_ACCURACY_THRESHOLD}"
+        )
+
+    def test_online_search_function(self):
+        """测试检索函数的召回率和Top-1准确率是否达标"""
+        try:
+            metrics = evaluate_local_search_function(
+                file_path=file_path,
+                sample_size=samples_size,
+                search_func=bgm_api_search_func,
                 is_save_report=is_save_report
             )
         except Exception as e:

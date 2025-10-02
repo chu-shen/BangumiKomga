@@ -95,6 +95,7 @@ def evaluate_search_function(
         name_cn = item.get("name_cn", "").strip()
         name = item.get("name", "").strip()
         item_id = item.get("id")
+        # 用作品名构建查询
         query = name_cn if name_cn else name
         if not query:
             continue
@@ -185,7 +186,7 @@ def evaluate_search_function(
     # 错误样例
     failed_queries = [
         r for r in results_per_query if not r["found"]][:show_sample_size]
-    print(f"\n❌ 前 {show_sample_size} 个未召回的查询（FN）:")
+    print(f"\n 前 {show_sample_size} 个未召回的查询（FN）:")
     for i, r in enumerate(failed_queries, 1):
         print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
         print(f"     检索结果数: {r['search_results_count']}")
@@ -317,8 +318,10 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
 
     def test_online_search_function(self):
         """测试检索函数的召回率和Top-1准确率是否达标"""
-        def search_func_online(
-            query): return bgm_api.search_subjects(query)
+        def search_func_online(query):
+            # 1 RPS,使测试的请求速率低于限流器要求
+            time.sleep(1)
+            return bgm_api.search_subjects(query)
         try:
             metrics = evaluate_search_function(
                 self.__class__.sampled_data,

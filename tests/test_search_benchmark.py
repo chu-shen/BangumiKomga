@@ -31,21 +31,7 @@ else:
     bgm_api = BangumiApiDataSource()
 
 
-def bgm_api_search_func(file_path, query):
-    """
-    将BGM API 包装成符合 evaluate_local_search_function 接口的函数
-    忽略 file_path, 调用 BangumiApiDataSource.search_subjects(query)
-    """
-    try:
-        # 注意：这里必须传入 is_novel=False，与 Archive 搜索一致
-        results = bgm_api.search_subjects(query)
-        return results
-    except Exception as e:
-        print(f"API 搜索失败（query: {query}）: {e}")
-        return []  # 返回空列表，模拟无结果，便于评估
-
-
-def sample_subjects(input_file, sample_size: int, output_file=None):
+def sample_jsonlines(input_file, sample_size: int, output_file=None):
     if sample_size <= 0:
         raise ValueError("sample_size 必须大于 0")
     file_size = os.path.getsize(input_file)
@@ -89,9 +75,8 @@ def sample_subjects(input_file, sample_size: int, output_file=None):
         return samples
 
 
-def evaluate_local_search_function(
-    file_path: str,
-    sample_size: int,
+def evaluate_search_function(
+    data_samples,
     search_func,
     is_save_report: bool = False
 ):
@@ -102,11 +87,8 @@ def evaluate_local_search_function(
     :param search_func: 要测试的搜索函数，必须接受 (file_path, query) 两个参数
     :param is_save_report: 是否保存评估结果到 JSON
     """
-    print("开始采样...")
-    start_total = time.time()  # 开始计时
 
-    data_samples = sample_subjects(file_path, sample_size)
-    print(f"采样完成，共 {len(data_samples)} 个样本\n")
+    start_total = time.time()  # 开始计时
 
     # 构建 query-ground truth 对
     query_gt_pairs = []
@@ -143,7 +125,7 @@ def evaluate_local_search_function(
 
         # 对每次搜索计时
         start_search = time.time()
-        search_results = search_func(file_path, query)
+        search_results = search_func(query)
         search_duration = time.time() - start_search
         total_search_time += search_duration
 
@@ -286,6 +268,8 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print("\n 正在准备 Bangumi Archive 数据文件...")
+        # 使采样结果可复现
+        # random.seed(42)
         try:
             check_archive()
             # 验证文件是否存在且非空
@@ -294,17 +278,23 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
             if os.path.getsize(file_path) == 0:
                 raise ValueError(f"Archive 文件为空: {file_path}")
             print(f" Archive 文件准备完成: {file_path}")
+
+            cls.sampled_data = sample_jsonlines(file_path, samples_size)
+            if not cls.sampled_data:
+                raise ValueError("采样结果为空")
+            print(f"✅ 采样完成，共 {len(cls.sampled_data)} 个样本，将用于所有测试")
         except Exception as e:
             raise unittest.SkipTest(f" Archive 准备失败，跳过测试: {str(e)}")
 
     def test_offline_search_function(self):
         """测试检索函数的召回率和Top-1准确率是否达标"""
 
+        def search_func_offline(
+            query): return _search_all_data_with_index(file_path, query)
         try:
-            metrics = evaluate_local_search_function(
-                file_path=file_path,
-                sample_size=samples_size,
-                search_func=_search_all_data_with_index,
+            metrics = evaluate_search_function(
+                data_samples=self.__class__.sampled_data,
+                search_func=search_func_offline,
                 is_save_report=is_save_report
             )
         except Exception as e:
@@ -327,11 +317,12 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
 
     def test_online_search_function(self):
         """测试检索函数的召回率和Top-1准确率是否达标"""
+        def search_func_online(
+            query): return bgm_api.search_subjects(query)
         try:
-            metrics = evaluate_local_search_function(
-                file_path=file_path,
-                sample_size=samples_size,
-                search_func=bgm_api_search_func,
+            metrics = evaluate_search_function(
+                self.__class__.sampled_data,
+                search_func=search_func_online,
                 is_save_report=is_save_report
             )
         except Exception as e:

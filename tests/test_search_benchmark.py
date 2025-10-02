@@ -82,8 +82,7 @@ def evaluate_search_function(
 ):
     """
     评估任意搜索函数的检索效果, 并统计检索耗时。
-    :param file_path: 数据文件路径 (.jsonlines)
-    :param sample_size: 采样数量
+    :param data_samples: 采样数据
     :param search_func: 要测试的搜索函数，必须接受 (file_path, query) 两个参数
     :param is_save_report: 是否保存评估结果到 JSON
     """
@@ -279,10 +278,11 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
                 raise ValueError(f"Archive 文件为空: {file_path}")
             print(f" Archive 文件准备完成: {file_path}")
 
+            # 采样放到setUpClass以便测试共享同一份采样数据
             cls.sampled_data = sample_jsonlines(file_path, samples_size)
             if not cls.sampled_data:
                 raise ValueError("采样结果为空")
-            print(f"✅ 采样完成，共 {len(cls.sampled_data)} 个样本，将用于所有测试")
+            print(f"采样完成，共 {len(cls.sampled_data)} 个样本")
         except Exception as e:
             raise unittest.SkipTest(f" Archive 准备失败，跳过测试: {str(e)}")
 

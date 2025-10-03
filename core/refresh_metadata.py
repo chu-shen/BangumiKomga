@@ -426,7 +426,7 @@ def update_book_metadata(book_id, related_subject, book_name, number):
             USE_BANGUMI_THUMBNAIL_FOR_BOOK
             and len(komga.get_book_thumbnails(book_id)) == 1
         ):
-            thumbnail = bgm.get_subject_thumbnail(related_subject)
+            thumbnail = bgm.get_subject_thumbnail(related_subject, "large")
             replace_thumbnail_result = komga.update_book_thumbnail(
                 book_id, thumbnail)
             if replace_thumbnail_result:

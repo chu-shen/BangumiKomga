@@ -13,6 +13,10 @@ def is_english_char(c):
     return "A" <= c <= "Z" or "a" <= c <= "z"
 
 
+from warnings import deprecated
+
+
+@deprecated("已过时，自 v0.18.0 起不再维护")
 def sort_title_by_letter():
     """
     为存在`Bangumi`链接的系列在排序标题中添加首字母，使其能够在导航中按字母排序

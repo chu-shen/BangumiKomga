@@ -23,7 +23,6 @@ jobs:
       - name: Prepare ENV
         run: |
           pip3 install -r install/requirements.txt
-          pip3 install colorama==0.4.6
           mkdir -p logs
           mkdir -p archivedata
           echo "INFO: Test log content" > logs/refreshMetadata.log      

@@ -1,3 +1,4 @@
+import json
 import requests
 from config.config import *
 from tools.log import logger
@@ -49,7 +50,7 @@ def send_notification(title, message):
             response = requests.request(
                 NOTIF_WEBHOOK_METHOD,
                 NOTIF_WEBHOOK_ENDPOINT,
-                headers=NOTIF_WEBHOOK_HEADER,
+                headers=json.loads(NOTIF_WEBHOOK_HEADER),
                 timeout=NOTIF_WEBHOOK_TIMEOUT,
                 json=data,
             )

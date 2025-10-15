@@ -1,8 +1,10 @@
 from config.config import *
 from tools.env import *
 from tools.log import logger
+from warnings import deprecated
 
 
+@deprecated("已过时，自 v0.18.0 起不再维护")
 def update_read_progress():
     """
     更新阅读进度

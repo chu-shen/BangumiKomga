@@ -412,7 +412,7 @@ class KomgaSseApi:
             if not KOMGA_LIBRARY_LIST:
                 pass
             # 在配置了KOMGA_LIBRARY_LIST时, 不通告 KOMGA_LIBRARY_LIST 外的库更改
-            elif library_id not in KOMGA_LIBRARY_LIST:
+            elif not any(library_id == lib["LIBRARY"] for lib in KOMGA_LIBRARY_LIST):
                 logger.info(
                     f"libraryId: {library_id} 不在 KOMGA_LIBRARY_LIST 中，跳过")
                 return

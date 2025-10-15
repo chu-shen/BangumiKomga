@@ -157,7 +157,7 @@ class BangumiApiDataSource(DataSource):
         return response.status_code == 204
 
     @slide_window_rate_limiter()
-    def get_subject_thumbnail(self, subject_metadata, image_size="large"):
+    def get_subject_thumbnail(self, subject_metadata, image_size):
         """
         获取漫画封面
 
@@ -369,7 +369,7 @@ class FallbackDataSource(DataSource):
 
         # 如果结果为空/False（根据业务逻辑判断），则尝试 secondary 数据源
         if not result:
-            logger.warning(
+            logger.debug(
                 "主数据源: %s 失败，尝试备用数据源: %s",
                 self.primary.__class__.__name__,
                 self.secondary.__class__.__name__,

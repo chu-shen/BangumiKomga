@@ -189,6 +189,7 @@ def parse_template(template_file=TEMPLATE_FILE):
                 required = current_metadata.get("required", "False").lower() == "true"
                 validator = current_metadata.get("validator")
                 info = current_metadata.get("info", "")
+                version = current_metadata.get("version", "")
                 allowed_values = current_metadata.get("allowed_values")
                 _, value_part = line.split("=", 1)
                 try:
@@ -203,6 +204,7 @@ def parse_template(template_file=TEMPLATE_FILE):
                     "required": required,
                     "validator": validator,
                     "info": info,
+                    "version": version,
                 }
                 if allowed_values:
                     schema_item["allowed_values"] = [

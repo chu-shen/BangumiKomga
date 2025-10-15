@@ -158,7 +158,7 @@ class BangumiApiDataSource(DataSource):
         return response.status_code == 204
 
     @slide_window_rate_limiter()
-    def get_subject_thumbnail(self, subject_metadata, image_size="large"):
+    def get_subject_thumbnail(self, subject_metadata, image_size):
         """
         获取漫画封面
 

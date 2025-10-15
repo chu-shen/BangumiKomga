@@ -426,13 +426,29 @@ def update_book_metadata(book_id, related_subject, book_name, number):
             USE_BANGUMI_THUMBNAIL_FOR_BOOK
             and len(komga.get_book_thumbnails(book_id)) == 1
         ):
-            thumbnail = bgm.get_subject_thumbnail(related_subject)
-            replace_thumbnail_result = komga.update_book_thumbnail(
-                book_id, thumbnail)
-            if replace_thumbnail_result:
-                logger.debug("替换书籍: %s 的海报 ", book_name)
+            # 尝试多尺寸海报上传
+            for thumbnail_size in ['large', 'common', 'medium']:
+                # 获取当前尺寸的封面
+                thumbnail = bgm.get_subject_thumbnail(
+                    related_subject, image_size=thumbnail_size)
+
+                # 尝试更新封面
+                replace_thumbnail_result = komga.update_book_thumbnail(
+                    book_id, thumbnail)
+
+                if replace_thumbnail_result:
+                    logger.debug("替换书籍: %s 的海报 ", book_name)
+                    # 成功则跳出海报更新循环
+                    break
+                else:
+                    logger.debug(
+                        "以尺寸 %s 替换书籍: %s 的海报失败，正在尝试下一个尺寸...",
+                        thumbnail_size,
+                        book_name,
+                    )
+            # 所有尺寸都失败时
             else:
-                logger.error("替换书籍: %s 的海报失败", book_name)
+                logger.warning("替换书籍: %s 的海报失败", book_name)
     else:
         record_book_status(
             conn, book_id, related_subject["id"], 0, book_name, "komga update failed"

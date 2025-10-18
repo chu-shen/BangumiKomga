@@ -67,6 +67,7 @@
 - [ ] 增强文件名解析
 - [ ] ~~自动化测试~~ 完善测试用例
 - [ ] 支持在匹配书籍后导出 [comicinfo.xml](https://github.com/anansi-project/comicinfo), [info.json(eze)](https://github.com/Difegue/LANraragi) 和 [series.json](https://github.com/mylar3/mylar3/wiki/series.json-schema-%28version-1.0.2%29)
+- [ ] 进一步提升检索准确性
 
 ## 先决条件
 

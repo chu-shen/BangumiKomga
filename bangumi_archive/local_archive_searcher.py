@@ -193,14 +193,11 @@ def search_all_data(file_path: str, query: str):
         result = _search_all_data_with_index(file_path, query)
         if result:
             return result
-        # logger.debug(f"索引全量搜索未命中: {query}")
-        logger.info(f"索引全量搜索未命中: {query}")
+        logger.debug(f"索引全量搜索未命中: {query}")
     except (FileNotFoundError, json.JSONDecodeError) as e:
-        # logger.debug(f"索引异常: {str(e)}，触发回退")
-        logger.info(f"索引异常: {str(e)}，触发回退")
+        logger.debug(f"索引异常: {str(e)}，触发回退")
     except Exception as e:
-        # logger.debug(f"未知异常: {str(e)}")
-        logger.info(f"未知异常: {str(e)}")
+        logger.debug(f"未知异常: {str(e)}")
     # 回退到批量查询模式
     return _search_all_data_batch_optimized(file_path, query)
 

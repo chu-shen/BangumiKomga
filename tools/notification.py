@@ -50,8 +50,7 @@ def send_notification(title, message):
             response = requests.request(
                 NOTIF_WEBHOOK_METHOD,
                 NOTIF_WEBHOOK_ENDPOINT,
-                # NOTIF_WEBHOOK_HEADER 传入的已经是 dict, 无需再 json.loads()
-                headers=NOTIF_WEBHOOK_HEADER,
+                headers=json.loads(NOTIF_WEBHOOK_HEADER),
                 timeout=NOTIF_WEBHOOK_TIMEOUT,
                 json=data,
             )

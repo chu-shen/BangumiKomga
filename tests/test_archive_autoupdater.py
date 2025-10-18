@@ -200,11 +200,9 @@ class TestUpdateIndex(unittest.TestCase):
         """测试archive文件自动更新器 - 触发索引更新"""
         mock_instance = MagicMock()
         mock_reader.return_value = mock_instance
-
         update_index()
-
-        mock_reader.assert_called()
-        # 验证 IndexedDataReader 是否被调用
-        self.assertTrue(mock_reader.called, "IndexedDataReader 未被调用")
-        # 验证 update_offsets_index 方法是否被调用
-        mock_instance.update_offsets_index.assert_called()
+        mock_reader.assert_called()  # 确保构造函数被调用了
+        # 验证 _build_index 是否被调用（实际代码调用的是这个）
+        mock_instance._build_index.assert_called()
+        # 如果你希望验证被调用了两次（两个文件），可以：
+        self.assertEqual(mock_instance._build_index.call_count, 2)

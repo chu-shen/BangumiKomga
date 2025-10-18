@@ -9,13 +9,38 @@ import coverage
 
 
 def write_junit_xml(result, filename):
-    testsuite = ET.Element("testsuite", name="MyTests",
-                           tests=str(result.testsRun))
-    for test, exc in result.failures + result.errors:
+    """生成标准 JUnit XML 报告"""
+    testsuite = ET.Element("testsuite", name="Bangumi_Komga_Tests",
+                           tests=str(result.testsRun),
+                           failures=str(len(result.failures)),
+                           errors=str(len(result.errors)),
+                           skipped=str(len(result.skipped)))
+
+    # 添加通过的测试
+    for test in result.successes:  # 注意：unittest 不默认记录 successes
+        testcase = ET.SubElement(testsuite, "testcase", name=str(test))
+        # 通过的测试不写子元素
+
+    # 添加失败的测试
+    for test, exc in result.failures:
         testcase = ET.SubElement(testsuite, "testcase", name=str(test))
         failure = ET.SubElement(testcase, "failure")
         failure.text = exc
+
+    # 添加错误的测试
+    for test, exc in result.errors:
+        testcase = ET.SubElement(testsuite, "testcase", name=str(test))
+        error = ET.SubElement(testcase, "error")
+        error.text = exc
+
+    # 添加跳过的测试
+    for test, reason in result.skipped:
+        testcase = ET.SubElement(testsuite, "testcase", name=str(test))
+        skipped = ET.SubElement(testcase, "skipped")
+        skipped.text = reason
+
     tree = ET.ElementTree(testsuite)
+    ET.indent(tree, space="  ", level=0)
     tree.write(filename, encoding="utf-8", xml_declaration=True)
 
 

@@ -6,7 +6,7 @@ from tools.log import logger
 
 def send_notification(title, message):
     for type in NOTIF_TYPE_ENABLE:
-        type=type.upper()
+        type = type.upper()
         if type == "GOTIFY":
             data = {
                 "title": "BangumiKomga: " + title,

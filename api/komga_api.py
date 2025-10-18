@@ -397,13 +397,14 @@ class KomgaApi:
     def list_collections(self) -> list:
         """
         List collections
+        #FIXME 当前只返回前 20 个
         """
         try:
             response = self.r.get(f"{self.base_url}/collections")
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
-        results = response.json()
+        results = response.json()["content"]
         if results:
             return results
         else:

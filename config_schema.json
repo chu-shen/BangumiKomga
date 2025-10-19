@@ -171,7 +171,7 @@
     "type": "boolean",
     "required": false,
     "validator": "",
-    "info": "",
+    "info": "重新检查刷新元数据失败的系列",
     "version": "0.1"
   },
   {
@@ -181,7 +181,7 @@
     "type": "boolean",
     "required": false,
     "validator": "",
-    "info": "",
+    "info": "重新检查刷新元数据失败的书",
     "version": "0.1"
   },
   {

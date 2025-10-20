@@ -1,6 +1,5 @@
 from thefuzz import fuzz
 from api.bangumi_model import SubjectPlatform
-from config.config import IS_NOVEL_ONLY
 
 
 def compute_name_score_by_fuzzy(name: str, name_cn: str, infobox, target: str) -> int:
@@ -21,7 +20,7 @@ def compute_name_score_by_fuzzy(name: str, name_cn: str, infobox, target: str) -
     return score
 
 
-def resort_search_list(query, results, threshold, data_source):
+def resort_search_list(query, results, threshold, data_source, is_novel=False):
     if len(results) < 1:
         return []
     # 构建具有完整元数据的排序条目
@@ -39,11 +38,9 @@ def resort_search_list(query, results, threshold, data_source):
             continue
         # bangumi书籍类型包括：漫画、小说、画集、其他
         platform = SubjectPlatform.parse(manga_metadata["platform"])
-
-        # TODO: 适配不同库的 IS_NOVEL_ONLY 参数
         # 根据 IS_NOVEL_ONLY 配置判断是否只应用于 Komga 的小说库
         is_target_platform = (
-            platform == SubjectPlatform.Novel) == IS_NOVEL_ONLY
+            platform == SubjectPlatform.Novel) == is_novel
         if is_target_platform:
             # 计算得分
             score = compute_name_score_by_fuzzy(

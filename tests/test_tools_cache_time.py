@@ -103,7 +103,13 @@ class TestTimeCacheManager(unittest.TestCase):
         with self.assertLogs(logger, level='WARNING') as cm:
             result = TimeCacheManager.convert_to_datetime(time_str)
             self.assertIsNone(result)
-            self.assertIn("获取失败", cm.output[0])
+            # 检查日志是否包含关键信息（推荐使用 in 判断多个关键词）
+            log_message = cm.output[0]
+            self.assertIn("时间字符串", log_message)
+            self.assertIn(time_str, log_message)
+            self.assertIn("转换失败", log_message)
+            self.assertIn("Invalid isoformat string",
+                          log_message)  # 来自 Python 原生异常
 
     def test_convert_to_datetime_no_timezone(self):
         """测试时间缓存管理器 - 无时区信息的转换"""

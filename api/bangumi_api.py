@@ -3,7 +3,6 @@
 # Description: Bangumi API(https://github.com/bangumi/api)
 # ------------------------------------------------------------------
 
-
 import requests
 from requests.adapters import HTTPAdapter
 
@@ -20,6 +19,8 @@ from zhconv import convert
 from urllib.parse import quote_plus
 from abc import ABC, abstractmethod
 
+# TODO： 在DataSource中添加一个本地缓存目录，将从 API 获取的封面图片保存为文件（如 cache/thumbnails/{subject_id}_{image_size}.jpg），下次直接读取本地文件，避免重复请求
+
 
 class DataSource(ABC):
     """
@@ -27,7 +28,7 @@ class DataSource(ABC):
     """
 
     @abstractmethod
-    def search_subjects(self, query, threshold=80):
+    def search_subjects(self, query, threshold=80, is_novel=False):
         pass
 
     @abstractmethod
@@ -76,7 +77,7 @@ class BangumiApiDataSource(DataSource):
         return
 
     @slide_window_rate_limiter()
-    def search_subjects(self, query, threshold=80):
+    def search_subjects(self, query, threshold=80, is_novel=False):
         """
         获取搜索结果，并移除非漫画系列。返回具有完整元数据的条目
         """
@@ -107,7 +108,7 @@ class BangumiApiDataSource(DataSource):
                 return []
 
         return resort_search_list(
-            query=query, results=results, threshold=threshold, data_source=self
+            query=query, results=results, threshold=threshold, data_source=self, is_novel=is_novel
         )
 
     @slide_window_rate_limiter()
@@ -157,7 +158,7 @@ class BangumiApiDataSource(DataSource):
         return response.status_code == 204
 
     @slide_window_rate_limiter()
-    def get_subject_thumbnail(self, subject_metadata, image_size="large"):
+    def get_subject_thumbnail(self, subject_metadata, image_size):
         """
         获取漫画封面
 
@@ -190,7 +191,6 @@ class BangumiArchiveDataSource(DataSource):
         self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
 
     def _get_metadata_from_archive(self, subject_id):
-        # return search_line_batch_optimized(
         return search_line(
             file_path=self.subject_metadata_file,
             subject_id=subject_id,
@@ -198,7 +198,6 @@ class BangumiArchiveDataSource(DataSource):
         )
 
     def _get_relations_from_archive(self, subject_id):
-        # return search_list_batch_optimized(
         return search_list(
             file_path=self.subject_relation_file,
             subject_id=subject_id,
@@ -211,12 +210,11 @@ class BangumiArchiveDataSource(DataSource):
             file_path=self.subject_metadata_file, query=query
         )
 
-    def search_subjects(self, query, threshold=80):
+    def search_subjects(self, query, threshold=80, is_novel=False):
         """
         离线数据源搜索条目
         """
-        # TODO: 当前未限制返回列表的长度
-        # 长度限制应该和threshold搭配使用, 在resort_search_list()中实现
+        # 长度限制应搭配 threshold 使用, 于 resort_search_list() 中实现
         search_results = []
         results = self._get_search_results_from_archive(query)
         for item in results:
@@ -240,7 +238,7 @@ class BangumiArchiveDataSource(DataSource):
                 }
                 search_results.append(result)
         return resort_search_list(
-            query=query, results=search_results, threshold=threshold, data_source=self
+            query=query, results=search_results, threshold=threshold, data_source=self, is_novel=is_novel
         )
 
     def get_subject_metadata(self, subject_id):
@@ -370,7 +368,7 @@ class FallbackDataSource(DataSource):
 
         # 如果结果为空/False（根据业务逻辑判断），则尝试 secondary 数据源
         if not result:
-            logger.warning(
+            logger.debug(
                 "主数据源: %s 失败，尝试备用数据源: %s",
                 self.primary.__class__.__name__,
                 self.secondary.__class__.__name__,
@@ -378,8 +376,8 @@ class FallbackDataSource(DataSource):
             result = getattr(self.secondary, method_name)(*args, **kwargs)
         return result
 
-    def search_subjects(self, query, threshold=80):
-        return self._fallback_call("search_subjects", query, threshold=threshold)
+    def search_subjects(self, query, threshold=80, is_novel=False):
+        return self._fallback_call("search_subjects", query, threshold=threshold, is_novel=is_novel)
 
     def get_subject_metadata(self, subject_id):
         return self._fallback_call("get_subject_metadata", subject_id)

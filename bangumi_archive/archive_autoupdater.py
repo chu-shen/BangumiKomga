@@ -4,7 +4,7 @@ import requests
 import json
 from config.config import ARCHIVE_FILES_DIR
 from tools.log import logger
-from bangumi_archive.indexed_jsonlines_read import IndexedDataReader
+from bangumi_archive.local_archive_indexed_reader import IndexedDataReader
 from tools.cache_time import TimeCacheManager
 
 
@@ -76,7 +76,7 @@ def update_index():
     ]
     for filePath in filePaths:
         archivefile = IndexedDataReader(filePath)
-        archivefile.update_offsets_index()
+        archivefile._build_index()
     return
 
 

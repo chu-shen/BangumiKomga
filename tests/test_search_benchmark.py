@@ -6,9 +6,8 @@ import os
 import time
 from datetime import datetime
 import unittest
-from bangumi_archive.local_archive_searcher import search_all_data, _search_all_data_with_index
 from bangumi_archive.archive_autoupdater import check_archive, ARCHIVE_FILES_DIR
-from api.bangumi_api import BangumiApiDataSource
+from api.bangumi_api import BangumiApiDataSource, BangumiArchiveDataSource
 from config.config import BANGUMI_ACCESS_TOKEN as ACCESS_TOKEN
 
 # 添加项目根目录到 sys.path，确保可以导入模块
@@ -24,47 +23,102 @@ samples_size = 100
 # 是否输出测试报告文件
 is_save_report = True
 show_sample_size = 5
-use_token = False
+use_token = True
 if use_token:
     bgm_api = BangumiApiDataSource(ACCESS_TOKEN)
 else:
     bgm_api = BangumiApiDataSource()
+archive_api = BangumiArchiveDataSource(ARCHIVE_FILES_DIR)
 
 
 def sample_jsonlines(input_file, sample_size: int, output_file=None):
     if sample_size <= 0:
         raise ValueError("sample_size 必须大于 0")
+
     file_size = os.path.getsize(input_file)
     if file_size == 0:
         raise ValueError("文件为空")
-    offsets = []
+
+    # 存储符合条件的行的偏移量和原始行号
+    valid_offsets = []       # 每个有效行的起始字节偏移
+    valid_line_indices = []  # 对应在原始文件中的行号(从0开始)
+
     with open(input_file, 'rb') as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
             pos = 0
+            line_idx = 0
             while pos < len(mm):
                 next_pos = mm.find(b'\n', pos)
                 if next_pos == -1:
-                    offsets.append(pos)
+                    # 最后一行可能没有换行符
+                    line_bytes = mm[pos:]
+                    try:
+                        line_str = line_bytes.rstrip(b'\n\r').decode('utf-8')
+                        data = json.loads(line_str)
+                        # 条件筛选
+                        # 当前条件: type=1且series=True
+                        if isinstance(data, dict) and \
+                           data.get('type') == 1 and \
+                           data.get('series') is True:
+                            valid_offsets.append(pos)
+                            valid_line_indices.append(line_idx)
+                    except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+                        pass  # 跳过非法行
                     break
-                offsets.append(pos)
+
+                line_bytes = mm[pos:next_pos]
+                try:
+                    line_str = line_bytes.rstrip(b'\n\r').decode('utf-8')
+                    data = json.loads(line_str)
+                    if data.get('type') == 1:
+                        valid_offsets.append(pos)
+                        valid_line_indices.append(line_idx)
+                except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+                    pass  # 跳过非法行
+
                 pos = next_pos + 1
-    total_lines = len(offsets)
-    print(f"共找到 {total_lines} 行")
-    if sample_size > total_lines:
-        print(f"警告：请求采样 {sample_size} 行，但文件只有 {total_lines} 行，将采样全部行")
-        sample_size = total_lines
-    sampled_indices = random.sample(range(total_lines), sample_size)
-    print(f"已随机采样 {sample_size} 行索引")
+                line_idx += 1
+
+    total_valid_lines = len(valid_offsets)
+    print(f"共找到 {line_idx} 行，其中满足筛选条件的行有 {total_valid_lines} 行")
+
+    if total_valid_lines == 0:
+        raise ValueError("文件中没有满足筛选条件的的行，采样中止")
+
+    if sample_size > total_valid_lines:
+        print(
+            f"请求采样 {sample_size} 行，但只有 {total_valid_lines} 行满足筛选条件, 将采样全部行")
+        sample_size = total_valid_lines
+
+    # 从符合条件的索引 valid_offsets 中随机采样
+    sampled_valid_indices = random.sample(
+        range(total_valid_lines), sample_size)
+    print(f"已按规则从 Archive 数据中随机采样 {sample_size} 行索引")
+
     samples = []
-    print("正在读取采样行...")
+    print("正在根据索引读取采样行...")
     with open(input_file, 'rb') as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-            for idx in sampled_indices:
-                start = offsets[idx]
-                end = offsets[idx + 1] if idx + 1 < total_lines else len(mm)
+            for idx in sampled_valid_indices:
+                start = valid_offsets[idx]
+                # 从当前行起始位置，找下一个 \n，作为结束位置
+                end = mm.find(b'\n', start)
+                if end == -1:
+                    end = len(mm)
                 line_bytes = mm[start:end]
-                line_str = line_bytes.rstrip(b'\n\r').decode('utf-8')
-                samples.append(json.loads(line_str))
+                line_str = line_bytes.rstrip(b'\n\r').decode(
+                    'utf-8', errors='replace')  # 容错解码
+                try:
+                    data = json.loads(line_str)
+                    samples.append(data)
+                except json.JSONDecodeError as e:
+                    print(
+                        f"⚠️ 解析失败，跳过行（偏移 {start}）: {e.msg} - 内容: {line_str[:100]}...")
+                    continue
+                except UnicodeDecodeError as e:
+                    print(f"⚠️ 编码错误，跳过行（偏移 {start}）: {e}")
+                    continue
+
     if output_file:
         with open(output_file, 'w', encoding='utf-8') as out_f:
             for item in samples:
@@ -291,7 +345,7 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
         """测试检索函数的召回率和Top-1准确率是否达标"""
 
         def search_func_offline(
-            query): return _search_all_data_with_index(file_path, query)
+            query): return archive_api.search_subjects(query)
         try:
             metrics = evaluate_search_function(
                 data_samples=self.__class__.sampled_data,

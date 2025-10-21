@@ -55,11 +55,9 @@ def sample_jsonlines(input_file, sample_size: int, output_file=None):
                     try:
                         line_str = line_bytes.rstrip(b'\n\r').decode('utf-8')
                         data = json.loads(line_str)
-                        # 条件筛选
+                        # 条件筛选最后一行
                         # 当前条件: type=1且series=True
-                        if isinstance(data, dict) and \
-                           data.get('type') == 1 and \
-                           data.get('series') is True:
+                        if isinstance(data, dict) and data.get('type') == 1 and data.get('series') is True:
                             valid_offsets.append(pos)
                             valid_line_indices.append(line_idx)
                     except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
@@ -70,7 +68,9 @@ def sample_jsonlines(input_file, sample_size: int, output_file=None):
                 try:
                     line_str = line_bytes.rstrip(b'\n\r').decode('utf-8')
                     data = json.loads(line_str)
-                    if data.get('type') == 1:
+                    # 条件筛选
+                    # 当前条件: type=1且series=True
+                    if data.get('type') == 1 and data.get('series') is True:
                         valid_offsets.append(pos)
                         valid_line_indices.append(line_idx)
                 except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
@@ -132,6 +132,7 @@ def sample_jsonlines(input_file, sample_size: int, output_file=None):
 def evaluate_search_function(
     data_samples,
     search_func,
+    is_show_summery: bool = True,
     is_save_report: bool = False
 ):
     """
@@ -218,49 +219,49 @@ def evaluate_search_function(
     # 计时, 总流程结束
     end_total = time.time()
     total_time = end_total - start_total
+    if is_show_summery:
+        print("\n" + "="*70)
+        print("评估报告")
+        print("="*70)
+        print(f"搜索函数: {search_func.__module__}.{search_func.__name__}")
+        print(f"总查询数: {total_queries}")
+        print(f"成功召回 (TP): {tp_query_count}")
+        print(f"未召回 (FN): {total_queries - tp_query_count}")
+        print(
+            f"平均检索结果数: {sum(r['search_results_count'] for r in results_per_query) / total_queries:.2f}")
+        print(f"召回率 (Recall): {recall:.4f} ({tp_query_count}/{total_queries})")
+        print(f"精确率 (Precision): {precision:.4f}")
+        print(f"Top-1 准确率: {top1_accuracy:.4f}")
+        print(f"F1-score: {f1:.4f}")
+        print(f"总耗时: {total_time:.4f} 秒")
+        print(f"搜索总耗时: {total_search_time:.4f} 秒")
+        print(f"平均每次搜索耗时: {total_search_time / total_queries:.4f} 秒")
+        print("="*70)
 
-    print("\n" + "="*70)
-    print("评估报告")
-    print("="*70)
-    print(f"搜索函数: {search_func.__module__}.{search_func.__name__}")
-    print(f"总查询数: {total_queries}")
-    print(f"成功召回 (TP): {tp_query_count}")
-    print(f"未召回 (FN): {total_queries - tp_query_count}")
-    print(
-        f"平均检索结果数: {sum(r['search_results_count'] for r in results_per_query) / total_queries:.2f}")
-    print(f"召回率 (Recall): {recall:.4f} ({tp_query_count}/{total_queries})")
-    print(f"精确率 (Precision): {precision:.4f}")
-    print(f"Top-1 准确率: {top1_accuracy:.4f}")
-    print(f"F1-score: {f1:.4f}")
-    print(f"总耗时: {total_time:.4f} 秒")
-    print(f"搜索总耗时: {total_search_time:.4f} 秒")
-    print(f"平均每次搜索耗时: {total_search_time / total_queries:.4f} 秒")
-    print("="*70)
+        # 错误样例
+        failed_queries = [
+            r for r in results_per_query if not r["found"]][:show_sample_size]
+        print(f"\n 前 {show_sample_size} 个未召回的查询(FN):")
+        for i, r in enumerate(failed_queries, 1):
+            print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
+            print(f"     检索结果数: {r['search_results_count']}")
+            if r['search_results_ids']:
+                ids_str = r['search_results_ids'][:3]
+                suffix = "..." if len(r['search_results_ids']) > 3 else ""
+                print(f"     返回的 ID: {ids_str}{suffix}")
 
-    # 错误样例
-    failed_queries = [
-        r for r in results_per_query if not r["found"]][:show_sample_size]
-    print(f"\n 前 {show_sample_size} 个未召回的查询（FN）:")
-    for i, r in enumerate(failed_queries, 1):
-        print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
-        print(f"     检索结果数: {r['search_results_count']}")
-        if r['search_results_ids']:
-            ids_str = r['search_results_ids'][:3]
-            suffix = "..." if len(r['search_results_ids']) > 3 else ""
-            print(f"     返回的 ID: {ids_str}{suffix}")
-
-    # 展示最慢的 5 次搜索
-    print(f"\n 最慢的 {show_sample_size} 次查询:")
-    slowest_queries = sorted(
-        results_per_query, key=lambda x: x["search_time"], reverse=True)[:show_sample_size]
-    for i, r in enumerate(slowest_queries, 1):
-        print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
-        print(f"     检索耗时: {r['search_time']:.4f} 秒")
-        print(f"     检索结果数: {r['search_results_count']}")
-        if r['search_results_ids']:
-            ids_str = r['search_results_ids'][:3]
-            suffix = "..." if len(r['search_results_ids']) > 3 else ""
-            print(f"     返回的 ID: {ids_str}{suffix}")
+        # 展示最慢的 5 次搜索
+        print(f"\n 最慢的 {show_sample_size} 次查询:")
+        slowest_queries = sorted(
+            results_per_query, key=lambda x: x["search_time"], reverse=True)[:show_sample_size]
+        for i, r in enumerate(slowest_queries, 1):
+            print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
+            print(f"     检索耗时: {r['search_time']:.4f} 秒")
+            print(f"     检索结果数: {r['search_results_count']}")
+            if r['search_results_ids']:
+                ids_str = r['search_results_ids'][:3]
+                suffix = "..." if len(r['search_results_ids']) > 3 else ""
+                print(f"     返回的 ID: {ids_str}{suffix}")
 
     # 保存报告
     if is_save_report:
@@ -350,6 +351,7 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
             metrics = evaluate_search_function(
                 data_samples=self.__class__.sampled_data,
                 search_func=search_func_offline,
+                is_show_summery=True,
                 is_save_report=is_save_report
             )
         except Exception as e:
@@ -380,6 +382,7 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
             metrics = evaluate_search_function(
                 self.__class__.sampled_data,
                 search_func=search_func_online,
+                is_show_summery=True,
                 is_save_report=is_save_report
             )
         except Exception as e:
@@ -423,6 +426,7 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
                 metrics = evaluate_search_function(
                     data_samples=self.__class__.sampled_data,
                     search_func=wrapped_search,
+                    is_show_summery=False,  # 不显示评测概览
                     is_save_report=False  # 不保存中间报告
                 )
                 results.append({

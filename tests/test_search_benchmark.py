@@ -375,7 +375,7 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
         def search_func_online(query):
             # 1 RPS,使测试的请求速率低于限流器要求
             time.sleep(1)
-            return bgm_api.search_subjects(query)
+            return bgm_api.search_subjects(query, threshold=80)
         try:
             metrics = evaluate_search_function(
                 self.__class__.sampled_data,
@@ -399,3 +399,108 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
             TOP1_ACCURACY_THRESHOLD,
             f"Top-1 准确率 {metrics['top1_accuracy']:.4f} 低于阈值 {TOP1_ACCURACY_THRESHOLD}"
         )
+
+    def test_optimaize_threshold_archive_search(self):
+        """自动推断 search_subjects 的最优 threshold 值"""
+        # 搜索范围和步长
+        threshold_range = list(range(60, 101, 5))  # [60, 65, ..., 100]
+        print(f"\n 开始搜索最优 threshold 值：{threshold_range}")
+
+        # 存储每个 threshold 的评估结果
+        results = []
+
+        def search_func_with_threshold(query, th):
+            return archive_api.search_subjects(query, threshold=th)
+
+        # 遍历所有 threshold 值
+        for th in threshold_range:
+            print(f"  评估 threshold={th} ...")
+
+            def wrapped_search(query):
+                return search_func_with_threshold(query, th)
+
+            try:
+                metrics = evaluate_search_function(
+                    data_samples=self.__class__.sampled_data,
+                    search_func=wrapped_search,
+                    is_save_report=False  # 不保存中间报告
+                )
+                results.append({
+                    "threshold": th,
+                    "recall": metrics["recall"],
+                    "top1_accuracy": metrics["top1_accuracy"],
+                    "f1": metrics["f1"]
+                })
+                print(
+                    f"    Recall: {metrics['recall']:.4f}, Top-1: {metrics['top1_accuracy']:.4f}, F1: {metrics['f1']:.4f}")
+            except Exception as e:
+                print(f"    ❌ threshold={th} 评估失败: {e}")
+                continue
+
+        # 过滤出满足最低要求的候选
+        min_recall = RECALL_THRESHOLD
+        min_top1 = TOP1_ACCURACY_THRESHOLD
+        valid_results = [
+            r for r in results
+            if r["recall"] >= min_recall and r["top1_accuracy"] >= min_top1
+        ]
+
+        if not valid_results:
+            self.fail(
+                f"❌ 所有 threshold 值均未达到最低要求(Recall≥{min_recall}, Top-1≥{min_top1})"
+            )
+
+        # 按f1值排序，取最优
+        best_result = max(valid_results, key=lambda x: x["f1"])
+        best_threshold = best_result["threshold"]
+
+        # 获取默认 threshold=80 的结果
+        default_result = next(
+            (r for r in results if r["threshold"] == 80), None)
+        if not default_result:
+            self.fail("默认 threshold=80 未评估，无法比较")
+
+        print("\n" + "="*70)
+        print("最优 threshold 推断结果")
+        print("="*70)
+        print(f"✅ 最优 threshold: {best_threshold}")
+        print(f"  Recall: {best_result['recall']:.4f}")
+        print(f"  Top-1 Accuracy: {best_result['top1_accuracy']:.4f}")
+        print(f"  F1: {best_result['f1']:.4f}")
+        print(f"  默认 threshold=80 的表现:")
+        print(f"    Recall: {default_result['recall']:.4f}")
+        print(f"    Top-1 Accuracy: {default_result['top1_accuracy']:.4f}")
+        print(f"    F1: {default_result['f1']:.4f}")
+
+        # 判断是否优于默认值
+        is_better_than_default = (
+            best_result["f1"] > default_result["f1"]
+        )
+
+        # 断言：最优值F1必须至少不低于默认值
+        self.assertGreaterEqual(
+            best_result["f1"],
+            default_result["f1"],
+            f"❌ 推断出的最优 threshold={best_threshold} 的F1值 ({best_result['f1']:.4f}) "
+            f"高于默认值的F1 ({default_result['f1']:.4f})，默认值可能不合理。"
+        )
+
+        # 保存最终推断结果
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        os.makedirs("test_results", exist_ok=True)
+        report_path = f"test_results/optimal_threshold_report_{timestamp}.json"
+        report = {
+            "threshold_range": threshold_range,
+            "all_results": results,
+            "valid_results": valid_results,
+            "best_threshold": best_threshold,
+            "best_metrics": best_result,
+            "default_threshold": 80,
+            "default_metrics": default_result,
+            "is_better_than_default": is_better_than_default,
+            "min_recall_threshold": min_recall,
+            "min_top1_threshold": min_top1
+        }
+        with open(report_path, 'w', encoding='utf-8') as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
+        print(f"\n📊 最优阈值评估报告已保存至: {report_path}")

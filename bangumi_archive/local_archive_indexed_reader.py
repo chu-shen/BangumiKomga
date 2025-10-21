@@ -55,14 +55,14 @@ class IndexedDataReader:
         if os.path.getsize(self.index_path) == 0:
             logger.error(f"索引文件为空: {self.index_path}")
             return self._build_index()
-
+        # TODO: 对照 archivedata/archive_update_time.json中的last_updated和索引中的时间戳, 不匹配便重建索引
         data_mtime = os.path.getmtime(self.file_path)
         index_mtime = os.path.getmtime(self.index_path)
 
         try:
             with open(self.index_path, 'rb') as f:
                 index = pickle.load(f)
-            # 检查文件修改时间
+            # 检查文件修改时间, 索引文件必须晚于 archive 文件
             if index_mtime >= data_mtime:
                 logger.info(f"索引加载成功: {self.index_path}")
                 return index
@@ -82,6 +82,7 @@ class IndexedDataReader:
         - 基础字段: id, type, subject_id, name, name_cn
         - infobox 中解析出的: name_cn_infobox, aliases_infobox
         """
+        # TODO： 加入archivedata/archive_update_time.json中的last_updated字段作为索引的时间戳版本
         index: Dict[str, Dict[Union[int, str], List[int]]] = {
             "id": {},
             "type": {},

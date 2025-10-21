@@ -55,7 +55,7 @@ class IndexedDataReader:
         if os.path.getsize(self.index_path) == 0:
             logger.error(f"索引文件为空: {self.index_path}")
             return self._build_index()
-        # TODO: 对照 archivedata/archive_update_time.json中的last_updated和索引中的时间戳, 不匹配便重建索引
+        # TODO: 对照 archivedata/archive_update_time.json中的last_updated和索引中的时间戳, 不匹配或不存在该字段便立即重建索引
         data_mtime = os.path.getmtime(self.file_path)
         index_mtime = os.path.getmtime(self.index_path)
 

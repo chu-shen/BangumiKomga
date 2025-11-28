@@ -57,7 +57,7 @@ KOMGA_COLLECTION_LIST = []
 # @@type: boolean
 # @@required: False
 # @@validator:
-# @@info: 指定是否启用本地 bangumi/Archive 离线元数据
+# @@info: 指定是否启用本地 bangumi/Archive 离线元数据。数据源：https://github.com/bangumi/Archive/releases/tag/archive
 # @@version: 0.13.0
 USE_BANGUMI_ARCHIVE = False
 
@@ -148,7 +148,7 @@ FUZZ_SCORE_THRESHOLD = 80
 # @@type: boolean
 # @@required: False
 # @@validator:
-# @@info:
+# @@info: 重新检查刷新元数据失败的系列
 # @@version: 0.1
 RECHECK_FAILED_SERIES = False
 # @@name: RECHECK_FAILED_BOOKS
@@ -156,7 +156,7 @@ RECHECK_FAILED_SERIES = False
 # @@type: boolean
 # @@required: False
 # @@validator:
-# @@info:
+# @@info: 重新检查刷新元数据失败的书
 # @@version: 0.1
 RECHECK_FAILED_BOOKS = False
 

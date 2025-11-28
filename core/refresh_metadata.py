@@ -226,7 +226,7 @@ def refresh_metadata(series_list=None):
         ]
         # 用 all_failed_series_ids 创建 FAILED_COLLECTION
         if all_failed_series_ids:
-            if komga.replace_collection(collection_name, True, all_failed_series_ids):
+            if komga.replace_collection(collection_name, False, all_failed_series_ids):
                 logger.info("成功替换收藏: %s", collection_name)
             else:
                 logger.error("替换收藏失败: %s", collection_name)

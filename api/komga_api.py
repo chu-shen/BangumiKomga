@@ -313,6 +313,7 @@ class KomgaApi:
     def add_collection(self, name, ordered, seriesIds):
         """
         add new collection.
+        ordered=False，不然无法搜索到，可能与收藏大小有关
         """
         try:
             response = self.r.post(

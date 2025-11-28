@@ -57,7 +57,7 @@ KOMGA_COLLECTION_LIST = []
 # @@type: boolean
 # @@required: False
 # @@validator:
-# @@info: 指定是否启用本地 bangumi/Archive 离线元数据
+# @@info: 指定是否启用本地 bangumi/Archive 离线元数据。数据源：https://github.com/bangumi/Archive/releases/tag/archive
 # @@version: 0.13.0
 USE_BANGUMI_ARCHIVE = False
 

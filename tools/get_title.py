@@ -89,6 +89,7 @@ class ParseTitle:
         ) + read_corpus("corpus/bangumi_person.txt")
         self.vocabulary = build_vocabulary(
             [
+                # 漫画
                 "comic",
                 "comics",
                 "artbook",
@@ -97,7 +98,9 @@ class ParseTitle:
                 "全彩",
                 "全彩版",
                 "数码全彩",
+                # 部分漫画存在单独的典藏版、爱藏版条目，暂时屏蔽
                 # "典藏版",
+                # "爱藏版",
                 "日版",
                 "港版",
                 "台版",
@@ -119,6 +122,16 @@ class ParseTitle:
                 "文传",
                 "文傳",
                 "時報",
+                # 小说
+                "轻小说",
+                "小说",
+                "小說",
+                "epub",
+                "短篇",
+                "未完",
+                "完结",
+                "特典",
+                "番外",
             ]
         )
 

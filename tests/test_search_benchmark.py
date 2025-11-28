@@ -23,7 +23,7 @@ samples_size = 100
 # 是否输出测试报告文件
 is_save_report = True
 show_sample_size = 5
-use_token = True
+use_token = False
 if use_token:
     bgm_api = BangumiApiDataSource(ACCESS_TOKEN)
 else:

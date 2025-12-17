@@ -9,6 +9,7 @@ from api.komga_api import *
 from pypinyin import slug, Style
 
 from config.config import SORT_TITLE
+from corpus.vocabulary import LANGUAGES_TYPES
 
 
 def _set_tags(komga_metadata, bangumi_metadata):
@@ -93,31 +94,7 @@ def _set_language(komga_metadata, manga_filename):
 
     根据文件名中的关键字设置漫画语言，后续分组会覆盖前面的匹配结果
     """
-    languageTypes = [
-        ("ja-JP", ["日版"]),
-        ("zh-Hans", ["bili", "B漫", "汉化", "简中"]),
-        (
-            "zh-Hant",
-            [
-                "繁中",
-                "尖端",
-                "东立",
-                "東立",
-                "东贩",
-                "東販",
-                "玉皇朝",
-                "天下",
-                "青文",
-                "长鸿",
-                "長鴻",
-                "角川",
-                "文传",
-                "文傳",
-                "時報",
-            ],
-        ),
-    ]
-    for langCode, keywords in languageTypes:
+    for langCode, keywords in LANGUAGES_TYPES:
         if any(keyword in manga_filename for keyword in keywords):
             komga_metadata.language = langCode
 

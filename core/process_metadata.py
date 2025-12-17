@@ -8,8 +8,13 @@ from api.bangumi_model import BangumiBaseType, SubjectPlatform, SubjectRelation
 from api.komga_api import *
 from pypinyin import slug, Style
 
-from config.config import SORT_TITLE
-from corpus.vocabulary import LANGUAGES_TYPES
+from config.config import SORT_TITLE, ADD_LOCAL_VERSION
+from corpus.vocabulary import (
+    ALL_PUBLISHERS,
+    LANGUAGE_TYPES,
+    RATING_R15_KEYWORDS,
+    RATING_R18_KEYWORDS,
+)
 
 
 def _set_tags(komga_metadata, bangumi_metadata):
@@ -94,7 +99,7 @@ def _set_language(komga_metadata, manga_filename):
 
     根据文件名中的关键字设置漫画语言，后续分组会覆盖前面的匹配结果
     """
-    for langCode, keywords in LANGUAGES_TYPES:
+    for langCode, keywords in LANGUAGE_TYPES:
         if any(keyword in manga_filename for keyword in keywords):
             komga_metadata.language = langCode
 
@@ -134,8 +139,16 @@ def _set_age_rating(komga_metadata, bangumi_metadata):
     分级
     """
     RATING_RULES = [
-        {"tags": {"R18"}, "min_count": 10, "rating": 18},
-        {"tags": {"R15", "工口", "卖肉", "福利"}, "min_count": 3, "rating": 15},
+        {
+            "tags": RATING_R18_KEYWORDS,
+            "min_count": 10,
+            "rating": 18,
+        },
+        {
+            "tags": RATING_R15_KEYWORDS,
+            "min_count": 3,
+            "rating": 15,
+        },
     ]
 
     ageRatings = []
@@ -232,6 +245,19 @@ def _set_links(komga_metadata, bangumi_metadata, subject_relations):
     komga_metadata.links = links
 
 
+def _set_local_version(komga_metadata, manga_filename):
+    """
+    本地版本
+
+    根据文件名中的关键字设置版本
+    """
+    if ADD_LOCAL_VERSION:
+        for publisher in ALL_PUBLISHERS:
+            if publisher in manga_filename:
+                komga_metadata.genres.append(publisher)
+                return
+
+
 def set_komga_series_metadata(bangumi_metadata, manga_filename, bgm):
     """
     获取漫画系列元数据
@@ -276,6 +302,9 @@ def set_komga_series_metadata(bangumi_metadata, manga_filename, bgm):
 
     # titleSort
     _set_title_sort(komga_series_metadata, manga_filename)
+
+    # local version
+    _set_local_version(komga_series_metadata, manga_filename)
 
     komga_series_metadata.isvalid = True
     return komga_series_metadata

@@ -6,6 +6,7 @@
 import requests
 from requests.adapters import HTTPAdapter
 
+from api.bangumi_model import BangumiBaseType
 from tools.log import logger
 from bangumi_archive.local_archive_searcher import (
     parse_infobox,
@@ -16,7 +17,6 @@ from bangumi_archive.local_archive_searcher import (
 from tools.resort_search_results_list import resort_search_list
 from tools.slide_window_rate_limiter import slide_window_rate_limiter
 from zhconv import convert
-from urllib.parse import quote_plus
 from abc import ABC, abstractmethod
 
 # TODO： 在DataSource中添加一个本地缓存目录，将从 API 获取的封面图片保存为文件（如 cache/thumbnails/{subject_id}_{image_size}.jpg），下次直接读取本地文件，避免重复请求
@@ -84,10 +84,11 @@ class BangumiApiDataSource(DataSource):
         # 正面例子：魔女與使魔 -> 魔女与使魔，325236
         # 反面例子：君は淫らな僕の女王 -> 君は淫らな仆の女王，47331
         query = convert(query, "zh-cn")
-        url = f"{self.BASE_URL}/search/subject/{quote_plus(query)}?responseGroup=small&type=1&max_results=25"
-        # TODO 处理'citrus+ ~柑橘味香气plus~'
+        url = f"{self.BASE_URL}/v0/search/subjects?limit=10"
+        payload = {"keyword": query, "filter": {"type": [BangumiBaseType.BOOK.value]}}
+
         try:
-            response = self.r.get(url, headers=self._get_headers())
+            response = self.r.post(url, headers=self._get_headers(), json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
@@ -101,14 +102,10 @@ class BangumiApiDataSource(DataSource):
             logger.warning(f"{query}: 404 Not Found")
             return []
         else:
-            # e.g. 川瀬绫 -> {"results":1,"list":null}
-            if "list" in response_json and isinstance(response_json["list"], (list,)):
-                results = response_json["list"]
-            else:
-                return []
+            results = response_json["data"]
 
         return resort_search_list(
-            query=query, results=results, threshold=threshold, data_source=self, is_novel=is_novel
+            query=query, results=results, threshold=threshold, is_novel=is_novel
         )
 
     @slide_window_rate_limiter()
@@ -150,8 +147,7 @@ class BangumiApiDataSource(DataSource):
         url = f"{self.BASE_URL}/v0/users/-/collections/{subject_id}"
         payload = {"vol_status": progress}
         try:
-            response = self.r.patch(
-                url, headers=self._get_headers(), json=payload)
+            response = self.r.patch(url, headers=self._get_headers(), json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
@@ -169,8 +165,9 @@ class BangumiApiDataSource(DataSource):
             if subject_metadata["images"]:
                 image = subject_metadata["images"][image_size]
             else:
-                image = self.get_subject_metadata(subject_metadata["id"])[
-                    "images"][image_size]
+                image = self.get_subject_metadata(subject_metadata["id"])["images"][
+                    image_size
+                ]
             thumbnail = self.r.get(image).content
         except Exception as e:
             logger.error(f"出现错误: {e}")
@@ -206,39 +203,24 @@ class BangumiArchiveDataSource(DataSource):
 
     # 将10s+的全文件扫描性能提升到1s左右
     def _get_search_results_from_archive(self, query):
-        return search_all_data(
-            file_path=self.subject_metadata_file, query=query
-        )
+        return search_all_data(file_path=self.subject_metadata_file, query=query)
 
     def search_subjects(self, query, threshold=80, is_novel=False):
         """
         离线数据源搜索条目
         """
-        # 长度限制应搭配 threshold 使用, 于 resort_search_list() 中实现
-        search_results = []
         results = self._get_search_results_from_archive(query)
         for item in results:
-            if (
-                query.lower() in str(item["name"]).lower()
-                or query.lower() in str(item.get("name_cn", "")).lower()
-                or query in str(item.get("summary", ""))
-                or any(query in tag["name"] for tag in item.get("tags", []))
-            ):
-                result = {
-                    "id": item["id"],
-                    "url": r"http://bgm.tv/subject/" + str(item["id"]),
-                    "type": item.get("type", 0),
-                    "name": item.get("name", ""),
-                    "name_cn": item.get("name_cn", ""),
-                    "summary": item.get("summary", ""),
-                    "air_date": item.get("air_date", ""),
-                    "air_weekday": item.get("air_weekday", 0),
-                    # 忽略 images 字段
-                    "images": "",
-                }
-                search_results.append(result)
+            item["images"] = ""  # 忽略 images 字段
+            item["infobox"] = parse_infobox(item["infobox"])
+            item["rating"] = {
+                "rank": item.get("rank", 0),
+                "total": item.get("total", 0),
+                "count": item.get("score_details", {}),
+                "score": item.get("score", 0.0),
+            }
         return resort_search_list(
-            query=query, results=search_results, threshold=threshold, data_source=self, is_novel=is_novel
+            query=query, results=results, threshold=threshold, is_novel=is_novel
         )
 
     def get_subject_metadata(self, subject_id):
@@ -249,45 +231,30 @@ class BangumiArchiveDataSource(DataSource):
         if not data:
             return {}
         try:
-            result = {
-                "date": data.get("date"),
-                "platform": data["platform"],
-                # 忽略 images 字段
-                # "images": get_images(subject_ID),
-                "images": "",
-                "summary": data.get("summary"),
-                "name": data.get("name"),
-                "name_cn": data.get("name_cn"),
-                "tags": [
-                    {"name": t["name"], "count": t["count"], "total_cont": 0}
-                    for t in data.get("tags", [])
-                ],
-                "infobox": parse_infobox(data["infobox"]),
-                "rating": {
-                    "rank": data.get("rank", 0),
-                    "total": data.get("total", 0),
-                    "count": data.get("score_details", {}),
-                    "score": data.get("score", 0.0),
-                },
-                "total_episodes": data.get("eps", 0),
-                "collection": {
-                    "on_hold": data["favorite"].get("on_hold", 0),
-                    "dropped": data["favorite"].get("dropped", 0),
-                    "wish": data["favorite"].get("wish", 0),
-                    # 假设done对应collect
-                    "collect": data["favorite"].get("done", 0),
-                    "doing": data["favorite"].get("doing", 0),
-                },
-                "id": data.get("id"),
-                "eps": data.get("eps", 0),
-                "meta_tags": [tag["name"] for tag in data.get("tags", [])],
-                "volumes": data.get("volumes", 0),
-                "series": data.get("series", False),
-                "locked": data.get("locked", False),
-                "nsfw": data.get("nsfw", False),
-                "type": data.get("type", 0),
+            data["images"] = ""
+            data["tags"] = [
+                {"name": t["name"], "count": t["count"], "total_cont": 0}
+                for t in data.get("tags", [])
+            ]
+            data["infobox"] = parse_infobox(data["infobox"])
+            data["rating"] = {
+                "rank": data.get("rank", 0),
+                "total": data.get("total", 0),
+                "count": data.get("score_details", {}),
+                "score": data.get("score", 0.0),
             }
-            return result
+            data["total_episodes"] = data.get("eps", 0)
+            data["collection"] = {
+                "on_hold": data["favorite"].get("on_hold", 0),
+                "dropped": data["favorite"].get("dropped", 0),
+                "wish": data["favorite"].get("wish", 0),
+                # 假设done对应collect
+                "collect": data["favorite"].get("done", 0),
+                "doing": data["favorite"].get("doing", 0),
+            }
+            data["meta_tags"] = [tag["name"] for tag in data.get("tags", [])]
+
+            return data
         except Exception as e:
             logger.error(f"构建Archive元数据出错: {e}")
             return {}
@@ -311,6 +278,7 @@ class BangumiArchiveDataSource(DataSource):
                         "name": metadata.get("name"),
                         "name_cn": metadata.get("name_cn"),
                         "relation": item.get("relation_type"),
+                        "type": metadata.get("type"),
                         "id": metadata.get("id"),
                         # 忽略 images 字段
                         "images": "",
@@ -346,8 +314,7 @@ class BangumiDataSourceFactory:
         online = BangumiApiDataSource(config.get("access_token"))
 
         if config.get("use_local_archive", False):
-            offline = BangumiArchiveDataSource(
-                config.get("local_archive_folder"))
+            offline = BangumiArchiveDataSource(config.get("local_archive_folder"))
             return FallbackDataSource(offline, online)
 
         return online
@@ -377,7 +344,9 @@ class FallbackDataSource(DataSource):
         return result
 
     def search_subjects(self, query, threshold=80, is_novel=False):
-        return self._fallback_call("search_subjects", query, threshold=threshold, is_novel=is_novel)
+        return self._fallback_call(
+            "search_subjects", query, threshold=threshold, is_novel=is_novel
+        )
 
     def get_subject_metadata(self, subject_id):
         return self._fallback_call("get_subject_metadata", subject_id)

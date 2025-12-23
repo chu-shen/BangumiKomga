@@ -57,7 +57,7 @@ KOMGA_COLLECTION_LIST = []
 # @@type: boolean
 # @@required: False
 # @@validator:
-# @@info: 指定是否启用本地 bangumi/Archive 离线元数据
+# @@info: 指定是否启用本地 bangumi/Archive 离线元数据。数据源：https://github.com/bangumi/Archive/releases/tag/archive
 # @@version: 0.13.0
 USE_BANGUMI_ARCHIVE = False
 
@@ -168,6 +168,15 @@ RECHECK_FAILED_BOOKS = False
 # @@info: 置为`True`时，程序会在刷新完成后，将**本次**刷新失败的系列添加到指定收藏（默认名：`FAILED_COLLECTION`）。
 # @@version: 0.1
 CREATE_FAILED_COLLECTION = False
+
+# @@name: ADD_LOCAL_VERSION
+# @@prompt: 添加书籍版本信息
+# @@type: boolean
+# @@required: False
+# @@validator:
+# @@info: 置为`True`时，会根据文件夹名在`类型`中添加书籍版本信息，如：`东立`。同一漫画拥有多个发行版本时非常有用。
+# @@version: 0.19
+ADD_LOCAL_VERSION = False
 
 
 # @@name: NOTIF_TYPE_ENABLE

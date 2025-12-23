@@ -169,6 +169,15 @@ RECHECK_FAILED_BOOKS = False
 # @@version: 0.1
 CREATE_FAILED_COLLECTION = False
 
+# @@name: ADD_LOCAL_VERSION
+# @@prompt: 添加书籍版本信息
+# @@type: boolean
+# @@required: False
+# @@validator:
+# @@info: 置为`True`时，会根据文件夹名在`类型`中添加书籍版本信息，如：`东立`。同一漫画拥有多个发行版本时非常有用。
+# @@version: 0.19
+ADD_LOCAL_VERSION = False
+
 
 # @@name: NOTIF_TYPE_ENABLE
 # @@prompt: 设置消息通知类型

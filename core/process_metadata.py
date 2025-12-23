@@ -4,11 +4,17 @@
 # ------------------------------------------------------------------
 
 
-from api.bangumi_model import SubjectRelation
+from api.bangumi_model import BangumiBaseType, SubjectPlatform, SubjectRelation
 from api.komga_api import *
 from pypinyin import slug, Style
 
-from config.config import SORT_TITLE
+from config.config import SORT_TITLE, ADD_LOCAL_VERSION
+from corpus.vocabulary import (
+    ALL_PUBLISHERS,
+    LANGUAGE_TYPES,
+    RATING_R15_KEYWORDS,
+    RATING_R18_KEYWORDS,
+)
 
 
 def _set_tags(komga_metadata, bangumi_metadata):
@@ -32,7 +38,7 @@ def _set_genres(komga_metadata, bangumi_metadata):
     if bangumi_metadata["platform"] is None:
         genrelist.append("其他")
     else:
-        genrelist.append(bangumi_metadata["platform"])
+        genrelist.append(SubjectPlatform.parse(bangumi_metadata["platform"]).cn)
     for info in bangumi_metadata["infobox"]:
         if info["key"] == "连载杂志":
             if type(info["value"]) == list:
@@ -54,6 +60,7 @@ def _set_status(komga_metadata, bangumi_metadata):
     runningLang = ["放送", "放送（連載）中"]
     abandonedLang = ["打ち切り"]
     endedLang = ["完結", "结束", "连载结束"]
+    hiatusLang = ["有生之年"]
 
     casestatus = "ONGOING"
 
@@ -66,6 +73,9 @@ def _set_status(komga_metadata, bangumi_metadata):
         elif info["key"] in endedLang:
             casestatus = "ENDED"
             break
+        elif info["key"] in hiatusLang:
+            casestatus = "HIATUS"
+            break
 
     komga_metadata.status = casestatus
 
@@ -73,6 +83,7 @@ def _set_status(komga_metadata, bangumi_metadata):
 def _set_total_book_count(komga_metadata, subject_relations):
     """
     漫画总册数
+    bgm 元数据中的 volumes 字段不一定准确/更新及时，改为根据关联条目统计
     """
     totalBookCount = 0
     for relation in subject_relations:
@@ -88,33 +99,10 @@ def _set_language(komga_metadata, manga_filename):
 
     根据文件名中的关键字设置漫画语言，后续分组会覆盖前面的匹配结果
     """
-    languageTypes = [
-        ("ja-JP", ["日版"]),
-        ("zh-Hans", ["bili", "B漫", "汉化", "简中"]),
-        (
-            "zh-Hant",
-            [
-                "繁中",
-                "尖端",
-                "东立",
-                "東立",
-                "东贩",
-                "東販",
-                "玉皇朝",
-                "天下",
-                "青文",
-                "长鸿",
-                "長鴻",
-                "角川",
-                "文传",
-                "文傳",
-                "時報",
-            ],
-        ),
-    ]
-    for langCode, keywords in languageTypes:
+    for langCode, keywords in LANGUAGE_TYPES:
         if any(keyword in manga_filename for keyword in keywords):
             komga_metadata.language = langCode
+
 
 def _set_alternate_titles(komga_metadata, bangumi_metadata):
     """
@@ -151,8 +139,16 @@ def _set_age_rating(komga_metadata, bangumi_metadata):
     分级
     """
     RATING_RULES = [
-        {"tags": {"R18"}, "min_count": 10, "rating": 18},
-        {"tags": {"R15", "工口", "卖肉", "福利"}, "min_count": 3, "rating": 15},
+        {
+            "tags": RATING_R18_KEYWORDS,
+            "min_count": 10,
+            "rating": 18,
+        },
+        {
+            "tags": RATING_R15_KEYWORDS,
+            "min_count": 3,
+            "rating": 15,
+        },
     ]
 
     ageRatings = []
@@ -227,20 +223,39 @@ def _set_links(komga_metadata, bangumi_metadata, subject_relations):
             "url": "https://bgm.tv/subject/" + str(bangumi_metadata["id"]),
         }
     ]
-    for relation in subject_relations:
-        if relation["relation"] == "动画":
-            link = {
-                "label": "动画：" + relation["name"],
-                "url": "https://bgm.tv/subject/" + str(relation["id"]),
-            }
-            links.append(link)
-        if relation["relation"] == "书籍":
-            link = {
-                "label": "书籍：" + relation["name"],
-                "url": "https://bgm.tv/subject/" + str(relation["id"]),
-            }
-            links.append(link)
+    if subject_relations:
+        # 添加改编动画、书籍链接
+        for relation in subject_relations:
+            if (
+                SubjectRelation.parse(relation["relation"]).value
+                == SubjectRelation.ADAPTATION.value
+            ):
+                if BangumiBaseType.parse(relation["type"]) == BangumiBaseType.ANIME:
+                    link = {
+                        "label": "动画：" + relation["name"],
+                        "url": "https://bgm.tv/subject/" + str(relation["id"]),
+                    }
+                    links.append(link)
+                elif BangumiBaseType.parse(relation["type"]) == BangumiBaseType.BOOK:
+                    link = {
+                        "label": "书籍：" + relation["name"],
+                        "url": "https://bgm.tv/subject/" + str(relation["id"]),
+                    }
+                    links.append(link)
     komga_metadata.links = links
+
+
+def _set_local_version(komga_metadata, manga_filename):
+    """
+    本地版本
+
+    根据文件名中的关键字设置版本
+    """
+    if ADD_LOCAL_VERSION:
+        for publisher in ALL_PUBLISHERS:
+            if publisher in manga_filename:
+                komga_metadata.genres.append(publisher)
+                return
 
 
 def set_komga_series_metadata(bangumi_metadata, manga_filename, bgm):
@@ -287,6 +302,9 @@ def set_komga_series_metadata(bangumi_metadata, manga_filename, bgm):
 
     # titleSort
     _set_title_sort(komga_series_metadata, manga_filename)
+
+    # local version
+    _set_local_version(komga_series_metadata, manga_filename)
 
     komga_series_metadata.isvalid = True
     return komga_series_metadata

@@ -21,9 +21,16 @@ class TestSearchResort(unittest.TestCase):
 
     def test_threshold_filtering(self):
         """测试搜索结果排序器 - 阈值过滤"""
-        results = [{"id": 1}]
+        results = [{
+            "id": 1,
+            "name": "Test Series",
+            "series": True,
+            "platform": 1,  # 假设是 Comic
+            "infobox": [],
+            "name_cn": ""
+        }]
         self.data_source.get_subject_metadata.return_value = self.mock_metadata
-        filtered = resort_search_list("Test", results, 90, self.data_source)
+        filtered = resort_search_list("Test", results, 90, False)
         # 验证低分结果被过滤
         self.assertEqual(len(filtered), 0, "应过滤掉低于阈值的结果")
 
@@ -32,7 +39,7 @@ class TestSearchResort(unittest.TestCase):
         # 创建多个测试结果并验证排序顺序
         # 创建测试元数据集合
         from api.bangumi_model import SubjectPlatform
-        metadata_set = [
+        results = [
             # 高分条目（完全匹配中文名）
             {
                 "id": 1,
@@ -57,30 +64,22 @@ class TestSearchResort(unittest.TestCase):
                 "name": "Base Name",
                 "series": True,
                 "platform": SubjectPlatform.Comic.value,
-                # "中文件名" 与 "中文匹配" 模糊匹配
                 "infobox": [{"key": "别名", "value": [{"v": "中文件名"}]}],
                 "name_cn": ""
             }
         ]
 
         # 配置数据源返回
-        def mock_get_metadata(manga_id):
-            return metadata_set[manga_id - 1]
-        self.data_source.get_subject_metadata.side_effect = mock_get_metadata
-
-        # 构造测试输入
-        test_results = [{"id": i+1} for i in range(3)]
-
-        # 执行排序（降低阈值确保通过）
-        sorted_results = resort_search_list(
-            "中文匹配", test_results, 30, self.data_source)
+        sorted_results = resort_search_list("中文匹配", results, 30, False)
 
         # 验证基础条件
         self.assertEqual(len(sorted_results), 3, "应保留所有符合平台和系列条件的条目")
 
         # 验证得分计算合理性
-        self.assertGreater(sorted_results[0]["fuzzScore"], 80)  # 完全匹配中文名
-        self.assertLess(sorted_results[2]["fuzzScore"], 70)     # 别名匹配得分较低
+        # 完全匹配中文名 → 应该是 100
+        self.assertGreater(sorted_results[0]["fuzzScore"], 80)
+        # 别名匹配 “中文件名” vs “中文匹配” → 应该 ~50-65
+        self.assertLess(sorted_results[2]["fuzzScore"], 70)
 
         # 验证排序稳定性
         scores = [item["fuzzScore"] for item in sorted_results]

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/chu-shen/BangumiKomga/compare/v0.18.0...v0.19.0) (2025-12-17)
+
+
+### Features
+
+* 支持在`类型`中添加书籍版本信息 ([54014bd](https://github.com/chu-shen/BangumiKomga/commit/54014bda63c5a22e2ef0cf4a2ae07f7991cc2a5e)), closes [#132](https://github.com/chu-shen/BangumiKomga/issues/132)
+
 ## [0.18.0](https://github.com/chu-shen/BangumiKomga/compare/v0.17.0...v0.18.0) (2025-11-28)
 
 

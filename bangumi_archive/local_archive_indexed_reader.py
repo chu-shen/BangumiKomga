@@ -3,6 +3,7 @@ import os
 import pickle
 import re
 import mmap
+from datetime import datetime
 from threading import Lock
 from typing import Dict, List, Union
 from tools.log import logger
@@ -55,14 +56,43 @@ class IndexedDataReader:
         if os.path.getsize(self.index_path) == 0:
             logger.error(f"索引文件为空: {self.index_path}")
             return self._build_index()
-        # TODO: 对照 archivedata/archive_update_time.json中的last_updated和索引中的时间戳, 不匹配或不存在该字段便立即重建索引
-        data_mtime = os.path.getmtime(self.file_path)
-        index_mtime = os.path.getmtime(self.index_path)
+        archive_update_timestamp = None
+        # 尝试读取 archive_update_time.json 获取数据源更新时间
+        try:
+            data_dir = os.path.dirname(self.file_path)
+            archive_update_time_path = os.path.join(
+                data_dir, "archive_update_time.json")
+            with open(archive_update_time_path, 'r', encoding='utf-8') as f:
+                update_data = json.load(f)
+                last_updated = update_data.get("last_updated")
+                if isinstance(last_updated, str) and last_updated:
+                    archive_update_timestamp = last_updated
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(
+                f"无法解析 {archive_update_time_path} : {e}")
 
         try:
             with open(self.index_path, 'rb') as f:
                 index = pickle.load(f)
-            # 检查文件修改时间, 索引文件必须晚于 archive 文件
+            # 检查是否包含 index_timestamp
+            if "index_timestamp" not in index:
+                logger.warning(
+                    f"索引文件为缺少 index_timestamp 字段的旧版索引，尝试重建索引: {self.index_path}")
+                return self._build_index()
+            index_timestamp = index["index_timestamp"]
+            ref_timestamp = archive_update_timestamp if archive_update_timestamp is not None else \
+                datetime.fromtimestamp(os.path.getmtime(
+                    self.file_path), datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            if ref_timestamp > index_timestamp:
+                logger.warning(
+                    f"Archive 更新时间 ({ref_timestamp}) 晚于索引构建时间 ({index_timestamp})，尝试重建索引: {self.index_path}"
+                )
+                return self._build_index()
+
+            # 检查文件修改时间, 索引文件必须晚于 archive 文件，防止被备份文件手动覆盖为旧索引文件
+            data_mtime = os.path.getmtime(self.file_path)
+            index_mtime = os.path.getmtime(self.index_path)
             if index_mtime >= data_mtime:
                 logger.info(f"索引加载成功: {self.index_path}")
                 return index
@@ -82,7 +112,7 @@ class IndexedDataReader:
         - 基础字段: id, type, subject_id, name, name_cn
         - infobox 中解析出的: name_cn_infobox, aliases_infobox
         """
-        # TODO： 加入archivedata/archive_update_time.json中的last_updated字段作为索引的时间戳版本
+
         index: Dict[str, Dict[Union[int, str], List[int]]] = {
             "id": {},
             "type": {},
@@ -92,6 +122,10 @@ class IndexedDataReader:
             "name_cn_infobox": {},
             "aliases_infobox": {}
         }
+        # 添加元数据：索引构建时间戳, 使用 UTC ISO 8601 字符串记录索引构建时间
+        # 格式：YYYY-MM-DDTHH:MM:SSZ
+        index["index_timestamp"] = datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
         line_number = 0
         offset = 0
 

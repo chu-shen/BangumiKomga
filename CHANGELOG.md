@@ -2,7 +2,6 @@
 
 ## [0.18.0](https://github.com/chu-shen/BangumiKomga/compare/v0.17.0...v0.18.0) (2025-11-28)
 
-
 ### Features
 
 * 为logger添加调试器感知功能 ([#93](https://github.com/chu-shen/BangumiKomga/issues/93)) ([c486289](https://github.com/chu-shen/BangumiKomga/commit/c4862894b2fe47b7a531dca2ec3ec6a271041f3d))
@@ -19,7 +18,6 @@
 * 适配配置文件生成器中改动的配置项 ([#109](https://github.com/chu-shen/BangumiKomga/issues/109)) ([53ef75f](https://github.com/chu-shen/BangumiKomga/commit/53ef75fddc078ce72b5aab2f1ed230d663d9b6ce))
 * 配置项添加版本说明 ([38f4020](https://github.com/chu-shen/BangumiKomga/commit/38f40205069f6131583129bf8cdf4ab2bd50b032))
 
-
 ### Bug Fixes
 
 * fix:  ([fd45899](https://github.com/chu-shen/BangumiKomga/commit/fd458990454378440f38fdcddffd88f960616103))
@@ -27,7 +25,7 @@
 * 修复 sse 库检查错误的问题 ([1f96230](https://github.com/chu-shen/BangumiKomga/commit/1f96230ed089935aa32e79f689e51e0dc42b3172))
 * 修复 sse 库检查错误的问题 ([33083df](https://github.com/chu-shen/BangumiKomga/commit/33083df66a1e11ac6fbc270e159213833bc272b9))
 * 修复'IndexedDataReader' object is not iterable 错误 ([#121](https://github.com/chu-shen/BangumiKomga/issues/121)) ([c22dd4b](https://github.com/chu-shen/BangumiKomga/commit/c22dd4b867fb70b8b118997fffed195af33d6a21))
-* 修复创建`失败收藏 `失败的问题 ([e3305d0](https://github.com/chu-shen/BangumiKomga/commit/e3305d015867c038df5b6b07865a60f9930c245b))
+* 修复创建`失败收藏`失败的问题 ([e3305d0](https://github.com/chu-shen/BangumiKomga/commit/e3305d015867c038df5b6b07865a60f9930c245b))
 * 修复可选值 ([254f7dd](https://github.com/chu-shen/BangumiKomga/commit/254f7ddc25ea859f26b431d8d0f4e08985ebce34))
 * 修复已知的`komga_sse_api`恶性错误 ([#101](https://github.com/chu-shen/BangumiKomga/issues/101)) ([32beb69](https://github.com/chu-shen/BangumiKomga/commit/32beb698644726188e6e623e8571b02801f7596d))
 * 修复缺失参数导致的 ([#122](https://github.com/chu-shen/BangumiKomga/issues/122)) ([4305c39](https://github.com/chu-shen/BangumiKomga/commit/4305c393e3c3e80e5c59d195f4064e8d7238314c))
@@ -47,11 +45,9 @@
 * 配置支持多选 ([29654b3](https://github.com/chu-shen/BangumiKomga/commit/29654b38e64d89ae81d13db8747b8dab368854f0))
 * 隐私说明 ([30069c6](https://github.com/chu-shen/BangumiKomga/commit/30069c621945f098d380e8108ea5d9d1b6267aaf))
 
-
 ### Performance Improvements
 
 * 替换新 API 相关逻辑 ([ce37354](https://github.com/chu-shen/BangumiKomga/commit/ce373542320716e6913b1df354dc465fda07c30f))
-
 
 ### Documentation
 
@@ -63,12 +59,10 @@
 
 ## [0.17.0](https://github.com/chu-shen/BangumiKomga/compare/v0.16.1...v0.17.0) (2025-06-04)
 
-
 ### Features
 
 * 添加`file_integrity_verifier()`并改进`update_archive()`的下载 ([#86](https://github.com/chu-shen/BangumiKomga/issues/86)) ([1ea5e1c](https://github.com/chu-shen/BangumiKomga/commit/1ea5e1c0b9c4f0dd2cbc24288655433998f46ccb))
 * 添加`unittest`测试 ([#88](https://github.com/chu-shen/BangumiKomga/issues/88)) ([44ed7c2](https://github.com/chu-shen/BangumiKomga/commit/44ed7c28f3b07ac0dfe642547aac640ab64a795a))
-
 
 ### Bug Fixes
 
@@ -78,7 +72,6 @@
 * 修复图片尺寸参数未配置的错误 ([2ec3365](https://github.com/chu-shen/BangumiKomga/commit/2ec33658475b22a4b181f330bcac7a77bd1ddfe4))
 * 移除`|| exit 0`, 保留原始错误状态码 ([#90](https://github.com/chu-shen/BangumiKomga/issues/90)) ([562b090](https://github.com/chu-shen/BangumiKomga/commit/562b090f5adabab9338b6cb1b55c4b5bd1c4bfe6))
 
-
 ### Documentation
 
 * add Contributors ([ec1b1d9](https://github.com/chu-shen/BangumiKomga/commit/ec1b1d9054ff284178caf2b757e062b41dd2698c))
@@ -86,18 +79,15 @@
 
 ## [0.16.1](https://github.com/chu-shen/BangumiKomga/compare/v0.16.0...v0.16.1) (2025-05-09)
 
-
 ### Bug Fixes
 
 * 错误判断文件路径 ([88b2560](https://github.com/chu-shen/BangumiKomga/commit/88b25607d043b92d22b0a08b315fba812b381dcb))
 
 ## [0.16.0](https://github.com/chu-shen/BangumiKomga/compare/v0.15.0...v0.16.0) (2025-05-08)
 
-
 ### Features
 
 * 添加滑动窗口限流器&漏桶限流器 ([#68](https://github.com/chu-shen/BangumiKomga/issues/68)) ([729763b](https://github.com/chu-shen/BangumiKomga/commit/729763b9ab98d287432331991718b870fae0d586))
-
 
 ### Bug Fixes
 
@@ -105,11 +95,9 @@
 
 ## [0.15.0](https://github.com/chu-shen/BangumiKomga/compare/v0.14.0...v0.15.0) (2025-05-07)
 
-
 ### Features
 
 * 添加了 `refreshMetadataServive` 轮询服务 ([#67](https://github.com/chu-shen/BangumiKomga/issues/67)) ([6618cee](https://github.com/chu-shen/BangumiKomga/commit/6618cee4ed881eeb5ce92275f53d6713d0b83d67))
-
 
 ### Bug Fixes
 
@@ -118,14 +106,12 @@
 
 ## [0.14.0](https://github.com/chu-shen/BangumiKomga/compare/v0.13.0...v0.14.0) (2025-05-05)
 
-
 ### Features
 
 * prepare for api key ([ea9d9e8](https://github.com/chu-shen/BangumiKomga/commit/ea9d9e8d2e25d94e215215ce8ba673599b7c2939))
 * 添加`get_new_added_series()`函数, 以支持新增的`refresh_partial_metadata()` ([#64](https://github.com/chu-shen/BangumiKomga/issues/64)) ([9f65a9f](https://github.com/chu-shen/BangumiKomga/commit/9f65a9fe2817cff2fca5c7753da8c0e521341900))
 * 添加Archive索引读取器 ([#60](https://github.com/chu-shen/BangumiKomga/issues/60)) ([32a5ab3](https://github.com/chu-shen/BangumiKomga/commit/32a5ab3e21f9ee532540d966d739086825ec5c34))
 * 添加更多漫画语言类型 ([1781a75](https://github.com/chu-shen/BangumiKomga/commit/1781a75bce2431824217b7676f6beb633f2bf4f7))
-
 
 ### Bug Fixes
 
@@ -138,7 +124,6 @@
 
 ## [0.13.0](https://github.com/chu-shen/BangumiKomga/compare/v0.12.0...v0.13.0) (2025-04-25)
 
-
 ### Features
 
 * 完善年龄限制逻辑 ([5e9af4f](https://github.com/chu-shen/BangumiKomga/commit/5e9af4f9dce50a3fc1e27804a91ceeee42463f05))
@@ -147,13 +132,11 @@
 * 添加 bgm 条目平台及关联的枚举类 ([4a61017](https://github.com/chu-shen/BangumiKomga/commit/4a61017fb2afc07c73896c45197a540df6ab557b))
 * 添加基本的离线Archive元数据查询功能 ([#48](https://github.com/chu-shen/BangumiKomga/issues/48)) ([e176d3c](https://github.com/chu-shen/BangumiKomga/commit/e176d3ce5b812b80eb782a2a8797678765a13189))
 
-
 ### Bug Fixes
 
 * 分离了 RECHECK_FAILED_SERIES 和 CREATE_FAILED_COLLECTION 选项 ([#52](https://github.com/chu-shen/BangumiKomga/issues/52)) ([9170afe](https://github.com/chu-shen/BangumiKomga/commit/9170afe70878be1dc6c789772a6a0fa0caaf72af))
 * 完善缩略图逻辑 ([fa03358](https://github.com/chu-shen/BangumiKomga/commit/fa0335850b486799560c7b182ba6958b68c08b19))
 * 捕获所有异常 ([d67383a](https://github.com/chu-shen/BangumiKomga/commit/d67383a2975fe6be532dc8bff0894d1a9abf9c65))
-
 
 ### Documentation
 
@@ -163,23 +146,19 @@
 
 ## [0.12.0](https://github.com/chu-shen/BangumiKomga/compare/v0.11.0...v0.12.0) (2025-03-29)
 
-
 ### Features
 
 * 使用 FUZZ 对 bgm 搜索结果进行过滤和排序 ([b2d1962](https://github.com/chu-shen/BangumiKomga/commit/b2d19622cfb29534a26539840ad9afe3e05561df))
 
 ## [0.11.0](https://github.com/chu-shen/BangumiKomga/compare/v0.10.0...v0.11.0) (2025-03-27)
 
-
 ### Features
 
 * 日志支持同时输出到文件和显示在 docker 日志窗口 ([84ac359](https://github.com/chu-shen/BangumiKomga/commit/84ac359f472b2648d13d3470e48afca784c65411)), closes [#23](https://github.com/chu-shen/BangumiKomga/issues/23)
 
-
 ### Bug Fixes
 
 * 检查 cbl 获取的元数据是否为空&添加日志 ([c9ecc45](https://github.com/chu-shen/BangumiKomga/commit/c9ecc4528410064e3de1d2a998d48404a26728b9))
-
 
 ### Documentation
 
@@ -187,12 +166,10 @@
 
 ## [0.10.0](https://github.com/chu-shen/BangumiKomga/compare/v0.9.1...v0.10.0) (2025-03-05)
 
-
 ### Features
 
 * 为存在`Bangumi`链接的系列在排序标题中添加首字母 ([9bee000](https://github.com/chu-shen/BangumiKomga/commit/9bee000666e52f6858ce3023035493666efe643d))
 * 支持系列在英文字母导航中分类显示 ([7c6996d](https://github.com/chu-shen/BangumiKomga/commit/7c6996db55be10f7d3fb0d1acbaa146cf8655b74))
-
 
 ### Documentation
 
@@ -200,26 +177,22 @@
 
 ## [0.9.1](https://github.com/chu-shen/BangumiKomga/compare/v0.9.0...v0.9.1) (2025-01-14)
 
-
 ### Bug Fixes
 
 * 修正罗马数字匹配问题 ([35c8ef3](https://github.com/chu-shen/BangumiKomga/commit/35c8ef370ec2ad7aa8b0bb8fe974face95a293e8))
 
 ## [0.9.0](https://github.com/chu-shen/BangumiKomga/compare/v0.8.3...v0.9.0) (2024-12-27)
 
-
 ### Features
 
 * 单册匹配时支持罗马数字 ([2c2651b](https://github.com/chu-shen/BangumiKomga/commit/2c2651b9de220b271c5c3993bd094cf1b62d0351)), closes [#26](https://github.com/chu-shen/BangumiKomga/issues/26)
 * 单册支持 cbl ([96875a2](https://github.com/chu-shen/BangumiKomga/commit/96875a2b19c3203df4e5239fb2317e3222f589d6))
-
 
 ### Bug Fixes
 
 * 移除同步阅读进度中的`FORCE_REFRESH_LIST`配置 ([69ff03a](https://github.com/chu-shen/BangumiKomga/commit/69ff03ae76bc39a006844e829a2a58a15cd96c88))
 
 ## [0.8.3](https://github.com/chu-shen/BangumiKomga/compare/v0.8.2...v0.8.3) (2024-10-17)
-
 
 ### Bug Fixes
 
@@ -228,20 +201,17 @@
 
 ## [0.8.2](https://github.com/chu-shen/BangumiKomga/compare/v0.8.1...v0.8.2) (2024-10-17)
 
-
 ### Bug Fixes
 
 * 不刮削无序号单行本 ([08d47fe](https://github.com/chu-shen/BangumiKomga/commit/08d47fe42a79b2597b8f822450490d92b169a138))
 
 ## [0.8.1](https://github.com/chu-shen/BangumiKomga/compare/v0.8.0...v0.8.1) (2024-10-17)
 
-
 ### Documentation
 
 * update installation guide ([0fd61e0](https://github.com/chu-shen/BangumiKomga/commit/0fd61e0b2df6f6fb7cd7f23c18cf0ae07a937997))
 
 ## [0.8.0](https://github.com/chu-shen/BangumiKomga/compare/v0.7.0...v0.8.0) (2024-10-17)
-
 
 ### Features
 
@@ -250,16 +220,13 @@
 
 ## [0.7.0](https://github.com/chu-shen/BangumiKomga/compare/v0.6.0...v0.7.0) (2024-10-15)
 
-
 ### Features
 
 * support get vol or chap number ([cba4e49](https://github.com/chu-shen/BangumiKomga/commit/cba4e495797f5e82e3f69e108740856d8a71c2e5))
 
-
 ### Performance Improvements
 
 * 不再重复读取人名文件 ([f9bc723](https://github.com/chu-shen/BangumiKomga/commit/f9bc72345a3d411307b74be8b5553dfce52fd8a4))
-
 
 ### Documentation
 
@@ -267,28 +234,23 @@
 
 ## [0.6.0](https://github.com/chu-shen/BangumiKomga/compare/v0.5.0...v0.6.0) (2024-07-01)
 
-
 ### Features
 
 * 支持更新元数据时替换单册封面 ([d31a0b7](https://github.com/chu-shen/BangumiKomga/commit/d31a0b7fa6f5e05591c2ee6082026a28b1b25684))
 
 ## [0.5.0](https://github.com/chu-shen/BangumiKomga/compare/v0.4.1...v0.5.0) (2024-06-02)
 
-
 ### Features
 
 * 支持更新元数据时替换系列封面 ([02b853f](https://github.com/chu-shen/BangumiKomga/commit/02b853f88773f1e52c83f942219ba84fa310ed92))
-
 
 ### Bug Fixes
 
 * 上传封面前先检测是否已有海报 ([ebc429c](https://github.com/chu-shen/BangumiKomga/commit/ebc429c8d1b4755d2fb0615be68578bbf69f803d))
 
-
 ### Performance Improvements
 
 * 调整代码，改为使用 Session ([5292861](https://github.com/chu-shen/BangumiKomga/commit/529286169a6ceb4f564eb248ec706f9aba204fc5))
-
 
 ### Documentation
 
@@ -296,11 +258,9 @@
 
 ## [0.4.1](https://github.com/chu-shen/BangumiKomga/compare/v0.4.0...v0.4.1) (2024-06-01)
 
-
 ### Bug Fixes
 
 * 一次性获取 komga 所有系列 ([ee1adc0](https://github.com/chu-shen/BangumiKomga/commit/ee1adc06d410c0c677b177c286e2f2bde5bc9819))
-
 
 ### Documentation
 
@@ -308,18 +268,15 @@
 
 ## 0.4.0 (2023-07-07)
 
-
 ### Features
 
 * 新增komga收藏的新增、删除、搜索函数 ([d3556e5](https://github.com/chu-shen/BangumiKomga/commit/d3556e515d78f9af6aebda42cfa7e5122f4e09d8))
 * 新增通知功能 ([0eddf3f](https://github.com/chu-shen/BangumiKomga/commit/0eddf3f31e6a7701e57fc703b6f2b5f665b3d584))
 
-
 ### Bug Fixes
 
 * 修复收藏搜索与删除逻辑 ([fe95d98](https://github.com/chu-shen/BangumiKomga/commit/fe95d987ae3b5d339c33d3ab698ce140c73cd3a6))
 * 繁转简后再执行bangumi查询 ([9af7438](https://github.com/chu-shen/BangumiKomga/commit/9af7438da192d988f1c32d3a25d84a8f35fe7483))
-
 
 ### Documentation
 

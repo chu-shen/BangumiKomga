@@ -46,10 +46,30 @@ class IndexedDataReader:
         self.index_path = f"{dataFilePath}.index"
         self.index = self._load_index()
 
+    def _get_archive_update_timestamp(self) -> str:
+        """获取 Archive 的更新时间戳，用于对比索引是否过期"""
+        try:
+            data_dir = os.path.dirname(self.file_path)
+            archive_update_time_path = os.path.join(
+                data_dir, "archive_update_time.json")
+            with open(archive_update_time_path, 'r', encoding='utf-8') as f:
+                update_data = json.load(f)
+                last_updated = update_data.get("last_updated")
+                if isinstance(last_updated, str) and last_updated:
+                    return last_updated
+        except (json.JSONDecodeError, TypeError, FileNotFoundError):
+            pass  # 忽略错误，使用文件修改时间
+        # 默认使用数据文件的修改时间
+        return datetime.fromtimestamp(
+            os.path.getmtime(self.file_path),
+            datetime.timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
     def _load_index(self):
         """自动判断索引过期并重建索引的索引加载器"""
         if not os.path.exists(self.file_path):
             raise FileNotFoundError(f"未找到 Archive 数据: {self.file_path}")
+
         if not os.path.exists(self.index_path):
             logger.error(f"未找到索引文件: {self.index_path}")
             return self._build_index()
@@ -73,17 +93,22 @@ class IndexedDataReader:
 
         try:
             with open(self.index_path, 'rb') as f:
-                index = pickle.load(f)
-            # 检查是否包含 index_timestamp
-            if "index_timestamp" not in index:
-                logger.warning(
-                    f"索引文件为缺少 index_timestamp 字段的旧版索引，尝试重建索引: {self.index_path}")
-                return self._build_index()
-            index_timestamp = index["index_timestamp"]
-            ref_timestamp = archive_update_timestamp if archive_update_timestamp is not None else \
-                datetime.fromtimestamp(os.path.getmtime(
-                    self.file_path), datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                package = pickle.load(f)
+            # 拆包
+            if not isinstance(package, dict):
+                raise ValueError("索引文件格式错误：不是字典")
 
+            if "index" not in package:
+                raise ValueError("索引文件缺少 'index' 字段，可能是旧格式")
+            index = package["index"]  # ← 这就是你要的纯业务索引！
+            index_timestamp = package.get("index_timestamp")
+            # 检查是否包含正确 index_timestamp
+            if not isinstance(index_timestamp, str) or not index_timestamp:
+                logger.warning(
+                    f"索引文件缺少有效 index_timestamp，将重建: {self.index_path}")
+                return self._build_index()
+
+            ref_timestamp = self._get_archive_update_timestamp()
             if ref_timestamp > index_timestamp:
                 logger.warning(
                     f"Archive 更新时间 ({ref_timestamp}) 晚于索引构建时间 ({index_timestamp})，尝试重建索引: {self.index_path}"
@@ -99,7 +124,7 @@ class IndexedDataReader:
             else:
                 logger.warning(f"索引版本或文件时间不匹配，将重建: {self.index_path}")
         except (pickle.UnpicklingError, EOFError) as e:
-            logger.error(f"索引文件损坏: {self.index_path}, 正在尝试重建......")
+            logger.error(f"索引文件损坏或格式错误: {self.index_path}, 正在尝试重建......")
         except Exception as e:
             logger.error(f"索引读取失败: {self.index_path}, {e}")
 
@@ -122,10 +147,7 @@ class IndexedDataReader:
             "name_cn_infobox": {},
             "aliases_infobox": {}
         }
-        # 添加元数据：索引构建时间戳, 使用 UTC ISO 8601 字符串记录索引构建时间
-        # 格式：YYYY-MM-DDTHH:MM:SSZ
-        index["index_timestamp"] = datetime.now(datetime.timezone.utc).strftime(
-            "%Y-%m-%dT%H:%M:%SZ")
+
         line_number = 0
         offset = 0
 
@@ -230,16 +252,20 @@ class IndexedDataReader:
             logger.error(f"构建索引时出错: {e}")
             raise
 
+        package = {
+            "index": index,  # 纯索引
+            "index_timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")  # 索引构建时间戳
+        }
         # 保存索引
         try:
             with open(self.index_path, 'wb') as f:
-                pickle.dump(index, f, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(package, f, protocol=pickle.HIGHEST_PROTOCOL)
             logger.info(
                 f"索引构建完成，共 {line_number} 行，已保存至: {self.index_path}，大小: {os.path.getsize(self.index_path) / 1024 / 1024:.1f} MB")
         except Exception as e:
             logger.error(f"保存索引失败: {e}")
             raise
-
+        # 返回纯索引
         return index
 
     def _get_lines_by_offsets(self, offsets: List[int]) -> List[dict]:

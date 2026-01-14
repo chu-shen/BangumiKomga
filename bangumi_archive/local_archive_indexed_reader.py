@@ -3,7 +3,7 @@ import os
 import pickle
 import re
 import mmap
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Lock
 from typing import Dict, List, Union
 from tools.log import logger
@@ -59,10 +59,9 @@ class IndexedDataReader:
                     return last_updated
         except (json.JSONDecodeError, TypeError, FileNotFoundError):
             pass  # 忽略错误，使用文件修改时间
-        # 默认使用数据文件的修改时间
+        # 返回 Archive 数据的修改时间
         return datetime.fromtimestamp(
-            os.path.getmtime(self.file_path),
-            datetime.timezone.utc
+            os.path.getmtime(self.file_path), tz=timezone.utc
         ).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def _load_index(self):

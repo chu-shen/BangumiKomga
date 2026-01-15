@@ -20,6 +20,22 @@ from functools import lru_cache
 from tools.log import logger
 from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
 
+
+# 捕获线程内未处理异常，记录堆栈以便排查静默退出
+try:
+    def _thread_exc_handler(args):
+        try:
+            thread_name = getattr(args.thread, "name", "<unknown>")
+            logger.exception(f"线程未捕获异常: {thread_name}", exc_info=(
+                args.exc_type, args.exc_value, args.exc_traceback))
+        except Exception:
+            logger.exception("线程异常处理器自身出错")
+
+    threading.excepthook = _thread_exc_handler
+except Exception:
+    # 在某些较老的 Python 版本上可能不存在 threading.excepthook
+    pass
+
 # 可配置的订阅事件类型
 RefreshEventType = ["SeriesAdded",
                     # 扫描库文件(深度)会触发全库系列的 `SeriesChanged` 事件, 需要结合CBL判断是否实际需要刷新
@@ -35,8 +51,6 @@ RefreshEventType = ["SeriesAdded",
                     # `BookImported` 我还没见过, 可能是我从来不用导入功能
                     # "BookImported"
                     ]
-# TODO: 修复已知bug
-# (等待复现方案) 观察到执行后有概率会自动退出，未输出错误信息
 
 
 class KomgaSseClient:
@@ -51,7 +65,10 @@ class KomgaSseClient:
         self.max_retries = retries
 
         # 连接状态管理
-        self.running = False
+        # 使用 Event 作为线程安全的停止信号
+        self._stop_event = threading.Event()
+        # 记录当前活动的 Response 对象（用于在 stop() 时关闭以解除阻塞）
+        self._current_response = None
         self.retry_count = 0
         self.delay = 1
 
@@ -140,42 +157,59 @@ class KomgaSseClient:
 
     def start(self):
         """启动 SSE 监听"""
-        if self.running:
+        # 如果已有线程在运行，跳过重复启动
+        if self.thread and self.thread.is_alive():
             return
-        # FIXME: 创建了一个普通线程（未设置 daemon）来执行 _connect() 方法
-        self.running = True
+        # 清除停止信号并启动线程
+        self._stop_event.clear()
         self.thread = Thread(target=self._connect)
         self.thread.start()
         self.on_open()
 
     def stop(self):
         """停止 SSE 监听"""
-        self.running = False
-        if self.thread:
-            self.thread.join()
-        # 释放 Session
-        self.session.close()
-        self.on_close()
+        # 设置停止信号，关闭当前 response 以解除可能的阻塞读取
+        self._stop_event.set()
+        try:
+            if self._current_response is not None:
+                try:
+                    self._current_response.close()
+                except Exception:
+                    pass
+        finally:
+            # 等待线程退出
+            if self.thread:
+                self.thread.join(timeout=5)
+            # 释放 Session
+            try:
+                self.session.close()
+            except Exception:
+                pass
+            self.on_close()
 
     def _connect(self):
         """建立 SSE 连接"""
         retry_count = 0
-        while self.running:
+        while not self._stop_event.is_set():
             try:
-                with self.session.get(self.url,
-                                      stream=True,
-                                      timeout=self.timeout) as response:
+                response = self.session.get(
+                    self.url,
+                    stream=True,
+                    timeout=self.timeout
+                )
+                # 保留当前 response 以便外部 stop() 可关闭
+                self._current_response = response
+                with response:
                     if response.status_code != 200:
-                        self.on_error(
+                        # 将非200视为连接错误，触发重连逻辑
+                        raise requests.exceptions.RequestException(
                             f"Komga SSE 连接失败, HTTP {response.status_code}: {response.reason}")
-                        return
 
                     self.on_open()
                     self._process_stream(response)
                     retry_count = 0  # 成功后重置重试计数
-
             except Exception as e:
-                logger.error(f"Komga SSE 连接出错: {e}")
+                logger.error(f"Komga SSE 连接出错: {e}", exc_info=True)
                 self.on_error(e)
                 retry_count += 1
                 # 应用层自动重连, 重试self.max_retries次
@@ -188,6 +222,12 @@ class KomgaSseClient:
                 logger.info(f"将在 {delay} 秒后尝试重连...")
                 time.sleep(delay)
                 self.on_retry()
+            finally:
+                # 无论如何都清理当前 response 引用，确保 stop() 后能释放资源
+                try:
+                    self._current_response = None
+                except Exception:
+                    pass
 
     def _parse_message_line(self, line, current_event, current_data):
         """事件行消息解析器"""
@@ -217,7 +257,7 @@ class KomgaSseClient:
             # iter_lines() 没有线程安全, 应配合 self.running 使用
             # https://tedboy.github.io/requests/generated/generated/requests.Response.iter_lines.html
             for line in response.iter_lines(decode_unicode=True):
-                if not self.running:
+                if self._stop_event.is_set():
                     break
                 try:
                     # 非空行
@@ -307,6 +347,17 @@ class KomgaSseApi:
         self.series_locks = {}
         # 程序退出时自动调用
         atexit.register(self._stop_client)
+        # 启动 supervisor 以监控 sse_client 线程并在异常退出时有限次重启
+        self._supervisor_stop = threading.Event()
+        self._restart_attempts = 0
+        self._restart_window_start = None
+        self._supervisor_thread = None
+        try:
+            self._supervisor_thread = Thread(
+                target=self._supervise, name="SSE_Supervisor", daemon=True)
+            self._supervisor_thread.start()
+        except Exception:
+            logger.exception("启动 supervisor 线程失败")
 
     def _start_sse_thread(self):
         """确保 SSE 线程唯一且安全启动"""
@@ -331,9 +382,45 @@ class KomgaSseApi:
             logger.error(f"启动SSE客户端失败: {e}")
             self.sse_client.stop()
 
+    def _supervise(self):
+        """监督 SSE 客户端线程，发现非预期退出时有限次重启"""
+        MAX_ATTEMPTS = 5
+        WINDOW_SECONDS = 600
+        CHECK_INTERVAL = 10
+        while not self._supervisor_stop.is_set():
+            try:
+                client_thread = getattr(self.sse_client, 'thread', None)
+                client_stopped = getattr(self.sse_client, '_stop_event', None)
+                stopped = False
+                if client_stopped is not None and client_stopped.is_set():
+                    stopped = True
+                if (client_thread is None or not client_thread.is_alive()) and not stopped:
+                    now = time.time()
+                    if self._restart_window_start is None or now - self._restart_window_start > WINDOW_SECONDS:
+                        self._restart_window_start = now
+                        self._restart_attempts = 0
+                    if self._restart_attempts < MAX_ATTEMPTS:
+                        logger.warning(
+                            "检测到 SSE 客户端线程异常退出，尝试重启（attempt %s）", self._restart_attempts + 1)
+                        try:
+                            self._restart_attempts += 1
+                            self._restart_sse_client()
+                        except Exception:
+                            logger.exception("重启 SSE 客户端时出错")
+                    else:
+                        logger.critical("SSE 客户端在窗口期内重启次数过多，停止尝试并等待人工干预")
+                        break
+                time.sleep(CHECK_INTERVAL)
+            except Exception:
+                logger.exception("监督线程异常")
+                time.sleep(CHECK_INTERVAL)
+
     def _stop_client(self):
-        # 停止 SSE 客户端
-        self.sse_client.running = False
+        # 停止 SSE 客户端（使用其 stop() 方法保证资源被正确释放）
+        try:
+            self.sse_client.stop()
+        except Exception:
+            logger.exception("停止 SSE 客户端时出错")
 
         # 等待SSE线程结束
         if self.sse_client.thread and self.sse_client.thread.is_alive():

@@ -47,6 +47,7 @@ def run_poll_service(archive_thread):
 def run_sse_service(archive_thread):
     """运行SSE服务"""
     # 启动主服务线程
+    # FIXME: 目前SSE服务的守护线程在所有非守护线程退出后会被强制终止
     service_thread = threading.Thread(
         target=sse_service, daemon=True, name="SSEService"
     )
@@ -58,6 +59,7 @@ def run_sse_service(archive_thread):
 
 def run_once_service():
     """运行一次性服务"""
+    # FIXME: 目前一次性服务未实现完整功能
     pass
 
 

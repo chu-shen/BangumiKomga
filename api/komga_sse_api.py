@@ -422,8 +422,29 @@ class KomgaSseApi:
         if self.sse_client.thread and self.sse_client.thread.is_alive():
             self.sse_client.thread.join(timeout=5)
 
+        # 停止 supervisor
+        try:
+            if getattr(self, '_supervisor_stop', None) is not None:
+                self._supervisor_stop.set()
+            if getattr(self, '_supervisor_thread', None) and self._supervisor_thread.is_alive():
+                self._supervisor_thread.join(timeout=2)
+        except Exception:
+            logger.exception("停止 supervisor 线程时出错")
+
         # 关闭线程池
-        self.executor.shutdown(wait=True)
+        # 先尝试非阻塞关闭，再等待有限时间
+        self.executor.shutdown(wait=False)
+        # 等待最多5秒让任务完成
+        try:
+            # Python 3.9+ 支持 timeout 参数
+            if hasattr(self.executor, 'shutdown') and 'timeout' in self.executor.shutdown.__code__.co_varnames:
+                self.executor.shutdown(wait=True, timeout=5)
+            else:
+                # 降级处理：等待所有任务完成（阻塞直到完成或手动中断）
+                self.executor.shutdown(wait=True)
+        except Exception:
+            logger.warning(
+                "ThreadPoolExecutor 关闭超时，可能存在长时间运行的任务", exc_info=True)
         logger.info("SSE 客户端和线程池已关闭")
 
     def register_series_update_callback(self, callback):
@@ -459,8 +480,18 @@ class KomgaSseApi:
                     # 更新时间戳并执行刷新
                     self.series_refresh_history[series_id] = now
                     # 提交任务到线程池
-                    self.executor.submit(callback, series_info)
+                    future = self.executor.submit(callback, series_info)
+                    # 添加回调以记录任务完成或异常
+
+                    def _log_result(future):
+                        try:
+                            future.result()
+                        except Exception as e:
+                            logger.exception(
+                                "回调任务执行异常: %s", callback.__name__, exc_info=True)
+                    future.add_done_callback(_log_result)
                 except Exception as e:
+                    logger.exception("提交回调任务时出错", exc_info=True)
                     self.on_error(e)
 
     def _restart_sse_client(self):

@@ -126,7 +126,7 @@ class KomgaSseClient:
             # 防止取不到response.status_code
             except requests.exceptions.ConnectionError as e:
                 logger.error(
-                    f"Komga SSE 连接错误, HTTP {response.status_code}: {response.reason}")
+                    f"Komga SSE 连接错误, HTTP {response.status_code}: {response.reason}, 错误: {e}", exc_info=True)
                 return
             except Exception as e:
                 logger.error(f"Komga SSE 连接错误: {e}")
@@ -313,10 +313,9 @@ class KomgaSseApi:
         if self.sse_thread and self.sse_thread.is_alive():
             logger.warning("SSE 线程已运行，跳过重复启动")
             return
-        # FIXME: 启动的是一个守护线程
+        # 启动监督线程（非守护），由主程序负责生命周期
         self.sse_thread = Thread(
             target=self._start_client,
-            daemon=True,  # 设置为守护线程
             name="SSE_Client_Thread"
         )
         self.sse_thread.start()

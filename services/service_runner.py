@@ -36,7 +36,7 @@ def run_poll_service(archive_thread):
     """运行轮询服务"""
     # 启动主服务线程
     service_thread = threading.Thread(
-        target=poll_service, daemon=True, name="PollService"
+        target=poll_service, name="PollService"
     )
     service_thread.start()
 
@@ -49,7 +49,7 @@ def run_sse_service(archive_thread):
     # 启动主服务线程
     # FIXME: 目前SSE服务的守护线程在所有非守护线程退出后会被强制终止
     service_thread = threading.Thread(
-        target=sse_service, daemon=True, name="SSEService"
+        target=sse_service, name="SSEService"
     )
     service_thread.start()
 

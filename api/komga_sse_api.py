@@ -58,7 +58,7 @@ class KomgaSseClient:
         # 用于Debug的默认回调函数
         self.on_open = lambda: logger.info("成功连接 Komga SSE 服务端点")
         self.on_close = lambda: logger.info("正常关闭 Komga SSE 连接")
-        self.on_error = lambda err: logger.info(f"出现错误: {err}")
+        self.on_error = lambda err: logger.error(f"出现错误: {err}", exc_info=True)
         self.on_message = lambda msg: logger.info(f"SSE消息内容: {msg}")
         self.on_retry = lambda: logger.info("正在重连...")
         self.on_event = lambda event_type, data: logger.info(
@@ -142,7 +142,7 @@ class KomgaSseClient:
         """启动 SSE 监听"""
         if self.running:
             return
-
+        # FIXME: 创建了一个普通线程（未设置 daemon）来执行 _connect() 方法
         self.running = True
         self.thread = Thread(target=self._connect)
         self.thread.start()
@@ -244,7 +244,7 @@ class KomgaSseClient:
                 except Exception as e:
                     self.on_error(f"SSE 数据行 {line} 处理异常, {e}")
                     continue
-        except requests.exceptions.RequestException as re:
+        except requests.exceptions.RequestException as e:
             # 处理网络层异常（连接超时、断开等）
             self.on_error(f"读取 SSE 流数据时网络连接中断, {e}")
 
@@ -313,6 +313,7 @@ class KomgaSseApi:
         if self.sse_thread and self.sse_thread.is_alive():
             logger.warning("SSE 线程已运行，跳过重复启动")
             return
+        # FIXME: 启动的是一个守护线程
         self.sse_thread = Thread(
             target=self._start_client,
             daemon=True,  # 设置为守护线程

@@ -306,3 +306,39 @@ class TestErrorHandling(unittest.TestCase):
         with patch.object(self.client, 'on_error') as error_mock:
             self.client._process_stream(self.response_mock)
             self.assertTrue(error_mock.called)
+
+    def test_empty_data_handling(self):
+        """测试SSE Client - 空数据（心跳事件）处理"""
+        # 模拟心跳事件（空数据）
+        with patch.object(self.client, 'on_error') as error_mock:
+            with patch.object(self.client, 'on_event') as event_mock:
+                # 测试完全空字符串
+                self.client._dispatch_event("", "")
+                # 不应该触发错误或事件回调
+                self.assertFalse(error_mock.called)
+                self.assertFalse(event_mock.called)
+
+    def test_whitespace_data_handling(self):
+        """测试SSE Client - 空白数据处理"""
+        # 模拟只包含空白字符的数据
+        with patch.object(self.client, 'on_error') as error_mock:
+            with patch.object(self.client, 'on_event') as event_mock:
+                # 测试只有空格的数据
+                self.client._dispatch_event("", "   ")
+                # 不应该触发错误或事件回调
+                self.assertFalse(error_mock.called)
+                self.assertFalse(event_mock.called)
+
+    def test_valid_event_still_works(self):
+        """测试SSE Client - 确保正常事件仍能正常处理"""
+        # 确保修复后，正常的事件仍能被正确处理
+        valid_data = '{"seriesId": "test123", "libraryId": "lib1"}'
+        with patch.object(self.client, 'on_error') as error_mock:
+            with patch.object(self.client, 'on_event') as event_mock:
+                self.client._dispatch_event("SeriesAdded", valid_data)
+                # 不应该触发错误
+                self.assertFalse(error_mock.called)
+                # 应该触发事件回调
+                self.assertTrue(event_mock.called)
+                # 验证传递的数据是正确的
+                event_mock.assert_called_once_with("SeriesAdded", {"seriesId": "test123", "libraryId": "lib1"})

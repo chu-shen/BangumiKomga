@@ -4,6 +4,7 @@
 # ------------------------------------------------------------------
 
 
+import time
 import requests
 from tools.log import logger
 from requests.adapters import HTTPAdapter
@@ -377,8 +378,12 @@ class KomgaApi:
 
     def replace_collection(self, name, ordered, seriesIds):
         id = self.get_collection_id_by_search_name(name)
-        if id is None or self.delete_collection(id):
-            return self.add_collection(name, ordered, seriesIds)
+        if id is not None:
+            if not self.delete_collection(id):
+                logger.error(f"刪除 collection {name} 失敗")
+                return False
+            time.sleep(0.5)  # 等待刪除操作完全提交，避免 WAL 模式下的競態條件
+        return self.add_collection(name, ordered, seriesIds)
 
     def list_libraries(self) -> list:
         """

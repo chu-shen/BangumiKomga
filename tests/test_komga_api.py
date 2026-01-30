@@ -1,6 +1,5 @@
 import unittest
 from unittest.mock import Mock, patch, MagicMock
-import time
 from api.komga_api import KomgaApi
 
 
@@ -53,19 +52,18 @@ class TestKomgaApiReplaceCollection(unittest.TestCase):
         # Mock add_collection to return True
         self.api.add_collection = Mock(return_value=True)
         
-        # Measure time to verify sleep is called
-        start_time = time.time()
-        result = self.api.replace_collection("TestCollection", False, ["series1", "series2"])
-        elapsed_time = time.time() - start_time
-        
-        # Verify behavior
-        self.api.get_collection_id_by_search_name.assert_called_once_with("TestCollection")
-        self.api.delete_collection.assert_called_once_with("collection123")
-        self.api.add_collection.assert_called_once_with("TestCollection", False, ["series1", "series2"])
-        self.assertTrue(result)
-        
-        # Verify that sleep was called (elapsed time should be at least 0.5 seconds)
-        self.assertGreaterEqual(elapsed_time, 0.5)
+        # Mock time.sleep to verify it's called with correct duration
+        with patch('api.komga_api.time.sleep') as mock_sleep:
+            result = self.api.replace_collection("TestCollection", False, ["series1", "series2"])
+            
+            # Verify behavior
+            self.api.get_collection_id_by_search_name.assert_called_once_with("TestCollection")
+            self.api.delete_collection.assert_called_once_with("collection123")
+            self.api.add_collection.assert_called_once_with("TestCollection", False, ["series1", "series2"])
+            self.assertTrue(result)
+            
+            # Verify that sleep was called with 0.5 seconds
+            mock_sleep.assert_called_once_with(0.5)
 
     def test_replace_collection_when_deletion_fails(self):
         """测试替换现有收藏但删除失败 - 应该返回 False 且不创建新的"""

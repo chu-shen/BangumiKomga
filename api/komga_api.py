@@ -377,12 +377,25 @@ class KomgaApi:
         return response.status_code == 204
 
     def replace_collection(self, name, ordered, seriesIds):
+        """
+        替换收藏。如果同名收藏存在则先删除，然后创建新的收藏。
+        
+        注意：在 SQLite WAL 模式下，删除操作后会等待 0.5 秒以避免竞态条件。
+        
+        Args:
+            name: 收藏名称
+            ordered: 是否按顺序排列
+            seriesIds: 系列 ID 列表
+            
+        Returns:
+            bool: 成功返回 True，失败返回 False
+        """
         id = self.get_collection_id_by_search_name(name)
         if id is not None:
             if not self.delete_collection(id):
-                logger.error(f"刪除 collection {name} 失敗")
+                logger.error(f"删除 collection {name} 失败")
                 return False
-            time.sleep(0.5)  # 等待刪除操作完全提交，避免 WAL 模式下的競態條件
+            time.sleep(0.5)  # 等待删除操作完全提交，避免 WAL 模式下的竞态条件
         return self.add_collection(name, ordered, seriesIds)
 
     def list_libraries(self) -> list:

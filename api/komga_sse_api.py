@@ -255,6 +255,10 @@ class KomgaSseClient:
     def _dispatch_event(self, event_type, data):
         """分发事件到对应处理器"""
         try:
+            # 跳过空数据（心跳事件没有 data）
+            if not data or (isinstance(data, str) and not data.strip()):
+                return  # 忽略空事件数据
+            
             # 数据有效性验证
             if isinstance(data, str):
                 json_data = json.loads(data)

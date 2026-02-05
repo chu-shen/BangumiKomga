@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/chu-shen/BangumiKomga/compare/v0.19.0...v0.20.0) (2026-02-05)
+
+
+### Features
+
+* 加入索引跟随重建机制 ([#127](https://github.com/chu-shen/BangumiKomga/issues/127)) ([dafc457](https://github.com/chu-shen/BangumiKomga/commit/dafc457a806c9fcce6d928fde72ceef19862ebd5))
+
 ## [0.19.0](https://github.com/chu-shen/BangumiKomga/compare/v0.18.0...v0.19.0) (2025-12-17)
 
 

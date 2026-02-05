@@ -90,20 +90,6 @@ class IndexedDataReader:
         if os.path.getsize(self.index_path) == 0:
             logger.error(f"索引文件为空: {self.index_path}")
             return self._build_index()
-        archive_update_timestamp = None
-        # 尝试读取 archive_update_time.json 获取数据源更新时间
-        try:
-            data_dir = os.path.dirname(self.file_path)
-            archive_update_time_path = os.path.join(
-                data_dir, "archive_update_time.json")
-            with open(archive_update_time_path, 'r', encoding='utf-8') as f:
-                update_data = json.load(f)
-                last_updated = update_data.get("last_updated")
-                if isinstance(last_updated, str) and last_updated:
-                    archive_update_timestamp = last_updated
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.warning(
-                f"无法解析 {archive_update_time_path} : {e}")
 
         try:
             with open(self.index_path, 'rb') as f:

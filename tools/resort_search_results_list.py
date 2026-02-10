@@ -19,6 +19,8 @@ def compute_name_score_by_fuzzy(name: str, name_cn: str, infobox, target: str) -
                 score = max(score, fuzz.ratio(item["value"].lower(), target))
     return score
 
+# TODO: 加入对OneShot作品的支持
+
 
 def resort_search_list(query, results, threshold, is_novel=False):
     if len(results) < 1:

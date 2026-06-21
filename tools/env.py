@@ -1,9 +1,11 @@
+import logging
 from api.bangumi_api import BangumiDataSourceFactory
 import api.komga_api as komga_api
 from config.config import *
 import os
 import sqlite3
-from tools.log import logger
+
+logger = logging.getLogger(__name__)
 from config.configuration_generator import start_config_generate
 
 

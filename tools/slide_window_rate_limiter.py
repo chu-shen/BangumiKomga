@@ -1,7 +1,9 @@
+import logging
 import time
 from collections import deque
 from functools import wraps
-from tools.log import logger
+
+logger = logging.getLogger(__name__)
 
 
 class SlideWindowCounter:

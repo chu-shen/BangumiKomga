@@ -1,6 +1,8 @@
+import logging
 import re
 import json
-from tools.log import logger
+
+logger = logging.getLogger(__name__)
 from bangumi_archive.local_archive_indexed_reader import IndexedDataReader
 
 

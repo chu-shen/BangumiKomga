@@ -1,12 +1,13 @@
+import logging
 import threading
-import time
-from tools.log import logger
+
+logger = logging.getLogger(__name__)
 from config.config import USE_BANGUMI_ARCHIVE, ARCHIVE_UPDATE_INTERVAL
 from bangumi_archive.archive_autoupdater import check_archive
 
 
-def periodical_archive_check_service():
-    """守护线程执行定时检查"""
+def periodical_archive_check_service(stop_event=None):
+    """守护线程执行定时检查。接受 stop_event 以支持可中断等待。"""
     if not USE_BANGUMI_ARCHIVE:
         logger.debug("Bangumi Archive 未启用，跳过 Archive 检查服务")
         return None
@@ -15,10 +16,13 @@ def periodical_archive_check_service():
         logger.debug("ARCHIVE_UPDATE_INTERVAL 为 0，跳过定时检查线程创建")
         return None
 
+    if stop_event is None:
+        stop_event = threading.Event()
+
     def periodic_check():
         interval_seconds = parse_interval(hours=ARCHIVE_UPDATE_INTERVAL)
 
-        while True:
+        while not stop_event.is_set():
             try:
                 check_archive()
                 logger.info(
@@ -27,7 +31,9 @@ def periodical_archive_check_service():
             except Exception as e:
                 logger.error(f"定时检查异常: {e}")
 
-            time.sleep(interval_seconds)
+            # 用可中断的 wait 代替 time.sleep，响应停止信号
+            if stop_event.wait(interval_seconds):
+                break
 
     thread = threading.Thread(
         target=periodic_check, daemon=True, name="ArchiveUpdateChecker"

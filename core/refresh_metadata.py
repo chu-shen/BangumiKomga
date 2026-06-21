@@ -5,7 +5,9 @@ import core.process_metadata as process_metadata
 from time import strftime, localtime
 from tools.get_number import get_number, NumberType
 from tools.env import *
-from tools.log import logger
+import logging
+
+logger = logging.getLogger(__name__)
 from tools.notification import send_notification
 from tools.db import init_sqlite3, record_series_status, record_book_status
 from tools.cache_time import TimeCacheManager

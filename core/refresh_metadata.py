@@ -72,9 +72,13 @@ def refresh_metadata(series_list=None):
                         "SELECT subject_id FROM refreshed_series WHERE series_id=?",
                         (series_id,),
                     ).fetchone()[0]
-                    refresh_book_metadata(
-                        subject_id, series_id, force_refresh_flag)
-                    continue
+                    if series.get("oneshot", False):
+                        # One-Shot: re-fetch metadata to apply oneshot overrides
+                        metadata = bgm.get_subject_metadata(subject_id)
+                    else:
+                        refresh_book_metadata(
+                            subject_id, series_id, force_refresh_flag)
+                        continue
 
                 # recheck or skip failed series
                 elif series_record[2] == 0 and not RECHECK_FAILED_SERIES:
@@ -122,6 +126,11 @@ def refresh_metadata(series_list=None):
         komga_metadata = process_metadata.set_komga_series_metadata(
             metadata, series_name, bgm
         )
+
+        # One-Shot specific overrides
+        if series.get("oneshot", False):
+            komga_metadata.status = "ENDED"
+            komga_metadata.totalBookCount = 1
 
         if komga_metadata.isvalid == False:
             failed_count, failed_comic = record_series_status(
@@ -206,7 +215,14 @@ def refresh_metadata(series_list=None):
             )
             continue
 
-        refresh_book_metadata(subject_id, series_id, force_refresh_flag)
+        # One-Shot: 直接更新单本book; 非One-Shot: 刷新系列下所有书籍的元数据
+        if series.get("oneshot", False):
+            books = komga.get_series_books(series_id)
+            if books and books.get("content"):
+                book = books["content"][0]
+                update_book_metadata(book["id"], metadata, book["name"], 1)
+        else:
+            refresh_book_metadata(subject_id, series_id, force_refresh_flag)
 
     # 将匹配失败的系列加入收藏 FAILED_COLLECTION
     if CREATE_FAILED_COLLECTION:

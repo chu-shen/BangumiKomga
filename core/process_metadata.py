@@ -310,6 +310,22 @@ def set_komga_series_metadata(bangumi_metadata, manga_filename, bgm):
     return komga_series_metadata
 
 
+def set_oneshot_series_metadata(bangumi_metadata, manga_filename, bgm):
+    """
+    获取 One-Shot 漫画系列元数据
+
+    One-Shot 与普通系列的区别：
+    - 状态强制为 ENDED（单册完结）
+    - 总册数强制为 1
+    - 其他字段与普通系列处理一致
+    """
+    komga_metadata = set_komga_series_metadata(
+        bangumi_metadata, manga_filename, bgm)
+    komga_metadata.status = "ENDED"
+    komga_metadata.totalBookCount = 1
+    return komga_metadata
+
+
 def set_komga_book_metadata(subject_id, number, name, bgm):
     """
     获取漫画单册元数据

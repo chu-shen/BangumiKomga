@@ -1,6 +1,8 @@
 import re
 from zhconv import convert
 
+from corpus.vocabulary import ALL_VOCABULARY
+
 
 def read_corpus(file_path):
     """
@@ -87,53 +89,7 @@ class ParseTitle:
         self.corpus = read_corpus(
             "corpus/Japanese_Names_Corpus（18W）.txt"
         ) + read_corpus("corpus/bangumi_person.txt")
-        self.vocabulary = build_vocabulary(
-            [
-                # 漫画
-                "comic",
-                "comics",
-                "artbook",
-                "artbooks",
-                "漫画",
-                "全彩",
-                "全彩版",
-                "数码全彩",
-                # 部分漫画存在单独的典藏版、爱藏版条目，暂时屏蔽
-                # "典藏版",
-                # "爱藏版",
-                "日版",
-                "港版",
-                "台版",
-                "bili",
-                "B漫",
-                "汉化",
-                "简中",
-                "繁中",
-                "尖端",
-                "东立",
-                "東立",
-                "东贩",
-                "東販",
-                "玉皇朝",
-                "天下",
-                "青文",
-                "长鸿",
-                "角川",
-                "文传",
-                "文傳",
-                "時報",
-                # 小说
-                "轻小说",
-                "小说",
-                "小說",
-                "epub",
-                "短篇",
-                "未完",
-                "完结",
-                "特典",
-                "番外",
-            ]
-        )
+        self.vocabulary = build_vocabulary(ALL_VOCABULARY)
 
     def get_title(self, title):
         """

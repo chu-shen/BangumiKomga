@@ -1,7 +1,10 @@
 import unittest
 from unittest.mock import patch, Mock
 import requests
-from tools.log import logger
+import logging
+
+logger = logging.getLogger(__name__)
+
 from tools.notification import send_notification
 
 

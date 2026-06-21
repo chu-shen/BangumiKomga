@@ -4,9 +4,11 @@
 # ------------------------------------------------------------------
 
 
+import logging
 import requests
-from tools.log import logger
 from requests.adapters import HTTPAdapter
+
+logger = logging.getLogger(__name__)
 
 
 class KomgaApi:
@@ -383,9 +385,31 @@ class KomgaApi:
         # return True if the status code indicates success, False otherwise
         return response.status_code == 204
 
+    def update_collection(self, id, ordered, seriesIds):
+        """
+        update existing collection by id.
+        https://komga.org/docs/openapi/patch-collection-by-id
+        """
+        try:
+            response = self.r.patch(
+                f"{self.base_url}/collections/{id}",
+                json={"ordered": ordered, "seriesIds": seriesIds},
+            )
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"出现错误: {e}")
+            return False
+        # return True if the status code indicates success, False otherwise
+        return response.status_code == 204
+
     def replace_collection(self, name, ordered, seriesIds):
+        """
+        替换收藏：已存在则 PATCH 更新，不存在则 POST 创建。
+        """
         id = self.get_collection_id_by_search_name(name)
-        if id is None or self.delete_collection(id):
+        if id:
+            return self.update_collection(id, ordered, seriesIds)
+        else:
             return self.add_collection(name, ordered, seriesIds)
 
     def list_libraries(self) -> list:

@@ -8,3 +8,4 @@ __pycache__/
 .coverage
 test_results/
 *.generated.py
+logs/*

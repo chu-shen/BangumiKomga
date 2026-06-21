@@ -1,7 +1,5 @@
 import threading
 import time
-import os
-import sqlite3
 from tools.log import logger
 from config.config import (
     BANGUMI_KOMGA_SERVICE_POLL_INTERVAL,
@@ -10,81 +8,74 @@ from config.config import (
 from core.refresh_metadata import refresh_metadata, refresh_partial_metadata
 
 
-class PollingCaller:
-    def __init__(self):
-        self.is_refreshing = False
-        self.interval = BANGUMI_KOMGA_SERVICE_POLL_INTERVAL
-        # 多少次轮询后执行一次全量刷新
-        self.refresh_all_metadata_interval = (
-            BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL
+class PollManager:
+    """轮询管理器 — 单层 daemon 线程，用 stop_event 控制生命周期"""
+
+    def __init__(self, stop_event, poll_interval=None, full_refresh_interval=None):
+        self._stop_event = stop_event
+        self._poll_interval = poll_interval or BANGUMI_KOMGA_SERVICE_POLL_INTERVAL
+        self._full_refresh_interval = (
+            full_refresh_interval
+            or BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL
         )
-        self.refresh_counter = 0
-        # 添加锁对象
-        self.lock = threading.Lock()
+        self._thread = None
+        self._refresh_lock = threading.Lock()
+        self._refresh_counter = 0
+
+    def start(self):
+        """启动轮询线程"""
+        if self._thread and self._thread.is_alive():
+            logger.warning("PollManager 已在运行")
+            return
+        self._thread = threading.Thread(
+            target=self._run, daemon=True, name="PollManager"
+        )
+        self._thread.start()
+        logger.info("PollManager 已启动 (间隔=%ds, 全量刷新间隔=%d次)",
+                     self._poll_interval, self._full_refresh_interval)
+
+    def stop(self):
+        """停止轮询"""
+        self._stop_event.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=30)
+        logger.info("PollManager 已停止")
+
+    def _run(self):
+        """轮询主循环"""
+        while not self._stop_event.is_set():
+            try:
+                if self._refresh_counter >= self._full_refresh_interval:
+                    self._safe_refresh(refresh_metadata)
+                    self._refresh_counter = 0
+                else:
+                    self._safe_refresh(refresh_partial_metadata)
+                self._refresh_counter += 1
+            except Exception:
+                logger.exception("轮询循环异常")
+
+            # 用可中断的 wait 代替 time.sleep
+            self._stop_event.wait(self._poll_interval)
 
     def _safe_refresh(self, refresh_func):
-        """
-        封装安全刷新操作
-        """
-        with self.lock:
-            if self.is_refreshing:
-                logger.warning("已有元数据刷新任务在运行")
-                return False
-            self.is_refreshing = True
-
+        """加锁保护，防止并发刷新"""
+        if not self._refresh_lock.acquire(blocking=False):
+            logger.warning("上一轮刷新尚未完成，跳过本次")
+            return
         try:
             refresh_func()
-            return True
-        except Exception as e:
-            logger.error(f"刷新失败: {str(e)}", exc_info=True)
-            return False
+        except Exception:
+            logger.exception("刷新失败")
         finally:
-            with self.lock:
-                self.is_refreshing = False
-
-    def start_polling(self):
-        """
-        启动服务
-        """
-
-        def poll():
-            # 执行定时轮询
-            while True:
-                try:
-                    # 定时全量刷新
-                    if self.refresh_counter >= self.refresh_all_metadata_interval:
-                        success = self._safe_refresh(refresh_metadata)
-                        self.refresh_counter = 0
-                    else:
-                        success = self._safe_refresh(refresh_partial_metadata)
-                    # 更新计数器和间隔
-                    if not success:
-                        retry_delay = min(2**self.interval, 60)
-                        time.sleep(retry_delay)
-
-                    self.refresh_counter += 1
-                    # 等待一个预设时间间隔
-                    time.sleep(self.interval)
-
-                except Exception as e:
-                    logger.error(f"轮询失败: {str(e)}", exc_info=True)
-                    # 指数退避重试
-                    retry_delay = min(2**self.interval, 60)
-                    # 固定值重试
-                    # retry_delay = self.interval
-                    logger.warning(f"{retry_delay}秒后重试...")
-                    time.sleep(retry_delay)
-                    continue
-
-        # 使用守护线程启动轮询
-        threading.Thread(target=poll, daemon=True).start()
-
+            self._refresh_lock.release()
 
 def poll_service():
-    PollingCaller().start_polling()
-
-    # 防止服务主线程退出
+    """@deprecated: 使用 PollManager 代替"""
+    logger.warning("poll_service() 已废弃，请使用 PollManager")
+    mgr = PollManager(threading.Event())
+    mgr.start()
     try:
         threading.Event().wait()
     except KeyboardInterrupt:
-        logger.warning("服务手动终止: 退出 BangumiKomga 服务")
+        logger.warning("服务手动终止")
+

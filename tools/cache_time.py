@@ -1,7 +1,9 @@
+import logging
 import json
 from datetime import datetime, timedelta
 from typing import Optional
-from tools.log import logger
+
+logger = logging.getLogger(__name__)
 
 
 class TimeCacheManager:

@@ -1,7 +1,9 @@
+import logging
 import json
 import requests
 from config.config import *
-from tools.log import logger
+
+logger = logging.getLogger(__name__)
 
 
 def send_notification(title, message):

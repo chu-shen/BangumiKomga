@@ -255,6 +255,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
+            return False
         # return True if the status code indicates success, False otherwise
         return response.status_code == 204
 
@@ -270,10 +271,11 @@ class KomgaApi:
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            if response.status_code == 413:
+            if e.response is not None and e.response.status_code == 413:
                 logger.error("缩略图过大，无法上传")
             else:
                 logger.error(f"出现错误: {e}")
+            return False
         # return True if the status code indicates success, False otherwise
         return response.status_code == 200
 
@@ -291,6 +293,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
+            return False
         # return True if the status code indicates success, False otherwise
         return response.status_code == 204
 
@@ -307,6 +310,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
+            return False
         # return True if the status code indicates success, False otherwise
         return response.status_code == 200
 
@@ -323,6 +327,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
+            return False
         # return True if the status code indicates success, False otherwise
         return response.status_code == 200
 
@@ -336,6 +341,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
+            return None
         collection = response.json()["content"]
         if collection:
             return collection[0]["id"]
@@ -357,6 +363,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
+            return None
         seriesIds = response.json()["seriesIds"]
         if seriesIds:
             return seriesIds
@@ -372,6 +379,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
+            return False
         # return True if the status code indicates success, False otherwise
         return response.status_code == 204
 
@@ -389,6 +397,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
+            return []
         results = response.json()
         if results:
             return results
@@ -405,6 +414,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
+            return []
         results = response.json()["content"]
         if results:
             return results

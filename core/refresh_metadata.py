@@ -365,7 +365,7 @@ def refresh_partial_metadata():
     if KOMGA_LIBRARY_LIST:
         for libray_item in KOMGA_LIBRARY_LIST:
             series_list = _filter_new_modified_series(
-                libray_item["LIBRARY"])["content"]
+                libray_item["LIBRARY"])
             for series in series_list:
                 series["is_novel"] = libray_item["IS_NOVEL_ONLY"]
             recent_modified_series.extend(series_list)

@@ -54,6 +54,13 @@ class TestFileIntegrityVerifier(unittest.TestCase):
             f.write(os.urandom(100))
         self.assertFalse(file_integrity_verifier(zip_path))
 
+    def test_zip_unreadable(self):
+        """测试archive文件自动更新器 - 损坏到无法读取的ZIP文件"""
+        bad_zip_path = os.path.join(self.temp_dir.name, "bad.zip")
+        with open(bad_zip_path, "wb") as f:
+            f.write(b"this is not a zip file at all")
+        self.assertFalse(file_integrity_verifier(bad_zip_path))
+
     def tearDown(self):
         self.temp_dir.cleanup()
 
@@ -89,11 +96,21 @@ class TestGetLatestInfo(unittest.TestCase):
     @patch("requests.get")
     def test_json_decode_error(self, mock_get):
         """测试archive文件自动更新器 - 获取的json解析异常"""
+        import json as json_mod
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.side_effect = ValueError("Invalid JSON")
+        mock_response.json.side_effect = json_mod.JSONDecodeError("Bad", "x", 0)
         mock_get.return_value = mock_response
 
+        url, time, size = get_latest_url_update_time_and_size()
+        self.assertEqual(url, "")
+        self.assertEqual(time, "")
+        self.assertEqual(size, "")
+
+    @patch("requests.get")
+    def test_generic_exception(self, mock_get):
+        """测试archive文件自动更新器 - 获取信息时未知异常"""
+        mock_get.side_effect = OSError("Disk full")
         url, time, size = get_latest_url_update_time_and_size()
         self.assertEqual(url, "")
         self.assertEqual(time, "")
@@ -173,7 +190,6 @@ class TestCheckArchive(unittest.TestCase):
         mock_get.return_value = ("url", "2023-10-01T12:00:00Z", 1024)
         mock_read.return_value = "2023-09-01T12:00:00Z"
         mock_conv.side_effect = lambda x: x
-
         mock_update.return_value = True
 
         check_archive()
@@ -185,13 +201,36 @@ class TestCheckArchive(unittest.TestCase):
     @patch("bangumi_archive.archive_autoupdater.TimeCacheManager.read_time")
     @patch("bangumi_archive.archive_autoupdater.TimeCacheManager.convert_to_datetime")
     def test_local_newer(self, mock_conv, mock_read, mock_get):
-        """测试archive文件自动更新器 - 发现没有archive更新"""
+        """测试archive文件自动更新器 - 本地已是最新，无需更新"""
         mock_get.return_value = ("url", "2023-09-01T12:00:00Z", 1024)
         mock_read.return_value = "2023-10-01T12:00:00Z"
         mock_conv.side_effect = lambda x: x
 
         check_archive()
-        # 验证 update_archive 未被调用
+        # 验证 update_archive 未被调用 — local_newer 路径
+
+    @patch("bangumi_archive.archive_autoupdater.get_latest_url_update_time_and_size")
+    @patch("bangumi_archive.archive_autoupdater.TimeCacheManager.read_time")
+    @patch("bangumi_archive.archive_autoupdater.TimeCacheManager.convert_to_datetime")
+    @patch("bangumi_archive.archive_autoupdater.update_archive")
+    def test_remote_newer_but_update_fails(self, mock_update, mock_conv, mock_read, mock_get):
+        """测试archive文件自动更新器 - 远程更新但下载失败"""
+        mock_get.return_value = ("url", "2023-10-01T12:00:00Z", 1024)
+        mock_read.return_value = "2023-09-01T12:00:00Z"
+        mock_conv.side_effect = lambda x: x
+        mock_update.return_value = False
+
+        check_archive()
+        mock_update.assert_called_once()
+        # update_index 和 save_time 不应被调用
+
+    @patch("bangumi_archive.archive_autoupdater.get_latest_url_update_time_and_size")
+    def test_no_download_url(self, mock_get):
+        """测试archive文件自动更新器 - 无法获取下载链接直接跳过"""
+        mock_get.return_value = ("", "", "")
+
+        check_archive()
+        # 不应崩溃，直接 return
 
 
 class TestUpdateIndex(unittest.TestCase):

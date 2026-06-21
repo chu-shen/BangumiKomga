@@ -1,6 +1,8 @@
+import logging
 import threading
 import time
-from tools.log import logger
+
+logger = logging.getLogger(__name__)
 from config.config import (
     BANGUMI_KOMGA_SERVICE_POLL_INTERVAL,
     BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL,

@@ -1,6 +1,8 @@
+import logging
 import threading
 import signal
-from tools.log import logger
+
+logger = logging.getLogger(__name__)
 from config.config import BANGUMI_KOMGA_SERVICE_TYPE
 from core.refresh_metadata import refresh_metadata
 from bangumi_archive.periodic_archive_checker import periodical_archive_check_service
@@ -44,7 +46,7 @@ def _run_once_mode():
     # 同步执行 Archive 检查 (不再用 daemon 线程，防止被提前杀死)
     archive_thread = periodical_archive_check_service()
     if archive_thread is not None:
-        archive_thread.join(timeout=600)  # 最多等 10 分钟
+        archive_thread.join(timeout=1200)  # 最多等 20 分钟，照顾低速网络
 
     logger.info("once 模式执行完毕")
 
@@ -55,8 +57,8 @@ def _run_once_mode():
 def _run_poll_mode():
     stop_event = threading.Event()
 
-    # 启动 Archive 定时检查
-    archive_thread = periodical_archive_check_service()
+    # 启动 Archive 定时检查 (传入 stop_event，支持可中断等待)
+    archive_thread = periodical_archive_check_service(stop_event)
 
     # 启动轮询管理器 (单层 daemon 线程)
     poll_mgr = PollManager(stop_event)
@@ -74,7 +76,9 @@ def _run_poll_mode():
     logger.info("正在停止服务...")
     poll_mgr.stop()
     if archive_thread is not None:
-        archive_thread.join(timeout=10)
+        archive_thread.join(timeout=60)
+        if archive_thread.is_alive():
+            logger.warning("Archive 检查线程未能及时停止，将被强制终止")
     logger.info("BangumiKomga 服务已停止")
 
 
@@ -84,8 +88,8 @@ def _run_poll_mode():
 def _run_sse_mode():
     stop_event = threading.Event()
 
-    # 启动 Archive 定时检查
-    archive_thread = periodical_archive_check_service()
+    # 启动 Archive 定时检查 (传入 stop_event，支持可中断等待)
+    archive_thread = periodical_archive_check_service(stop_event)
 
     # 启动 SSE 管理器 (单层 daemon 线程，内部管理 KomgaSseApi 生命周期)
     sse_mgr = SseManager(stop_event)
@@ -103,7 +107,9 @@ def _run_sse_mode():
     logger.info("正在停止服务...")
     sse_mgr.stop()
     if archive_thread is not None:
-        archive_thread.join(timeout=10)
+        archive_thread.join(timeout=60)
+        if archive_thread.is_alive():
+            logger.warning("Archive 检查线程未能及时停止，将被强制终止")
     logger.info("BangumiKomga 服务已停止")
 
 

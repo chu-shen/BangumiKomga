@@ -23,9 +23,9 @@ jobs:
       - name: Prepare ENV
         run: |
           pip3 install -r install/requirements.txt
-          mkdir -p logs
-          mkdir -p archivedata
-          echo "INFO: Test log content" > logs/refreshMetadata.log      
+          mkdir -p data/logs
+          mkdir -p data/archivedata
+          echo "INFO: Test log content" > data/logs/refreshMetadata.log      
       
       - name: Generate config schema
         run: |

@@ -17,7 +17,7 @@ formatter = logging.Formatter(
 )
 
 fh = RotatingFileHandler(
-    filename="logs/refreshMetadata.log",
+    filename="data/logs/refreshMetadata.log",
     maxBytes=10000000,
     backupCount=9,
     encoding="utf-8",

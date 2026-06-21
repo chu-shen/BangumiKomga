@@ -1,4 +1,3 @@
-import os
 import sqlite3
 from time import strftime, localtime
 from tools.log import logger
@@ -51,19 +50,8 @@ def upsert_book_record(conn, book_id, subject_id, update_success, book_name):
 
 
 def init_sqlite3():
-    db_path = "recordsRefreshed.db"
-    # If Docker bind mount created a directory in place of the file,
-    # remove it so sqlite3 can create the database normally.
-    # See: https://github.com/chu-shen/BangumiKomga/issues/139
-    if os.path.isdir(db_path):
-        logger.warning(
-            "'%s' is a directory, removing it to create the database file. "
-            "This happens when Docker bind mount auto-creates a missing source path.",
-            db_path,
-        )
-        os.rmdir(db_path)
     # Create a connection to the sqlite database
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn = sqlite3.connect("data/recordsRefreshed.db", check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS refreshed_series (series_id text primary key,subject_id text ,update_success BOOLEAN,series_name text,bangumi_name text,refresh_time text )"""

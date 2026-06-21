@@ -3,12 +3,13 @@ import os
 import pickle
 import re
 import mmap
+import logging
 import threading
 from threading import Lock
 from datetime import datetime, timezone
-from threading import Lock
 from typing import Dict, List, Union
-from tools.log import logger
+
+logger = logging.getLogger(__name__)
 
 
 class IndexedDataReader:
@@ -256,10 +257,13 @@ class IndexedDataReader:
             "index": index,  # 纯索引
             "index_timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")  # 索引构建时间戳
         }
-        # 保存索引
+        # 原子保存索引：先写临时文件，再 os.replace() 原子替换
+        # 防止进程在 pickle.dump 中途被杀导致索引文件半写入损坏
+        tmp_path = self.index_path + ".tmp"
         try:
-            with open(self.index_path, 'wb') as f:
+            with open(tmp_path, 'wb') as f:
                 pickle.dump(package, f, protocol=pickle.HIGHEST_PROTOCOL)
+            os.replace(tmp_path, self.index_path)  # 原子替换 (Windows/Linux 均保证)
             logger.info(
                 f"索引构建完成，共 {line_number} 行，已保存至: {self.index_path}，大小: {os.path.getsize(self.index_path) / 1024 / 1024:.1f} MB")
         except Exception as e:

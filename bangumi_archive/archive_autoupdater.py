@@ -1,9 +1,11 @@
+import logging
 import os
 import zipfile
 import requests
 import json
 from config.config import ARCHIVE_FILES_DIR
-from tools.log import logger
+
+logger = logging.getLogger(__name__)
 from bangumi_archive.local_archive_indexed_reader import IndexedDataReader
 from tools.cache_time import TimeCacheManager
 

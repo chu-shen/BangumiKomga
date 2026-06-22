@@ -7,4 +7,5 @@ __pycache__/
 *.jsonlines*
 .coverage
 test_results/
+benchmark_results/
 *.generated.py

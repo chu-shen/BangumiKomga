@@ -3,9 +3,6 @@ import sys
 import unittest
 from datetime import datetime
 
-# Ensure project root is on sys.path for module imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 
 def run_benchmarks():
     """Discover and run all benchmark tests under the benchmarks/ directory."""
@@ -13,7 +10,7 @@ def run_benchmarks():
 
     loader = unittest.TestLoader()
     suite = loader.discover(
-        start_dir=os.path.dirname(__file__),
+        start_dir='benchmarks',
         pattern='test_*.py'
     )
 

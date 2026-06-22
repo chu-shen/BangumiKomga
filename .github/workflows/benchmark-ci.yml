@@ -33,7 +33,7 @@ jobs:
           echo "INFO: Test log content" > logs/refreshMetadata.log
 
       - name: Run Benchmark
-        run: python benchmarks/run_benchmark.py
+        run: python run_benchmark.py
         continue-on-error: true
 
       - name: Upload Benchmark Results

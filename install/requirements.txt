@@ -1,5 +1,5 @@
 pypinyin==0.55.0
-Requests==2.32.3
+Requests==2.34.2
 thefuzz==0.22.1
 zhconv==1.4.3
 tqdm==4.67.1

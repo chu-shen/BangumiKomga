@@ -7,7 +7,8 @@ import requests
 from requests.adapters import HTTPAdapter
 
 from api.bangumi_model import BangumiBaseType
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 from bangumi_archive.local_archive_searcher import (
     parse_infobox,
     search_line,

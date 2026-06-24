@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 from tools.resort_search_results_list import resort_search_list, compute_name_score_by_fuzzy
 
 

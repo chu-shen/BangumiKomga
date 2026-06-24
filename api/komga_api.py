@@ -5,7 +5,8 @@
 
 
 import requests
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 from requests.adapters import HTTPAdapter
 
 

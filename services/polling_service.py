@@ -2,7 +2,8 @@ import threading
 import time
 import os
 import sqlite3
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 from config.config import (
     BANGUMI_KOMGA_SERVICE_POLL_INTERVAL,
     BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL,

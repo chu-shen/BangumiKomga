@@ -179,6 +179,61 @@ CREATE_FAILED_COLLECTION = False
 ADD_LOCAL_VERSION = False
 
 
+# @@name: EXPORT_ENABLED
+# @@prompt: 启用元数据导出
+# @@type: boolean
+# @@required: False
+# @@validator:
+# @@info: 置为`True`时，启用元数据导出功能。`python metadata_exporter.py` 可在任意时刻手动导出元数据。若 `EXPORT_ON_REFRESH` 也开启，则会在刷新元数据后自动导出。
+# @@version: 0.20
+EXPORT_ENABLED = False
+
+# @@name: EXPORT_DIR
+# @@prompt: 元数据导出目录
+# @@type: string
+# @@required: False
+# @@validator:
+# @@info: 导出文件的根目录，默认为 `./data/exported_info/`。
+# @@version: 0.20
+EXPORT_DIR = './data/exported_info/'
+
+# @@name: EXPORT_SERIES_JSON
+# @@prompt: 导出 Mylar series.json
+# @@type: boolean
+# @@required: False
+# @@validator:
+# @@info: 导出 mylar3 格式的 series.json，可被 Komga 直接识别导入。
+# @@version: 0.20
+EXPORT_SERIES_JSON = True
+
+# @@name: EXPORT_COMICINFO_XML
+# @@prompt: 导出 ComicInfo.xml
+# @@type: boolean
+# @@required: False
+# @@validator:
+# @@info: 为每本书导出 ComicInfo.xml。需要将文件放入 cbz/cbr 压缩包内才能被 Komga 识别。
+# @@version: 0.20
+EXPORT_COMICINFO_XML = False
+
+# @@name: EXPORT_EZE_INFO_JSON
+# @@prompt: 导出 eze info.json
+# @@type: boolean
+# @@required: False
+# @@validator:
+# @@info: 为每本书导出 eze 格式的 info.json，主要用于 eze 阅读器。
+# @@version: 0.20
+EXPORT_EZE_INFO_JSON = False
+
+# @@name: EXPORT_ON_REFRESH
+# @@prompt: 刷新元数据后自动导出
+# @@type: boolean
+# @@required: False
+# @@validator:
+# @@info: 置为`True`时，每次刷新 Komga 元数据后自动导出对应的 series/book 元数据文件。
+# @@version: 0.20
+EXPORT_ON_REFRESH = False
+
+
 # @@name: NOTIF_TYPE_ENABLE
 # @@prompt: 设置消息通知类型
 # @@type: list

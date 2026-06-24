@@ -25,7 +25,7 @@ jobs:
           pip install -r install/requirements.txt
           pip install coverage
 
-      # 便于测试代码导入config.config
+      # 便于测试代码导入config/config.py
       - name: Rename config.template.py To config.py
         run: cp config/config.template.py config/config.py
       

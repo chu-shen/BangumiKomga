@@ -310,6 +310,36 @@ class KomgaApi:
         # return True if the status code indicates success, False otherwise
         return response.status_code == 200
 
+    def get_book_metadata(self, book_id):
+        """
+        Retrieves metadata for a specific book.
+
+        https://komga.org/docs/openapi/get-book-by-id
+        """
+        url = f"{self.base_url}/books/{book_id}"
+        try:
+            response = self.r.get(url)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"出现错误: {e}")
+            return {}
+        return response.json()
+
+    def get_book_pages(self, book_id):
+        """
+        Retrieves all pages for a specific book.
+
+        https://komga.org/docs/openapi/get-book-pages
+        """
+        url = f"{self.base_url}/books/{book_id}/pages"
+        try:
+            response = self.r.get(url)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"出现错误: {e}")
+            return []
+        return response.json()
+
     def add_collection(self, name, ordered, seriesIds):
         """
         add new collection.

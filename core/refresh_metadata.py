@@ -169,7 +169,8 @@ def refresh_metadata(series_list=None):
             # 确保没有上传过海报，避免重复上传
             if (
                 USE_BANGUMI_THUMBNAIL
-                and len(komga.get_series_thumbnails(series_id)) == 0
+                and len(komga.get_series_thumbnails(series_id)) == 0 
+                and not series.get("oneshot", False)
             ):
                 # 尝试多尺寸海报上传
                 for thumbnail_size in ['large', 'common', 'medium']:
@@ -392,7 +393,7 @@ def refresh_partial_metadata():
     return
 
 
-def update_book_metadata(book_id, related_subject, book_name, number):
+def update_book_metadata(book_id, related_subject, book_name, number, is_oneshot=False):
     # Get the metadata for the book from bangumi
     book_metadata = process_metadata.set_komga_book_metadata(
         related_subject["id"], number, book_name, bgm
@@ -423,10 +424,9 @@ def update_book_metadata(book_id, related_subject, book_name, number):
 
         # 使用 Bangumi 图片替换原封面
         # 确保没有上传过海报，避免重复上传，排除 komga 生成的封面
-        if (
+        if ((
             USE_BANGUMI_THUMBNAIL_FOR_BOOK
-            and len(komga.get_book_thumbnails(book_id)) == 1
-        ):
+        ) or (is_oneshot and USE_BANGUMI_THUMBNAIL)) and len(komga.get_book_thumbnails(book_id)) == 1:
             # 尝试多尺寸海报上传
             for thumbnail_size in ['large', 'common', 'medium']:
                 # 获取当前尺寸的封面
@@ -485,6 +485,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
     for book in books["content"]:
         book_id = book["id"]
         book_name = book["name"]
+        is_oneshot = book.get("oneshot", False)
 
         # Get the subject id from the Correct Bgm Link (CBL) if it exists
         for link in book["metadata"]["links"]:
@@ -493,7 +494,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
                     link["url"].split("/")[-1])
                 number, _ = get_number(
                     cbl_subject["name"] + cbl_subject["name_cn"])
-                update_book_metadata(book_id, cbl_subject, book_name, number)
+                update_book_metadata(book_id, cbl_subject, book_name, number, is_oneshot)
                 break
 
         # 找到对应的book_record
@@ -543,7 +544,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
                     ep_flag = False
 
                     update_book_metadata(
-                        book_id, related_subjects[i], book_name, number
+                        book_id, related_subjects[i], book_name, number, is_oneshot
                     )
 
                     break

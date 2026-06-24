@@ -47,6 +47,7 @@ def refresh_metadata(series_list=None):
         series_id = series["id"]
         series_name = series["name"]
         is_novel_series = series["is_novel"]
+        is_oneshot = series.get("oneshot", False)
 
         # 若存在 Correct Bgm Link (CBL) 则获取其中的 subject_id
         subject_id = None
@@ -138,7 +139,6 @@ def refresh_metadata(series_list=None):
             continue
 
         series_data = {
-            "status": komga_metadata.status,
             "summary": komga_metadata.summary,
             "publisher": komga_metadata.publisher,
             "genres": komga_metadata.genres,
@@ -147,14 +147,15 @@ def refresh_metadata(series_list=None):
             "alternateTitles": komga_metadata.alternateTitles,
             "ageRating": komga_metadata.ageRating,
             "links": komga_metadata.links,
-            "totalBookCount": komga_metadata.totalBookCount,
             "language": komga_metadata.language,
             "titleSort": komga_metadata.titleSort,
         }
+        if not is_oneshot:
+            series_data["status"] = komga_metadata.status
+            series_data["totalBookCount"] = komga_metadata.totalBookCount
 
         # Update the metadata for the series on komga
-        is_success = komga.update_series_metadata(series_id, series_data)
-        if is_success:
+        if komga.update_series_metadata(series_id, series_data):
             success_count, success_comic = record_series_status(
                 conn,
                 series_id,
@@ -170,7 +171,7 @@ def refresh_metadata(series_list=None):
             if (
                 USE_BANGUMI_THUMBNAIL
                 and len(komga.get_series_thumbnails(series_id)) == 0 
-                and not series.get("oneshot", False)
+                and not is_oneshot
             ):
                 # 尝试多尺寸海报上传
                 for thumbnail_size in ['large', 'common', 'medium']:
@@ -179,10 +180,7 @@ def refresh_metadata(series_list=None):
                         metadata, image_size=thumbnail_size)
 
                     # 尝试更新封面
-                    replace_thumbnail_result = komga.update_series_thumbnail(
-                        series_id, thumbnail)
-
-                    if replace_thumbnail_result:
+                    if komga.update_series_thumbnail(series_id, thumbnail):
                         logger.debug("成功替换系列: %s 的海报", series_name)
                         # 成功则跳出海报更新循环
                         break
@@ -212,8 +210,6 @@ def refresh_metadata(series_list=None):
 
     # 将匹配失败的系列加入收藏 FAILED_COLLECTION
     if CREATE_FAILED_COLLECTION:
-        collection_name = "FAILED_COLLECTION"
-
         # TODO: 匹配错误的系列其update_success也是1, 需要找到一种方法将之筛选出来
 
         # 将db中update_success为0的series_ids筛选出来
@@ -228,6 +224,7 @@ def refresh_metadata(series_list=None):
         ]
         # 用 all_failed_series_ids 创建 FAILED_COLLECTION
         if all_failed_series_ids:
+            collection_name = "FAILED_COLLECTION"
             if komga.replace_collection(collection_name, False, all_failed_series_ids):
                 logger.info("成功替换收藏: %s", collection_name)
             else:
@@ -417,8 +414,7 @@ def update_book_metadata(book_id, related_subject, book_name, number, is_oneshot
     }
 
     # Update the metadata for the series on komga
-    is_success = komga.update_book_metadata(book_id, book_data)
-    if is_success:
+    if komga.update_book_metadata(book_id, book_data):
         record_book_status(
             conn, book_id, related_subject["id"], 1, book_name, "")
 
@@ -434,10 +430,7 @@ def update_book_metadata(book_id, related_subject, book_name, number, is_oneshot
                     related_subject, image_size=thumbnail_size)
 
                 # 尝试更新封面
-                replace_thumbnail_result = komga.update_book_thumbnail(
-                    book_id, thumbnail)
-
-                if replace_thumbnail_result:
+                if komga.update_book_thumbnail(book_id, thumbnail):
                     logger.debug("替换书籍: %s 的海报 ", book_name)
                     # 成功则跳出海报更新循环
                     break
@@ -460,7 +453,7 @@ def refresh_book_metadata(subject_id, series_id, force_refresh_flag):
     """
     刷新书元数据
     """
-    if subject_id == None:
+    if subject_id is None:
         return
 
     related_subjects = None

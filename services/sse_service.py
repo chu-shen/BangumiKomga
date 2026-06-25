@@ -1,5 +1,4 @@
 import atexit
-import threading
 from concurrent.futures import ThreadPoolExecutor
 import logging
 
@@ -15,13 +14,9 @@ logger = logging.getLogger(__name__)
 class SSEService:
     """基于 SSE 的元数据刷新服务.
 
-    过滤规则 (union):
-      事件中的 series 属于配置的库 → 刷新
-      事件中的 series 属于配置的收藏集 → 刷新
-      两者都配置时, 满足任一即刷新
-
-    收藏集白名单通过 CollectionAdded/Changed 事件实时维护,
-    用于 Series/Book 事件的 collection 过滤 (SSE 事件不携带 collectionId).
+    Series*/Book*: 匹配 libraryId → 刷新.
+    Collection*:  匹配 collectionId → 刷新 seriesIds[] 中所有系列.
+    两者独立过滤, 配置什么就处理什么.
     """
 
     def __init__(self, base_url=KOMGA_BASE_URL, username=KOMGA_EMAIL,
@@ -34,43 +29,16 @@ class SSEService:
 
         self._executor = ThreadPoolExecutor(max_workers=5)
 
-        # Library filter
+        # 静态过滤集 (仅 _on_event 所在线程访问, 无需锁)
         self._library_ids = {
             item["LIBRARY"] for item in KOMGA_LIBRARY_LIST
         } if KOMGA_LIBRARY_LIST else None
 
-        # Collection filter — 关注的 collectionId + 白名单
         self._collection_ids = {
             item["COLLECTION"] for item in KOMGA_COLLECTION_LIST
         } if KOMGA_COLLECTION_LIST else None
-        self._collection_series = set()
-
-        # 启动时初始化白名单 (避免 Collection 事件到达前的空窗期)
-        if self._collection_ids:
-            self._init_collection_series()
 
         atexit.register(self.stop)
-
-    def _init_collection_series(self):
-        """加载所有配置的收藏集系列到白名单."""
-        if self._collection_ids is None:
-            return
-        try:
-            # 缓存 KomgaApi 实例, 避免重复导入
-            if not hasattr(self, '_komga_api'):
-                from api.komga_api import KomgaApi
-                self._komga_api = KomgaApi(
-                    KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD)
-            self._collection_series.clear()
-            for item in KOMGA_COLLECTION_LIST:
-                result = self._komga_api.get_series_with_collection(
-                    [item["COLLECTION"]])
-                for s in result.get("content", []):
-                    self._collection_series.add(s["id"])
-            logger.info(
-                f"已加载 {len(self._collection_series)} 个系列到收藏集白名单")
-        except Exception as e:
-            logger.warning(f"加载收藏集白名单失败: {e}，等待 SSE Collection 事件")
 
     def start(self):
         self.client.start()
@@ -151,40 +119,23 @@ class SSEService:
                 f"收藏集 {collection_id} 不在 KOMGA_COLLECTION_LIST 中，跳过")
             return
 
-        if event_type == "CollectionAdded":
-            self._collection_series.update(series_ids)
-            # 新收藏集 → 刷新所有系列
-            for sid in series_ids:
-                self._executor.submit(
-                    _refresh_single_series, sid, event_type)
-        else:
-            # CollectionChanged → 全量重查, 确保白名单中不再有被移除的系列
-            self._init_collection_series()
+        for sid in series_ids:
+            self._executor.submit(
+                _refresh_single_series, sid, event_type)
 
     def _handle_series_event(self, event_type, event_data):
         library_id = event_data.get("libraryId")
         series_id = event_data.get("seriesId")
 
-        # 未配置任何过滤 → 全部刷新
-        if self._library_ids is None and self._collection_ids is None:
-            self._executor.submit(
-                _refresh_single_series, series_id, event_type)
+        if self._library_ids is None:
+            return
+        if library_id not in self._library_ids:
+            logger.debug(
+                f"libraryId: {library_id} 不在 KOMGA_LIBRARY_LIST 中，跳过")
             return
 
-        # library 命中 → 刷新
-        if self._library_ids and library_id in self._library_ids:
-            self._executor.submit(
-                _refresh_single_series, series_id, event_type)
-            return
-
-        # collection 白名单命中 → 刷新 (union)
-        if series_id in self._collection_series:
-            self._executor.submit(
-                _refresh_single_series, series_id, event_type)
-            return
-
-        logger.debug(
-            f"seriesId: {series_id} 不在配置的库/收藏集中，跳过")
+        self._executor.submit(
+            _refresh_single_series, series_id, event_type)
 
     def _on_error(self, e):
         logger.error(f"遇到 SSE 错误: {e}", exc_info=True)

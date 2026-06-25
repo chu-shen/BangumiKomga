@@ -133,8 +133,11 @@ class KomgaSseClient:
     # ------------------------------------------------------------------
 
     def start(self):
-        """启动 SSE 连接 (非阻塞)."""
+        """启动 SSE 连接 (非阻塞). 认证失败时立即退出."""
         if self._running:
+            return
+        if self._stopped.is_set():
+            logger.error("SSE 认证失败, 拒绝启动")
             return
         self._running = True
         self._thread = threading.Thread(target=self._connect, daemon=False)
@@ -205,9 +208,11 @@ class KomgaSseClient:
                 if resp.status_code != 200:
                     logger.error(
                         f"Komga SSE API_KEY 验证失败: {resp.status_code}")
+                    self._stopped.set()
                     return
             except requests.exceptions.RequestException as e:
                 logger.error(f"API_KEY 身份验证失败: {e}")
+                self._stopped.set()
                 return
         elif self.auth:
             credentials = f"{self.auth[0]}:{self.auth[1]}"
@@ -220,16 +225,20 @@ class KomgaSseClient:
                     self.url, stream=True, timeout=self.timeout)
             except requests.exceptions.ConnectionError:
                 logger.error("Komga SSE 连接错误: 无法连接至服务器")
+                self._stopped.set()
                 return
             except Exception as e:
                 logger.error(f"Komga SSE 连接错误: {e}")
                 self.on_error(e)
+                self._stopped.set()
                 return
             if resp.status_code != 200:
                 logger.error("Komga 账户凭据验证失败!")
+                self._stopped.set()
                 return
         else:
             logger.error("Komga SSE 认证失败: 未配置 api_key 或 auth")
+            self._stopped.set()
             return
 
     def _connect(self):

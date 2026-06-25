@@ -21,7 +21,7 @@ def run_service():
     if service_type == "poll":
         run_poll_service(archive_thread)
     elif service_type == "sse":
-        run_sse_service(archive_thread)
+        run_sse_service()
     elif service_type == "once":
         run_once_service()
     else:
@@ -44,16 +44,9 @@ def run_poll_service(archive_thread):
     wait_for_services(service_thread, archive_thread)
 
 
-def run_sse_service(archive_thread):
-    """运行SSE服务"""
-    # 启动主服务线程
-    service_thread = threading.Thread(
-        target=sse_service, daemon=True, name="SSEService"
-    )
-    service_thread.start()
-
-    # 等待服务结束
-    wait_for_services(service_thread, archive_thread)
+def run_sse_service():
+    """运行SSE服务 — sse_service() 内部 Event().wait() 阻塞主线程."""
+    sse_service()
 
 
 def run_once_service():

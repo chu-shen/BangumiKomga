@@ -88,8 +88,13 @@ class ArchiveDataStore:
         self._mm_file: Optional[object] = None         # file handle
 
     def open(self):
-        """打开数据库 + mmap 数据文件."""
-        self._conn = sqlite3.connect(self._db_path)
+        """打开数据库 + mmap 数据文件.
+
+        check_same_thread=False 允许跨线程共享连接.
+        WAL 模式保证读取并发安全.
+        """
+        self._conn = sqlite3.connect(
+            self._db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.execute("PRAGMA cache_size=-32000")  # 32MB cache
@@ -204,8 +209,9 @@ class ArchiveDataStore:
                 ids,
             ).fetchall()
         }
-        return [_read_line_at_offset(self._mm, offsets[i])
-                for i in ids if i in offsets]
+        results = [_read_line_at_offset(self._mm, offsets[i])
+                    for i in ids if i in offsets]
+        return [r for r in results if r is not None]
 
     def search_all(self, query: str) -> list[dict]:
         """带子串回退的搜索: FTS 无结果时 fallback 到 LIKE."""
@@ -232,8 +238,9 @@ class ArchiveDataStore:
                 ids,
             ).fetchall()
         }
-        return [_read_line_at_offset(self._mm, offsets[i])
-                for i in ids if i in offsets]
+        results = [_read_line_at_offset(self._mm, offsets[i])
+                    for i in ids if i in offsets]
+        return [r for r in results if r is not None]
 
     def get_related(self, subject_id: int) -> list[dict]:
         """获取关联条目列表 (含 name/name_cn/type/id)."""

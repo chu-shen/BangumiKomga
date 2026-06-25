@@ -19,8 +19,8 @@ from tools.resort_search_results_list import resort_search_list
 from tools.slide_window_rate_limiter import slide_window_rate_limiter
 from zhconv import convert
 from abc import ABC, abstractmethod
+from typing import Any
 
-# TODO： 在DataSource中添加一个本地缓存目录，将从 API 获取的封面图片保存为文件（如 cache/thumbnails/{subject_id}_{image_size}.jpg），下次直接读取本地文件，避免重复请求
 
 
 class DataSource(ABC):
@@ -29,24 +29,27 @@ class DataSource(ABC):
     """
 
     @abstractmethod
-    def search_subjects(self, query, threshold=80, is_novel=False):
-        pass
+    def search_subjects(self, query: str, threshold: int = 80,
+                        is_novel: bool = False) -> list:
+        ...
 
     @abstractmethod
-    def get_subject_metadata(self, subject_id):
-        pass
+    def get_subject_metadata(self, subject_id: Any) -> dict:
+        ...
 
     @abstractmethod
-    def get_related_subjects(self, subject_id):
-        pass
+    def get_related_subjects(self, subject_id: Any) -> list:
+        ...
 
     @abstractmethod
-    def update_reading_progress(self, subject_id, progress):
-        pass
+    def update_reading_progress(self, subject_id: Any,
+                                progress: Any) -> bool:
+        ...
 
     @abstractmethod
-    def get_subject_thumbnail(self, subject_metadata, image_size):
-        pass
+    def get_subject_thumbnail(self, subject_metadata: dict,
+                              image_size: str) -> dict:
+        ...
 
 
 class BangumiApiDataSource(DataSource):
@@ -123,7 +126,7 @@ class BangumiApiDataSource(DataSource):
             logger.error(
                 f"请检查 {subject_id} 是否填写正确；或属于 NSFW，但并未配置 BANGUMI_ACCESS_TOKEN"
             )
-            return []
+            return {}
         return response.json()
 
     @slide_window_rate_limiter()
@@ -152,6 +155,7 @@ class BangumiApiDataSource(DataSource):
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
+            return False
         return response.status_code == 204
 
     @slide_window_rate_limiter()
@@ -172,7 +176,7 @@ class BangumiApiDataSource(DataSource):
             thumbnail = self.r.get(image).content
         except Exception as e:
             logger.error(f"出现错误: {e}")
-            return []
+            return {}
         files = {"file": (subject_metadata["name"], thumbnail)}
         return files
 
@@ -275,6 +279,8 @@ class BangumiArchiveDataSource(DataSource):
                     metadata = self._get_metadata_from_archive(
                         item.get("related_subject_id", 0)
                     )
+                    if not metadata:
+                        continue
                     result = {
                         "name": metadata.get("name"),
                         "name_cn": metadata.get("name_cn"),
@@ -294,15 +300,13 @@ class BangumiArchiveDataSource(DataSource):
         """
         离线数据源更新阅读进度
         """
-        NotImplementedError("离线数据源不支持更新阅读进度")
-        return False
+        raise NotImplementedError("离线数据源不支持更新阅读进度")
 
     def get_subject_thumbnail(self, subject_metadata, image_size):
         """
         离线数据源获取封面
         """
-        NotImplementedError("离线数据源不支持获取封面")
-        return {}
+        raise NotImplementedError("离线数据源不支持获取封面")
 
 
 class BangumiDataSourceFactory:
@@ -356,7 +360,7 @@ class FallbackDataSource(DataSource):
         return self._fallback_call("get_related_subjects", subject_id)
 
     def update_reading_progress(self, subject_id, progress):
-        self._fallback_call("update_reading_progress", subject_id, progress)
+        return self._fallback_call("update_reading_progress", subject_id, progress)
 
     def get_subject_thumbnail(self, subject_metadata, image_size):
         return self._fallback_call(

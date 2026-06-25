@@ -64,7 +64,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
-            return []
+            return {}
         return response.json()
 
     def get_specific_series(self, series_id):
@@ -79,7 +79,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
-            return []
+            return {}
         # 将response作为JSON对象返回
         return response.json()
 
@@ -108,7 +108,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
-            return []
+            return {}
         # 将response作为JSON对象返回
         return response.json()
 
@@ -171,7 +171,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
-            return []
+            return {}
         # return the response as a JSON object
         return response.json()
 
@@ -210,7 +210,7 @@ class KomgaApi:
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
-            return []
+            return {}
         # return the response as a JSON object
         return response.json()
 

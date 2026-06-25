@@ -2,7 +2,6 @@ from services.polling_service import poll_service
 from services.sse_service import sse_service
 import logging
 logger = logging.getLogger(__name__)
-import threading
 from config.config import BANGUMI_KOMGA_SERVICE_TYPE
 from core.refresh_metadata import refresh_metadata
 from bangumi_archive.periodic_archive_checker import periodical_archive_check_service
@@ -34,49 +33,17 @@ def run_service():
 
 
 def run_poll_service(archive_thread):
-    """运行轮询服务"""
-    # 启动主服务线程
-    service_thread = threading.Thread(
-        target=poll_service, daemon=True, name="PollService"
-    )
-    service_thread.start()
-
-    # 等待服务结束
-    wait_for_services(service_thread, archive_thread)
+    """运行轮询服务 — poll_service() 内部阻塞主线程."""
+    del archive_thread  # daemon thread, will die with main process
+    poll_service()
 
 
 def run_sse_service(archive_thread):
-    """运行SSE服务"""
-    # 启动主服务线程
-    service_thread = threading.Thread(
-        target=sse_service, daemon=True, name="SSEService"
-    )
-    service_thread.start()
-
-    # 等待服务结束
-    wait_for_services(service_thread, archive_thread)
+    """运行SSE服务 — sse_service() 内部阻塞主线程."""
+    del archive_thread  # daemon thread, will die with main process
+    sse_service()
 
 
 def run_once_service():
     """运行一次性服务"""
     pass
-
-
-def wait_for_services(service_thread, archive_thread=None):
-    """
-    等待服务线程结束
-
-    Args:
-        service_thread: 主服务线程
-        archive_thread: Archive检查线程（可选）
-    """
-    try:
-        # 等待主服务线程结束
-        service_thread.join()
-        # 如果有Archive线程，等待其结束
-        if archive_thread is not None:
-            archive_thread.join()
-    except KeyboardInterrupt:
-        logger.warning("服务手动终止: 退出 BangumiKomga 服务")
-    finally:
-        logger.info("BangumiKomga 服务已停止")

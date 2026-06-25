@@ -204,12 +204,12 @@ class KomgaSseClient:
             self.session.headers.update(headers)
             test_url = f"{self.base_url}/api/v2/users/me"
             try:
-                resp = self.session.get(test_url)
-                if resp.status_code != 200:
-                    logger.error(
-                        f"Komga SSE API_KEY 验证失败: {resp.status_code}")
-                    self._stopped.set()
-                    return
+                with self.session.get(test_url) as resp:
+                    if resp.status_code != 200:
+                        logger.error(
+                            f"Komga SSE API_KEY 验证失败: {resp.status_code}")
+                        self._stopped.set()
+                        return
             except requests.exceptions.RequestException as e:
                 logger.error(f"API_KEY 身份验证失败: {e}")
                 self._stopped.set()
@@ -221,8 +221,10 @@ class KomgaSseClient:
             headers["Authorization"] = f"Basic {encoded}"
             self.session.headers.update(headers)
             try:
-                resp = self.session.get(
-                    self.url, stream=True, timeout=self.timeout)
+                with self.session.get(
+                    self.url, stream=True, timeout=self.timeout
+                ) as resp:
+                    pass  # 仅验证连接, 成功则关闭
             except requests.exceptions.ConnectionError:
                 logger.error("Komga SSE 连接错误: 无法连接至服务器")
                 self._stopped.set()
@@ -300,8 +302,9 @@ class KomgaSseClient:
                         f"SSE 数据行 {line} 处理异常: {e}")
                     continue
         except requests.exceptions.RequestException as re:
-            self.on_error(
-                f"读取 SSE 流数据时网络连接中断: {re}")   # B1 fix
+            logger.error(
+                f"读取 SSE 流数据时网络连接中断: {re}")
+            self.on_error(re)
         except Exception as e:
             self.on_error(f"遇到未知错误: {e}")
 

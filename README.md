@@ -155,13 +155,7 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
 
 - `ARCHIVE_FILES_DIR`: 指定储存 [bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./archivedata/`
   - 启用 `USE_BANGUMI_ARCHIVE` 后，程序会自动从Github下载并解压元数据(可能较慢)
-  - 离线元数据亦可提前手动解压至该目录中, 另外最好同时创建 `archive_update_time.json` 并添加日期，内容示例：`{"last_updated": "2025-04-22T21:03:01Z"}`
-
-> [!TIP] 已过时
->
-> - ~~如果将`archive_update_time.json`中时间修改为`2099`等较大值，可在很长时间内禁用自动更新~~
->  
-> 请使用`ARCHIVE_UPDATE_INTERVAL`↓↓↓
+  - 离线元数据亦可提前手动解压至该目录中
 
 - `ARCHIVE_UPDATE_INTERVAL`: 指定 [bangumi/Archive](https://github.com/bangumi/Archive) 离线元数据的更新间隔, 单位为小时。置为`0`表示不检查更新，其余值则会在启动时立即执行一次检查
 

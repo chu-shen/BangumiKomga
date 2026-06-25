@@ -4,7 +4,6 @@ from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import logging
-logger = logging.getLogger(__name__)
 from tools.cache_time import TimeCacheManager
 
 
@@ -44,7 +43,7 @@ class TestTimeCacheManager(unittest.TestCase):
         """测试时间缓存管理器 - 文件不存在的情况"""
         non_existent_file = str(Path(self.temp_dir.name) / "nonexistent.json")
 
-        with self.assertLogs(logger, level='WARNING') as cm:
+        with self.assertLogs(logging.getLogger('tools.cache_time'), level='WARNING') as cm:
             result = TimeCacheManager.read_time(non_existent_file)
             self.assertEqual(result, self.default_time)
             self.assertIn("不存在，使用默认时间", cm.output[0])
@@ -55,7 +54,7 @@ class TestTimeCacheManager(unittest.TestCase):
         with open(self.test_file, 'w') as f:
             f.write("invalid json")
 
-        with self.assertLogs(logger, level='WARNING') as cm:
+        with self.assertLogs(logging.getLogger('tools.cache_time'), level='WARNING') as cm:
             result = TimeCacheManager.read_time(str(self.test_file))
             self.assertEqual(result, self.default_time)
             self.assertIn("解析失败", cm.output[0])
@@ -101,7 +100,7 @@ class TestTimeCacheManager(unittest.TestCase):
         """测试时间缓存管理器 - 无效时间格式"""
         time_str = "invalid-time-format"
 
-        with self.assertLogs(logger, level='WARNING') as cm:
+        with self.assertLogs(logging.getLogger('tools.cache_time'), level='WARNING') as cm:
             result = TimeCacheManager.convert_to_datetime(time_str)
             self.assertIsNone(result)
             # 检查日志是否包含关键信息（推荐使用 in 判断多个关键词）

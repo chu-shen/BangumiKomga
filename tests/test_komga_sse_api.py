@@ -19,7 +19,7 @@ class TestKomgaSseClient(unittest.TestCase):
 
         # 模拟日志系统
         self.mock_logger = MagicMock()
-        patch('tools.log.logger', self.mock_logger).start()
+        patch('api.komga_sse_api.logger', self.mock_logger).start()
 
         # 模拟requests.Session
         self.session_mock = MagicMock()
@@ -127,7 +127,7 @@ class TestKomgaSseApi(unittest.TestCase):
 
         # 模拟日志系统
         self.mock_logger = MagicMock()
-        patch('tools.log.logger', self.mock_logger).start()
+        patch('api.komga_sse_api.logger', self.mock_logger).start()
 
         # 模拟requests.Session
         self.session_mock = MagicMock()
@@ -262,7 +262,7 @@ class TestErrorHandling(unittest.TestCase):
 
         # 模拟日志系统
         self.mock_logger = MagicMock()
-        patch('tools.log.logger', self.mock_logger).start()
+        patch('api.komga_sse_api.logger', self.mock_logger).start()
 
         # 模拟requests.Session
         self.session_mock = MagicMock()

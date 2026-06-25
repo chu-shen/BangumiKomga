@@ -262,6 +262,8 @@ class KomgaSseClient:
             # 数据有效性验证
             if isinstance(data, str):
                 json_data = json.loads(data)
+            elif isinstance(data, bytes):
+                json_data = json.loads(data.decode("utf-8"))
             else:
                 json_data = data
             # 确保 json_data 是字典
@@ -400,7 +402,7 @@ class KomgaSseApi:
     def on_message(self, msg):
         logger.debug(f"收到非订阅 SSE 消息: {msg}")
 
-    def on_error(self, err: Exception):
+    def on_error(self, err):  # str | Exception
         """错误事件回调函数"""
         # 错误处理行为
         logger.error(f"遇到 SSE 错误: {err} ", exc_info=True)

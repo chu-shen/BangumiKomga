@@ -146,6 +146,9 @@ def _refresh_single_series(series_id, event_type):
     """对单个系列执行元数据刷新."""
     try:
         series_detail = get_series_metadata([series_id])
+        if not series_detail:
+            logger.warning(f"系列 {series_id} 无数据, 跳过刷新")
+            return
 
         if event_type == "SeriesChanged":
             if not any(

@@ -125,9 +125,8 @@ class KomgaSseClient:
                     timeout=self.timeout
                 )
             # 防止取不到response.status_code
-            except requests.exceptions.ConnectionError as e:
-                logger.error(
-                    f"Komga SSE 连接错误, HTTP {response.status_code}: {response.reason}")
+            except requests.exceptions.ConnectionError:
+                logger.error("Komga SSE 连接错误: 无法连接至服务器")
                 return
             except Exception as e:
                 logger.error(f"Komga SSE 连接错误: {e}")
@@ -247,7 +246,7 @@ class KomgaSseClient:
                     continue
         except requests.exceptions.RequestException as re:
             # 处理网络层异常（连接超时、断开等）
-            self.on_error(f"读取 SSE 流数据时网络连接中断, {e}")
+            self.on_error(f"读取 SSE 流数据时网络连接中断, {re}")
 
         except Exception as e:
             # 处理其他未知异常
@@ -263,6 +262,10 @@ class KomgaSseClient:
             # 数据有效性验证
             if isinstance(data, str):
                 json_data = json.loads(data)
+            elif isinstance(data, bytes):
+                json_data = json.loads(data.decode("utf-8"))
+            else:
+                json_data = data
             # 确保 json_data 是字典
             if not isinstance(json_data, dict):
                 raise Exception(f"事件数据不是有效的JSON格式")
@@ -396,23 +399,23 @@ class KomgaSseApi:
     def _get_series_lock(self, series_id):
         return threading.Lock()
 
-    def on_message(self, data):
-        logger.debug(f"收到非订阅 SSE 消息: {data}")
+    def on_message(self, msg):
+        logger.debug(f"收到非订阅 SSE 消息: {msg}")
 
-    def on_error(self, e: Exception):
+    def on_error(self, err):  # str | Exception
         """错误事件回调函数"""
         # 错误处理行为
-        logger.error(f"遇到 SSE 错误: {e} ", exc_info=True)
+        logger.error(f"遇到 SSE 错误: {err} ", exc_info=True)
         # 错误自动重连
-        if "connection" in str(e).lower():
+        if "connection" in str(err).lower():
             self._restart_sse_client()
 
-    def on_event(self, event_type, event_data):
+    def on_event(self, event_type, data):
         """订阅事件回调函数"""
         # 仅通知在 RefreshEventType 类型的事件
         if event_type in RefreshEventType:
-            logger.debug(f"捕获订阅事件 [{event_type}]:{event_data}")
-            library_id = event_data.get("libraryId")
+            logger.debug(f"捕获订阅事件 [{event_type}]:{data}")
+            library_id = data.get("libraryId")
             # 判断 KOMGA_LIBRARY_LIST 是否为空
             if not KOMGA_LIBRARY_LIST:
                 pass
@@ -422,7 +425,7 @@ class KomgaSseApi:
                     f"libraryId: {library_id} 不在 KOMGA_LIBRARY_LIST 中，跳过")
                 return
             # 要不要在这里用多线程来执行 _notify_callbacks 呢?
-            arg = {"event_type": event_type, "event_data": event_data}
+            arg = {"event_type": event_type, "event_data": data}
             self._notify_callbacks(arg)
         else:
-            logger.debug(f"捕获无关事件 [{event_type}]:{event_data}")
+            logger.debug(f"捕获无关事件 [{event_type}]:{data}")

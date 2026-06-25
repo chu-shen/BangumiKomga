@@ -51,6 +51,7 @@ def refresh_metadata(series_list=None):
 
         # 若存在 Correct Bgm Link (CBL) 则获取其中的 subject_id
         subject_id = None
+        metadata = None
         force_refresh_flag = False
         for link in series["metadata"]["links"]:
             if link["label"].lower() == "cbl":
@@ -338,7 +339,9 @@ def _filter_new_modified_series(library_id=None):
             komga_modified_time = TimeCacheManager.convert_to_datetime(
                 item["lastModified"]
             )
-            if komga_modified_time > local_last_modified:
+            if (komga_modified_time is not None
+                    and local_last_modified is not None
+                    and komga_modified_time > local_last_modified):
                 new_series.append(item)
             else:
                 # 如果没有新更改的系列，停止分页
@@ -364,7 +367,7 @@ def refresh_partial_metadata():
     if KOMGA_LIBRARY_LIST:
         for libray_item in KOMGA_LIBRARY_LIST:
             series_list = _filter_new_modified_series(
-                libray_item["LIBRARY"])["content"]
+                libray_item["LIBRARY"])
             for series in series_list:
                 series["is_novel"] = libray_item["IS_NOVEL_ONLY"]
             recent_modified_series.extend(series_list)

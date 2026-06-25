@@ -13,7 +13,8 @@ def run_service():
     """
     service_type = BANGUMI_KOMGA_SERVICE_TYPE.lower()
 
-    # 启动Archive检查服务
+    # Archive 检查: 各模式共享, daemon 线程无需显式 join
+    # (poll/once 模式由 wait_for_services 内部 join, SSE 由 sse_service 独自主线程阻塞)
     archive_thread = periodical_archive_check_service()
 
     refresh_metadata()

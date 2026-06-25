@@ -138,7 +138,6 @@ class KomgaSseClient:
     def stop(self):
         """停止 SSE 连接并等待线程结束."""
         self._running = False
-        # 关闭响应以打断阻塞中的 iter_lines
         if self._response is not None:
             try:
                 self._response.close()
@@ -151,6 +150,14 @@ class KomgaSseClient:
         except Exception:
             pass
         self.on_close()
+
+    def is_stopped(self) -> bool:
+        """SSE 连接是否已永久停止 (重连耗尽或非200响应)."""
+        return self._stopped.is_set()
+
+    def wait_stopped(self, timeout=None) -> bool:
+        """阻塞等待 SSE 连接停止, 返回是否已停止. 可 Ctrl+C 中断."""
+        return self._stopped.wait(timeout=timeout)
 
     # ------------------------------------------------------------------
     # 内部实现

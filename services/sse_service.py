@@ -51,15 +51,23 @@ class SSEService:
         atexit.register(self.stop)
 
     def _init_collection_series(self):
-        """启动时从 Komga API 查询收藏集系列列表."""
+        """加载所有配置的收藏集系列到白名单."""
+        if self._collection_ids is None:
+            return
         try:
-            from api.komga_api import KomgaApi
-            api = KomgaApi(KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD)
+            # 缓存 KomgaApi 实例, 避免重复导入
+            if not hasattr(self, '_komga_api'):
+                from api.komga_api import KomgaApi
+                self._komga_api = KomgaApi(
+                    KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD)
+            self._collection_series.clear()
             for item in KOMGA_COLLECTION_LIST:
-                result = api.get_series_with_collection([item["COLLECTION"]])
+                result = self._komga_api.get_series_with_collection(
+                    [item["COLLECTION"]])
                 for s in result.get("content", []):
                     self._collection_series.add(s["id"])
-            logger.info(f"已加载 {len(self._collection_series)} 个系列到收藏集白名单")
+            logger.info(
+                f"已加载 {len(self._collection_series)} 个系列到收藏集白名单")
         except Exception as e:
             logger.warning(f"加载收藏集白名单失败: {e}，等待 SSE Collection 事件")
 
@@ -204,17 +212,14 @@ def sse_service():
     service = SSEService()
     service.start()
 
-    # 同时等待 Ctrl+C 和 SSE 线程完全停止
-    stop_events = [service.client._stopped]
     try:
-        while not any(e.is_set() for e in stop_events):
-            for e in stop_events:
-                e.wait(timeout=5)
-            # Ctrl+C 会在 wait 时抛出 KeyboardInterrupt
+        # 等待 Ctrl+C 或 SSE 连接永久停止
+        while not service.client.is_stopped():
+            service.client.wait_stopped(timeout=5)
     except KeyboardInterrupt:
         pass
     finally:
-        if service.client._stopped.is_set():
+        if service.client.is_stopped():
             logger.critical("SSE 连接已完全断开, 退出服务")
         service.stop()
         logger.warning("BangumiKomga SSE 服务已停止")

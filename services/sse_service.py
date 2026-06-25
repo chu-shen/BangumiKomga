@@ -1,8 +1,8 @@
 import atexit
 import threading
 from concurrent.futures import ThreadPoolExecutor
+import logging
 
-from tools.log import logger
 from config.config import (
     KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD,
     KOMGA_LIBRARY_LIST, KOMGA_COLLECTION_LIST,
@@ -10,6 +10,7 @@ from config.config import (
 from core.refresh_metadata import refresh_metadata, get_series_metadata
 from api.komga_sse_api import KomgaSseClient
 
+logger = logging.getLogger(__name__)
 
 class SSEService:
     """基于 SSE 的元数据刷新服务.

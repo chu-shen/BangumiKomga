@@ -12,7 +12,12 @@ import requests
 import base64
 from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
-from tools.log import logger
+from threading import Thread, Lock
+from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
+import logging
+logger = logging.getLogger(__name__)
+from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
 
 # ==========================================================================
 # Komga SSE 事件类型完整参考

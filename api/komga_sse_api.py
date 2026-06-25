@@ -224,7 +224,10 @@ class KomgaSseClient:
                 with self.session.get(
                     self.url, stream=True, timeout=self.timeout
                 ) as resp:
-                    pass  # 仅验证连接, 成功则关闭
+                    if resp.status_code != 200:
+                        logger.error("Komga 账户凭据验证失败")
+                        self._stopped.set()
+                        return
             except requests.exceptions.ConnectionError:
                 logger.error("Komga SSE 连接错误: 无法连接至服务器")
                 self._stopped.set()
@@ -232,10 +235,6 @@ class KomgaSseClient:
             except Exception as e:
                 logger.error(f"Komga SSE 连接错误: {e}")
                 self.on_error(e)
-                self._stopped.set()
-                return
-            if resp.status_code != 200:
-                logger.error("Komga 账户凭据验证失败!")
                 self._stopped.set()
                 return
         else:

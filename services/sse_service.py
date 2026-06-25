@@ -113,8 +113,7 @@ class SSEService:
         series_ids = event_data.get("seriesIds", [])
 
         # None = 不过滤, 所有收藏集事件都处理
-        if self._collection_ids is not None \
-                and collection_id not in self._collection_ids:
+        if self._collection_ids is not None and collection_id not in self._collection_ids:
             logger.debug(
                 f"收藏集 {collection_id} 不在 KOMGA_COLLECTION_LIST 中，跳过")
             return

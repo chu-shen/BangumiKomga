@@ -10,6 +10,7 @@ class TimeCacheManager:
     时间缓存管理类，处理更新时间记录的读写和转换
     """
 
+    @staticmethod
     def read_time(file_path) -> str:
         """
         读取缓存中的更新时间字符串
@@ -24,6 +25,7 @@ class TimeCacheManager:
             logger.warning(f"缓存文件 {file_path} 解析失败: {str(e)}")
             return "1970-01-01T00:00:00Z"
 
+    @staticmethod
     def save_time(file_path, last_updated: str) -> None:
         """
         保存最新更新时间到缓存
@@ -31,6 +33,7 @@ class TimeCacheManager:
         with open(file_path, "w") as f:
             json.dump({"last_updated": last_updated}, f)
 
+    @staticmethod
     def convert_to_timedelta(input_seconds: int) -> Optional[datetime]:
         """
         将分钟数转换为 datetime 对象
@@ -42,6 +45,7 @@ class TimeCacheManager:
             return None
         return result
 
+    @staticmethod
     def convert_to_datetime(time_str: str) -> Optional[datetime]:
         """
         将 ISO 格式字符串转换为 datetime 对象

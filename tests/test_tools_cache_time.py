@@ -3,9 +3,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import logging
-logger = logging.getLogger(__name__)
-from tools.cache_time import TimeCacheManager
+from tools.cache_time import TimeCacheManager, logger
 
 
 class TestTimeCacheManager(unittest.TestCase):

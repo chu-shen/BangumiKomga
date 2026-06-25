@@ -3,62 +3,65 @@ from unittest.mock import MagicMock, patch
 from api.komga_sse_api import KomgaSseClient, KomgaSseApi, RefreshEventType
 
 
-# @unittest.skip("临时跳过测试")
-class TestKomgaSseClient(unittest.TestCase):
-    """基于Mock的Komga SSE测试"""
+class BaseKomgaSseTest(unittest.TestCase):
+    """共享的 Komga SSE 测试基类 —— 封装 logger / Session / Response 的 mock 设置。"""
 
     def setUp(self):
-        # 模拟配置
         self.base_url = "http://mocked-komga-url"
         self.username = "test_user"
         self.password = "test_password"
 
-        # 模拟requests.get，防止真实认证请求
-        self.mock_get_patcher = patch('requests.get')
-        self.mock_get = self.mock_get_patcher.start()
-
-        # 模拟日志系统
+        # 模拟日志系统（一处定义，子类复用）
         self.mock_logger = MagicMock()
-        patch('tools.log.logger', self.mock_logger).start()
+        patch('api.komga_sse_api.logger', self.mock_logger).start()
 
-        # 模拟requests.Session
+        # 模拟 requests.Session
         self.session_mock = MagicMock()
         self.session_mock.headers = {}
-        self.session_constructor = patch(
-            'requests.Session', return_value=self.session_mock).start()
+        patch('requests.Session', return_value=self.session_mock).start()
 
-        # 模拟Response对象
+        # 模拟 Response 对象
         self.response_mock = MagicMock()
         self.response_mock.status_code = 200
         self.response_mock.headers = {}
         self.session_mock.get.return_value = self.response_mock
 
-        # 准备测试事件数据
-        self.test_events = [
-            # 单行事件块
-            'event: SeriesAdded\ndata: {"id":"series1", "libraryId":"0JR3B78BEGVYG"}\n\n',
-            # 多行数据事件
-            'event: BookAdded\ndata: {"id":"book1", "seriesId":"series1"}\n'
-            'data: {"libraryId":"0JR3B78BEGVYG"}\n\n',
-            # 不完整数据块
-            'event: SeriesChanged\ndata: {"id":"series2"',
-            # 多行数据中的后继数据块
-            'data: {"libraryId":"0JR3B78BEGVYG"}\n\n',
-            # 无效事件类型
-            'event: UnknownEvent\ndata: {"test":true}\n\n'
-        ]
-        # 模拟真实字节流传输
-        self.test_event_bytes = [event.encode(
-            'utf-8') for event in self.test_events]
+    def tearDown(self):
+        patch.stopall()
+
+    def _setup_test_events(self, events=None):
+        """配置 mock response 以返回指定的 SSE 事件数据。"""
+        if events is None:
+            events = [
+                # 单行事件块
+                'event: SeriesAdded\ndata: {"id":"series1", "libraryId":"0JR3B78BEGVYG"}\n\n',
+                # 多行数据事件
+                'event: BookAdded\ndata: {"id":"book1", "seriesId":"series1"}\n'
+                'data: {"libraryId":"0JR3B78BEGVYG"}\n\n',
+                # 不完整数据块
+                'event: SeriesChanged\ndata: {"id":"series2"',
+                # 多行数据中的后继数据块
+                'data: {"libraryId":"0JR3B78BEGVYG"}\n\n',
+                # 无效事件类型
+                'event: UnknownEvent\ndata: {"test":true}\n\n'
+            ]
+        self.test_events = events
+        self.test_event_bytes = [e.encode('utf-8') for e in events]
         self.response_mock.iter_lines.side_effect = lambda chunk_size, decode_unicode: iter(
             self.test_event_bytes)
 
-        # 创建不会发起真实请求的测试客户端
+
+# @unittest.skip("临时跳过测试")
+class TestKomgaSseClient(BaseKomgaSseTest):
+    """基于Mock的Komga SSE测试"""
+
+    def setUp(self):
+        super().setUp()
+        # 防止真实认证请求
+        patch('requests.get').start()
+        self._setup_test_events()
         self.client = KomgaSseClient(
             self.base_url, self.username, self.password)
-
-    def tearDown(self):
-        patch.stopall()
 
     def test_authentication_flow(self):
         """测试SSE Client - 模拟认证流程"""
@@ -114,53 +117,12 @@ class TestKomgaSseClient(unittest.TestCase):
 
 
 # @unittest.skip("临时跳过测试")
-class TestKomgaSseApi(unittest.TestCase):
+class TestKomgaSseApi(BaseKomgaSseTest):
     def setUp(self):
-        # 模拟配置
-        self.base_url = "http://mocked-komga-url"
-        self.username = "test_user"
-        self.password = "test_password"
-
-        # 模拟requests.get，防止真实认证请求
-        self.mock_get_patcher = patch('requests.get')
-        self.mock_get = self.mock_get_patcher.start()
-
-        # 模拟日志系统
-        self.mock_logger = MagicMock()
-        patch('tools.log.logger', self.mock_logger).start()
-
-        # 模拟requests.Session
-        self.session_mock = MagicMock()
-        self.session_constructor = patch(
-            'requests.Session', return_value=self.session_mock).start()
-
-        # 模拟Response对象
-        self.response_mock = MagicMock()
-        self.response_mock.status_code = 200
-        self.response_mock.headers = {}
-        self.session_mock.get.return_value = self.response_mock
-
-        # 准备测试事件数据
-        self.test_events = [
-            # 单行事件块
-            'event: SeriesAdded\ndata: {"id":"series1", "libraryId":"0JR3B78BEGVYG"}\n\n',
-            # 多行数据事件
-            'event: BookAdded\ndata: {"id":"book1", "seriesId":"series1"}\n'
-            'data: {"libraryId":"0JR3B78BEGVYG"}\n\n',
-            # 不完整数据块
-            'event: SeriesChanged\ndata: {"id":"series2"',
-            # 多行数据中的后继数据块
-            'data: {"libraryId":"0JR3B78BEGVYG"}\n\n',
-            # 无效事件类型
-            'event: UnknownEvent\ndata: {"test":true}\n\n'
-        ]
-
-        # 模拟真实字节流传输
-        self.test_event_bytes = [event.encode(
-            'utf-8') for event in self.test_events]
-        self.response_mock.iter_lines.side_effect = lambda chunk_size, decode_unicode: iter(
-            self.test_event_bytes)
-
+        super().setUp()
+        # 防止真实认证请求
+        patch('requests.get').start()
+        self._setup_test_events()
         # 创建不会发起真实请求的API实例
         self.api = KomgaSseApi(
             self.base_url, self.username, self.password)
@@ -247,43 +209,14 @@ class TestKomgaSseApi(unittest.TestCase):
 
 
 # @unittest.skip("临时跳过测试")
-class TestErrorHandling(unittest.TestCase):
+class TestErrorHandling(BaseKomgaSseTest):
     """错误处理测试"""
 
     def setUp(self):
-        # 模拟配置
-        self.base_url = "http://mocked-komga-url"
-        self.username = "test_user"
-        self.password = "test_password"
-
-        # 模拟requests.post，防止真实认证请求
-        self.mock_post_patcher = patch('requests.post')
-        self.mock_post = self.mock_post_patcher.start()
-
-        # 模拟日志系统
-        self.mock_logger = MagicMock()
-        patch('tools.log.logger', self.mock_logger).start()
-
-        # 模拟requests.Session
-        self.session_mock = MagicMock()
-        self.session_constructor = patch(
-            'requests.Session', return_value=self.session_mock).start()
-
-        # 模拟Response对象
-        self.response_mock = MagicMock()
-        self.response_mock.status_code = 200
-        self.response_mock.headers = {}
-        self.session_mock.get.return_value = self.response_mock
-
-        self.test_events = []
-
-        # 模拟真实字节流传输
-        self.test_event_bytes = [event.encode(
-            'utf-8') for event in self.test_events]
-        self.response_mock.iter_lines.side_effect = lambda chunk_size, decode_unicode: iter(
-            self.test_event_bytes)
-
-        # 创建不会发起真实请求的测试客户端
+        super().setUp()
+        # 防止真实认证请求
+        patch('requests.post').start()
+        self._setup_test_events(events=[])
         self.client = KomgaSseClient(
             self.base_url, self.username, self.password)
 

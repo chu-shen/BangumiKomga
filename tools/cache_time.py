@@ -34,14 +34,14 @@ class TimeCacheManager:
             json.dump({"last_updated": last_updated}, f)
 
     @staticmethod
-    def convert_to_timedelta(input_seconds: int) -> Optional[datetime]:
+    def convert_to_timedelta(seconds: int) -> Optional[timedelta]:
         """
-        将分钟数转换为 datetime 对象
+        将秒数转换为 timedelta 对象
         """
         try:
-            result = timedelta(minutes=input_seconds)
+            result = timedelta(seconds=seconds)
         except Exception as e:
-            logger.warning(f"时间值 {input_seconds} 转换失败: {str(e)}")
+            logger.warning(f"时间值 {seconds} 转换失败: {str(e)}")
             return None
         return result
 

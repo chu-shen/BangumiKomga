@@ -300,13 +300,15 @@ class BangumiArchiveDataSource(DataSource):
         """
         离线数据源更新阅读进度
         """
-        raise NotImplementedError("离线数据源不支持更新阅读进度")
+        logger.warning("离线数据源不支持更新阅读进度")
+        return False
 
     def get_subject_thumbnail(self, subject_metadata, image_size):
         """
         离线数据源获取封面
         """
-        raise NotImplementedError("离线数据源不支持获取封面")
+        logger.warning("离线数据源不支持获取封面")
+        return {}
 
 
 class BangumiDataSourceFactory:

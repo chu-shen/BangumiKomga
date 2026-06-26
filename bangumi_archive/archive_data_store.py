@@ -67,9 +67,6 @@ CREATE TABLE IF NOT EXISTS meta (
 
 ALL_DDL = [DDL_SUBJECTS_IDX, DDL_FTS, DDL_RELATIONS, DDL_REL_INDEX, DDL_META]
 
-# Infobox 解析正则
-RE_ARRAY_ENTRY = re.compile(r"\[(.*?)\]")
-
 
 # --- ArchiveDataStore -----------------------------------------------
 
@@ -88,13 +85,8 @@ class ArchiveDataStore:
         self._mm_file: Optional[object] = None         # file handle
 
     def open(self):
-        """打开数据库 + mmap 数据文件.
-
-        check_same_thread=False 允许跨线程共享连接.
-        WAL 模式保证读取并发安全.
-        """
-        self._conn = sqlite3.connect(
-            self._db_path, check_same_thread=False)
+        """打开数据库 + mmap 数据文件."""
+        self._conn = sqlite3.connect(self._db_path)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.execute("PRAGMA cache_size=-32000")  # 32MB cache
@@ -178,6 +170,8 @@ class ArchiveDataStore:
 
     def get_by_id(self, subject_id: int) -> Optional[dict]:
         """通过 ID 获取完整 subject 数据."""
+        if self._mm is None:
+            return None
         row = self._conn.execute(
             "SELECT row_offset FROM subjects_idx WHERE id=?",
             (subject_id,),
@@ -191,6 +185,8 @@ class ArchiveDataStore:
 
         FTS5 content 表指向 subjects_idx, MATCH 直接返回 rowid=id.
         """
+        if self._mm is None:
+            return []
         c = self._conn
         ids = [
             r[0] for r in c.execute(
@@ -209,12 +205,13 @@ class ArchiveDataStore:
                 ids,
             ).fetchall()
         }
-        results = [_read_line_at_offset(self._mm, offsets[i])
-                    for i in ids if i in offsets]
-        return [r for r in results if r is not None]
+        return [_read_line_at_offset(self._mm, offsets[i])
+                for i in ids if i in offsets]
 
     def search_all(self, query: str) -> list[dict]:
         """带子串回退的搜索: FTS 无结果时 fallback 到 LIKE."""
+        if self._mm is None:
+            return []
         results = self.search(query)
         if results:
             return [r for r in results if r.get("type") == 1]
@@ -238,9 +235,8 @@ class ArchiveDataStore:
                 ids,
             ).fetchall()
         }
-        results = [_read_line_at_offset(self._mm, offsets[i])
-                    for i in ids if i in offsets]
-        return [r for r in results if r is not None]
+        return [_read_line_at_offset(self._mm, offsets[i])
+                for i in ids if i in offsets]
 
     def get_related(self, subject_id: int) -> list[dict]:
         """获取关联条目列表 (含 name/name_cn/type/id)."""

@@ -49,19 +49,19 @@ _instance: Optional["ArchiveService"] = None
 def archive_search_subjects(query: str) -> list[dict]:
     """离线搜索 Bangumi 条目, 返回 name/name_cn 匹配的完整 dict 列表."""
     srv = _instance
-    return srv._store.search_all(query) if srv and srv._store else []
+    return srv.search(query) if srv else []
 
 
 def archive_get_subject_metadata(subject_id: int) -> Optional[dict]:
     """通过 subject_id 获取完整元数据 (mmap 直接读取)."""
     srv = _instance
-    return srv._store.get_by_id(subject_id) if srv and srv._store else None
+    return srv.get_by_id(subject_id) if srv else None
 
 
 def archive_get_related_subjects(subject_id: int) -> list[dict]:
     """获取关联条目列表 [{id, name, name_cn, type, relation}, ...]."""
     srv = _instance
-    return srv._store.get_related(subject_id) if srv and srv._store else []
+    return srv.get_related(subject_id) if srv else []
 
 
 def archive_is_ready() -> bool:
@@ -84,6 +84,7 @@ class ArchiveService:
 
     def __init__(self):
         self._store: Optional[ArchiveDataStore] = None
+        self._store_lock = threading.Lock()
         self._running = False
         self._stop_event = threading.Event()
         self._ready_event = threading.Event()
@@ -109,8 +110,10 @@ class ArchiveService:
         self._stop_event.set()
         if self._thread is not None:
             self._thread.join(timeout=30)
-        if self._store is not None:
-            self._store.close()
+        with self._store_lock:
+            if self._store is not None:
+                self._store.close()
+                self._store = None
 
     def wait_ready(self, timeout: Optional[float] = None) -> bool:
         """等待数据首次就绪 (once 模式使用)."""
@@ -119,22 +122,23 @@ class ArchiveService:
     def is_ready(self) -> bool:
         return self._ready_event.is_set()
 
-    # -- 读代理 (调用方不应感知底层 SQL) ----------------------------
+    # -- 读代理 (线程安全: 锁内抓取 _store 引用, 锁外查询) ---------
+
+    def _get_store(self) -> Optional[ArchiveDataStore]:
+        with self._store_lock:
+            return self._store
 
     def search(self, query: str) -> list[dict]:
-        if not self._store:
-            return []
-        return self._store.search_all(query)
+        store = self._get_store()
+        return store.search_all(query) if store else []
 
     def get_by_id(self, subject_id: int) -> Optional[dict]:
-        if not self._store:
-            return None
-        return self._store.get_by_id(subject_id)
+        store = self._get_store()
+        return store.get_by_id(subject_id) if store else None
 
     def get_related(self, subject_id: int) -> list[dict]:
-        if not self._store:
-            return []
-        return self._store.get_related(subject_id)
+        store = self._get_store()
+        return store.get_related(subject_id) if store else []
 
     # -- 内部 --------------------------------------------------------
 
@@ -163,7 +167,8 @@ class ArchiveService:
     def _download_and_rebuild(self):
         """下载 Archive → 解压 → 全量重建 SQLite 索引.
 
-        每次调用都会: DELETE 三表 + 重新导入 + 重建 FTS5 + 重新 mmap.
+        构建到新的 ArchiveDataStore 实例, 然后原子替换 _store.
+        读操作在重建期间不受影响 (继续使用旧 store).
         """
         logger.info("检查 Bangumi Archive 更新...")
         try:
@@ -196,19 +201,24 @@ class ArchiveService:
             if os.path.exists(zip_path):
                 os.remove(zip_path)
 
-        # 全量重建 SQLite 索引 (DELETE + INSERT + FTS5)
-        self._store.build(SUBJECTS_PATH, RELATIONS_PATH)
-        # 重新 mmap (jsonlines 已替换)
-        self._store.close()
-        self._store.open()
+        # 构建到新 store (隔离于并发读者)
+        new_store = ArchiveDataStore(DB_PATH, SUBJECTS_PATH)
+        new_store.open()
+        new_store.build(SUBJECTS_PATH, RELATIONS_PATH)
+        new_store.set_meta("last_updated", remote_time or "")
 
-        # 更新时间戳 → SQLite meta 表
-        self._store.set_meta("last_updated", remote_time or "")
+        # 原子替换 — 读操作在锁内拿到新 _store, 旧 store 延迟关闭
+        with self._store_lock:
+            old = self._store
+            self._store = new_store
+        if old is not None:
+            old.close()
         logger.info("Archive 重建完成")
 
     def _is_up_to_date(self, remote_time: str) -> bool:
         """对比远程时间与 SQLite meta 中存储的本地更新时间."""
-        local = self._store.get_meta("last_updated") if self._store else None
+        store = self._get_store()
+        local = store.get_meta("last_updated") if store else None
         if not local or not remote_time:
             return False
         try:

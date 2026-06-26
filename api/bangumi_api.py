@@ -264,9 +264,12 @@ class BangumiArchiveDataSource(DataSource):
         return _archive_get_related_subjects(subject_id)
 
     def update_reading_progress(self, subject_id, progress):
+        logger.warning("离线数据源不支持更新阅读进度 (%s)", subject_id)
         return False
 
     def get_subject_thumbnail(self, subject_metadata, image_size):
+        logger.warning("离线数据源不支持获取封面 (%s)",
+                       subject_metadata.get("id", "?"))
         return {}
 
 

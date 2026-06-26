@@ -46,26 +46,39 @@ _instance: Optional["ArchiveService"] = None
 
 # ---- 对外 API (archive_* 前缀, 供任意模块直接调用) ----------------
 
+def _is_archive_enabled() -> bool:
+    """USE_BANGUMI_ARCHIVE=False 时所有 archive_* 函数应在入口处短路."""
+    return USE_BANGUMI_ARCHIVE
+
+
 def archive_search_subjects(query: str) -> list[dict]:
     """离线搜索 Bangumi 条目, 返回 name/name_cn 匹配的完整 dict 列表."""
+    if not _is_archive_enabled():
+        return []
     srv = _instance
     return srv.search(query) if srv else []
 
 
 def archive_get_subject_metadata(subject_id: int) -> Optional[dict]:
     """通过 subject_id 获取完整元数据 (mmap 直接读取)."""
+    if not _is_archive_enabled():
+        return None
     srv = _instance
     return srv.get_by_id(subject_id) if srv else None
 
 
 def archive_get_related_subjects(subject_id: int) -> list[dict]:
     """获取关联条目列表 [{id, name, name_cn, type, relation}, ...]."""
+    if not _is_archive_enabled():
+        return []
     srv = _instance
     return srv.get_related(subject_id) if srv else []
 
 
 def archive_is_ready() -> bool:
     """Archive 数据是否已就绪."""
+    if not _is_archive_enabled():
+        return False
     return _instance is not None and _instance.is_ready()
 
 # --------------------------------------------------------------------
@@ -93,10 +106,9 @@ class ArchiveService:
     # -- 公开 API ----------------------------------------------------
 
     def start(self):
-        """启动后台线程: 首次下载(若需要) + 打开数据库 + 定时检查.
-
-        非阻塞, 不等待首次下载完成. 用 wait_ready() 等待数据就绪.
-        """
+        """启动后台线程. 非阻塞, 用 wait_ready() 等待."""
+        if not USE_BANGUMI_ARCHIVE:
+            return
         if self._running:
             return
         self._running = True
@@ -114,6 +126,9 @@ class ArchiveService:
             if self._store is not None:
                 self._store.close()
                 self._store = None
+        global _instance
+        if _instance is self:
+            _instance = None
 
     def wait_ready(self, timeout: Optional[float] = None) -> bool:
         """等待数据首次就绪 (once 模式使用)."""

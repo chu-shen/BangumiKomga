@@ -16,25 +16,19 @@ from tools.resort_search_results_list import resort_search_list
 from tools.slide_window_rate_limiter import slide_window_rate_limiter
 from zhconv import convert
 
-# 延迟导入缓存, 避免重复 import
-_archive_funcs = None
-
+# 延迟导入, 避免模块级循环依赖
 def _try_import_archive():
-    global _archive_funcs
-    if _archive_funcs is not None:
-        return _archive_funcs
     try:
         from bangumi_archive.archive_service import (
             archive_search_subjects,
             archive_get_subject_metadata,
             archive_get_related_subjects,
         )
-        _archive_funcs = (archive_search_subjects,
-                          archive_get_subject_metadata,
-                          archive_get_related_subjects)
+        return (archive_search_subjects,
+                archive_get_subject_metadata,
+                archive_get_related_subjects)
     except ImportError:
-        _archive_funcs = (None, None, None)
-    return _archive_funcs
+        return None, None, None
 
 
 

@@ -19,9 +19,9 @@ def run_service():
 
     try:
         if service_type == "poll":
-            run_poll_service(archive_service)
+            run_poll_service()
         elif service_type == "sse":
-            run_sse_service(archive_service)
+            run_sse_service()
         elif service_type == "once":
             run_once_service(archive_service)
         else:
@@ -35,7 +35,7 @@ def run_service():
             archive_service.stop()
 
 
-def run_poll_service(archive_service):
+def run_poll_service():
     """运行轮询服务."""
     service_thread = threading.Thread(
         target=poll_service, daemon=True, name="PollService"
@@ -44,7 +44,7 @@ def run_poll_service(archive_service):
     _wait_service(service_thread)
 
 
-def run_sse_service(archive_service):
+def run_sse_service():
     """运行SSE服务."""
     service_thread = threading.Thread(
         target=sse_service, daemon=True, name="SSEService"

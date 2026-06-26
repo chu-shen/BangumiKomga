@@ -16,26 +16,38 @@ from tools.resort_search_results_list import resort_search_list
 from tools.slide_window_rate_limiter import slide_window_rate_limiter
 from zhconv import convert
 
-# 延迟导入, 避免模块级循环依赖
+# 延迟导入, 避免模块级循环依赖; 首次成功后缓存, 失败只报一次警告.
+_archive_search_subjects = None
+_archive_get_subject_metadata = None
+_archive_get_related_subjects = None
 _archive_import_warned = False
 
-def _try_import_archive():
-    global _archive_import_warned
+
+def _ensure_archive_imported() -> bool:
+    """确保 archive 模块已导入并缓存函数引用. 返回是否成功."""
+    global _archive_search_subjects, _archive_get_subject_metadata
+    global _archive_get_related_subjects, _archive_import_warned
+
+    if _archive_search_subjects is not None:
+        return True            # 已缓存
+    if _archive_import_warned:
+        return False           # 已失败过, 不重试
+
     try:
         from bangumi_archive.archive_service import (
             archive_search_subjects,
             archive_get_subject_metadata,
             archive_get_related_subjects,
         )
-        return (archive_search_subjects,
-                archive_get_subject_metadata,
-                archive_get_related_subjects)
-    except ImportError as e:
-        if not _archive_import_warned:
-            _archive_import_warned = True
-            logger.warning(
-                "无法导入 archive_service, 离线数据源不可用: %s", e)
-        return None, None, None
+        _archive_search_subjects = archive_search_subjects
+        _archive_get_subject_metadata = archive_get_subject_metadata
+        _archive_get_related_subjects = archive_get_related_subjects
+        return True
+    except Exception as e:
+        _archive_import_warned = True
+        logger.warning(
+            "无法导入 archive_service, 离线数据源不可用: %s", e)
+        return False
 
 
 
@@ -195,13 +207,12 @@ class BangumiApiDataSource(DataSource):
 
 
 class BangumiArchiveDataSource(DataSource):
-    """离线数据源 — 薄适配器, 直接调用 archive_* 函数."""
+    """离线数据源"""
 
     def search_subjects(self, query, threshold=80, is_novel=False):
-        func, _, _ = _try_import_archive()
-        if func is None:
+        if not _ensure_archive_imported():
             return []
-        results = func(query)
+        results = _archive_search_subjects(query)
         for item in results:
             item["images"] = ""
             item["rating"] = {
@@ -216,10 +227,9 @@ class BangumiArchiveDataSource(DataSource):
         )
 
     def get_subject_metadata(self, subject_id):
-        _, func, _ = _try_import_archive()
-        if func is None:
+        if not _ensure_archive_imported():
             return {}
-        data = func(subject_id)
+        data = _archive_get_subject_metadata(subject_id)
         if not data:
             return {}
         try:
@@ -249,23 +259,14 @@ class BangumiArchiveDataSource(DataSource):
             return {}
 
     def get_related_subjects(self, subject_id):
-        _, _, func = _try_import_archive()
-        if func is None:
+        if not _ensure_archive_imported():
             return []
-        return func(subject_id)
+        return _archive_get_related_subjects(subject_id)
 
     def update_reading_progress(self, subject_id, progress):
-        """
-        离线数据源更新阅读进度
-        """
-        NotImplementedError("离线数据源不支持更新阅读进度")
         return False
 
     def get_subject_thumbnail(self, subject_metadata, image_size):
-        """
-        离线数据源获取封面
-        """
-        NotImplementedError("离线数据源不支持获取封面")
         return {}
 
 

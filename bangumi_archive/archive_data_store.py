@@ -16,7 +16,6 @@
 import json
 import mmap
 import os
-import re
 import sqlite3
 from typing import Optional
 import logging
@@ -149,6 +148,8 @@ class ArchiveDataStore:
         logger.info("索引构建完成")
 
     def validate(self) -> bool:
+        if self._conn is None:
+            return False
         return self._conn.execute(
             "SELECT COUNT(*) FROM subjects_idx").fetchone()[0] > 0
 
@@ -347,58 +348,3 @@ def _fts_query(user_input: str) -> str:
     if any('\u4e00' <= c <= '\u9fff' for c in query):
         return f'"{query}"*'
     return f'"{query}"'
-
-
-def parse_infobox(infobox_str: str) -> list:
-    """解析 infobox 模板字符串 → [{"key":..., "value":...}, ...]."""
-    if not infobox_str:
-        return []
-    infobox = []
-    lines = infobox_str.split("\n")
-    current_key = None
-    current_value = []
-
-    for line in lines:
-        line = line.strip()
-        if line.startswith("{{") or line.startswith("}}"):
-            continue
-        if line.startswith("|"):
-            if current_key:
-                infobox.append({
-                    "key": current_key,
-                    "value": _process_infobox_value(
-                        current_key, " ".join(current_value)),
-                })
-            parts = line[1:].split("=", 1)
-            if len(parts) == 2:
-                current_key = parts[0].strip()
-                current_value = [parts[1].strip()]
-            else:
-                current_key = None
-        else:
-            current_value.append(line)
-
-    if current_key:
-        infobox.append({
-            "key": current_key,
-            "value": _process_infobox_value(
-                current_key, " ".join(current_value)),
-        })
-    return infobox
-
-
-def _process_infobox_value(key, value_str):
-    """处理特殊字段（别名、链接）."""
-    if key == "别名":
-        return [
-            {"v": e.strip()}
-            for e in RE_ARRAY_ENTRY.findall(value_str) if e.strip()
-        ]
-    if key == "链接":
-        entries = []
-        for raw in RE_ARRAY_ENTRY.findall(value_str):
-            parts = raw.split("|", 1)
-            if len(parts) >= 2:
-                entries.append({"k": parts[0].strip(), "v": parts[1].strip()})
-        return entries
-    return value_str.strip()

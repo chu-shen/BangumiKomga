@@ -17,7 +17,10 @@ from tools.slide_window_rate_limiter import slide_window_rate_limiter
 from zhconv import convert
 
 # 延迟导入, 避免模块级循环依赖
+_archive_import_warned = False
+
 def _try_import_archive():
+    global _archive_import_warned
     try:
         from bangumi_archive.archive_service import (
             archive_search_subjects,
@@ -27,7 +30,11 @@ def _try_import_archive():
         return (archive_search_subjects,
                 archive_get_subject_metadata,
                 archive_get_related_subjects)
-    except ImportError:
+    except ImportError as e:
+        if not _archive_import_warned:
+            _archive_import_warned = True
+            logger.warning(
+                "无法导入 archive_service, 离线数据源不可用: %s", e)
         return None, None, None
 
 

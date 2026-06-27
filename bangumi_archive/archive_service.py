@@ -22,7 +22,6 @@ import logging
 from typing import Optional
 
 import requests
-import tqdm
 
 from config.config import (
     USE_BANGUMI_ARCHIVE,
@@ -279,7 +278,16 @@ def _download_archive(url: str, dest: str, expected_size=None):
     resp.raise_for_status()
     total = expected_size or int(resp.headers.get("content-length", 0))
 
+    # 仅在 TTY 且 tqdm 可用时使用进度条, 否则回退日志
+    _use_tqdm = False
     if sys.stderr.isatty():
+        try:
+            import tqdm
+            _use_tqdm = True
+        except ImportError:
+            logger.debug("tqdm 未安装, 回退到日志下载")
+
+    if _use_tqdm:
         with open(dest, "wb") as f, tqdm.tqdm(
             total=total, unit="B", unit_scale=True, desc="下载中"
         ) as pbar:

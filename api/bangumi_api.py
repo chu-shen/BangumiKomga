@@ -24,7 +24,11 @@ _archive_import_warned = False
 
 
 def _ensure_archive_imported() -> bool:
-    """确保 archive 模块已导入并缓存函数引用. 返回是否成功."""
+    """确保 archive 模块已导入并缓存函数引用. 返回是否成功.
+
+    首次 ImportError 后永久抑制重试: 模块查找失败是确定性的,
+    进程不重启则环境不变, 反复尝试只会产生重复日志.
+    """
     global _archive_search_subjects, _archive_get_subject_metadata
     global _archive_get_related_subjects, _archive_import_warned
 
@@ -208,7 +212,12 @@ class BangumiApiDataSource(DataSource):
 
 
 class BangumiArchiveDataSource(DataSource):
-    """离线数据源"""
+    """离线数据源.
+
+    infobox / platform / summary 等字段由 archive 原始 JSON 直接提供
+    (标准 Bangumi 格式), 无需额外解析; 下游 process_metadata.py 直接
+    从返回 dict 中读取.
+    """
 
     def search_subjects(self, query, threshold=80, is_novel=False):
         if not _ensure_archive_imported():

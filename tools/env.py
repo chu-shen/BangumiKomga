@@ -3,9 +3,8 @@ import api.komga_api as komga_api
 from config.config import *
 import os
 import logging
-from tools.paths import PROJECT_ROOT
+from tools.paths import PROJECT_ROOT, ensure_runtime_layout
 logger = logging.getLogger(__name__)
-from tools.db import ensure_db_path
 from config.configuration_generator import start_config_generate
 
 
@@ -28,11 +27,13 @@ class InitEnv:
 
     def prepare_procedure(self):
         """检查目录权限并提前创建必要目录"""
+        # 关键路径：失败则直接崩溃，避免后续静默出错
+        ensure_runtime_layout()
+
         config_file = os.path.join(PROJECT_ROOT, "config", "config.py")
         generated_config_file = os.path.join(
             PROJECT_ROOT, "config", "config.generated.py")
         try:
-            ensure_db_path()
             if not os.path.exists(config_file) or os.path.getsize(config_file) == 0:
                     start_config_generate()
                     if os.path.exists(generated_config_file):

@@ -102,9 +102,7 @@
         container_name: bangumikomga
         volumes:
           - /path/BangumiKomga/config.py:/app/config/config.py   # 内容更改见 step.2
-          - /path/BangumiKomga/recordsRefreshed.db:/app/recordsRefreshed.db
-          - /path/BangumiKomga/logs:/app/logs
-          - /path/BangumiKomga/archivedata:/app/archivedata # 离线元数据（可选），详见`ARCHIVE_FILES_DIR`
+          - /path/BangumiKomga/data:/app/data                     # 日志、数据库、离线元数据
     ```
 
 2. 根据模板`config/config.template.py` 创建配置文件：`config/config.py`, 然后填写[必需配置](#komga-配置必填)。(_推荐优先使用[交互式配置生成](#交互式配置生成)_)

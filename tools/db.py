@@ -1,26 +1,8 @@
-import os
 import sqlite3
 from time import strftime, localtime
 import logging
-from tools.paths import DB_PATH, ensure_directories
+from tools.paths import DB_PATH, ensure_runtime_layout
 logger = logging.getLogger(__name__)
-
-
-def ensure_db_path():
-    """
-    确保数据库路径可用。
-
-    幂等地创建运行时目录，处理 Docker bind-mount 导致的目录冲突
-    (DB_PATH 被自动创建为目录而非文件时删除该目录)，并预创建数据库文件。
-    """
-    ensure_directories()
-    if os.path.isdir(DB_PATH):
-        logger.warning(
-            "数据库路径为目录（可能由 Docker bind-mount 导致），正在删除: %s", DB_PATH
-        )
-        os.rmdir(DB_PATH)
-    if not os.path.exists(DB_PATH):
-        sqlite3.connect(DB_PATH).close()
 
 
 def upsert_series_record(
@@ -69,8 +51,9 @@ def upsert_book_record(conn, book_id, subject_id, update_success, book_name):
 
 
 def init_sqlite3():
-    ensure_db_path()
-    # Create a connection to the sqlite database
+    # 确保运行时环境就绪（幂等，可被多次调用）
+    ensure_runtime_layout()
+    # 打开连接并创建表结构
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute(

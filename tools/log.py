@@ -1,6 +1,7 @@
 import sys
 import logging
 from logging.handlers import RotatingFileHandler
+from tools.paths import LOG_PATH
 
 
 def is_in_debug():
@@ -17,7 +18,7 @@ formatter = logging.Formatter(
 )
 
 fh = RotatingFileHandler(
-    filename="data/logs/refreshMetadata.log",
+    filename=LOG_PATH,
     maxBytes=10000000,
     backupCount=9,
     encoding="utf-8",

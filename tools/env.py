@@ -4,6 +4,7 @@ from config.config import *
 import os
 import sqlite3
 from tools.log import logger
+from tools.paths import PROJECT_ROOT, DB_PATH, ensure_directories
 from config.configuration_generator import start_config_generate
 
 
@@ -26,20 +27,14 @@ class InitEnv:
 
     def prepare_procedure(self):
         """检查目录权限并提前创建必要目录"""
-        PROJECT_ROOT = os.path.dirname(
-            os.path.dirname(os.path.abspath(__file__)))
         config_file = os.path.join(PROJECT_ROOT, "config", "config.py")
         generated_config_file = os.path.join(
             PROJECT_ROOT, "config", "config.generated.py")
-        log_directory = os.path.join(PROJECT_ROOT, "data", "logs")
-        data_directory = os.path.join(PROJECT_ROOT, "data")
         try:
-            # 准备数据目录
-            os.makedirs(data_directory, exist_ok=True)
-            # 准备日志目录
-            os.makedirs(log_directory, exist_ok=True)
-            # 自动创建db文件
-            with sqlite3.connect(os.path.join(data_directory, "recordsRefreshed.db")) as conn:
+            # 统一创建所有运行时目录
+            ensure_directories()
+            # 自动创建db文件（确保 bind-mount 场景下是文件而非目录）
+            with sqlite3.connect(DB_PATH) as conn:
                 pass
             if not os.path.exists(config_file) or os.path.getsize(config_file) == 0:
                     start_config_generate()

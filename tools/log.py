@@ -1,3 +1,4 @@
+import os
 import sys
 import logging
 from logging.handlers import RotatingFileHandler
@@ -6,29 +7,39 @@ from tools.paths import LOG_PATH
 
 def is_in_debug():
     """检测是否在调试模式下运行"""
-    result = sys.gettrace()
-    logger.debug(f"调试器检测结果: {result}")
-    return bool(result)
+    return bool(sys.gettrace())
 
+def init_logger(debug_mode=None, log_dir='logs', log_file_name='refreshMetadata.log'):
+    """初始化日志记录器"""
+    if debug_mode is None:
+        debug_mode = is_in_debug()
+    logger = logging.getLogger()
+    if logger.hasHandlers():
+        return logger
+    logger.setLevel(logging.DEBUG)
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(filename)-8s : %(lineno)s - %(message)s"
-)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(filename)-8s : %(lineno)s - %(message)s"
+    )
 
-fh = RotatingFileHandler(
-    filename=LOG_PATH,
-    maxBytes=10000000,
-    backupCount=9,
-    encoding="utf-8",
-)
-fh.setFormatter(formatter)
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
+    # 创建日志目录
+    os.makedirs(log_dir, exist_ok=True)
+    log_file_path = os.path.join(log_dir, log_file_name)
 
-sh = logging.StreamHandler(sys.stdout)
-sh.setFormatter(formatter)
-# 感知调试器, 切换日志等级
-sh.setLevel(logging.DEBUG if is_in_debug() else logging.INFO)
-logger.addHandler(sh)
+    fh = RotatingFileHandler(
+        filename=log_file_path,
+        maxBytes=10000000,
+        backupCount=9,
+        encoding="utf-8",
+    )
+    fh.setFormatter(formatter)
+    fh.setLevel(logging.INFO)
+    logger.addHandler(fh)
+
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setFormatter(formatter)
+    # 感知调试器, 切换日志等级
+    sh.setLevel(logging.DEBUG if debug_mode else logging.INFO)
+    logger.addHandler(sh)
+
+    return logger

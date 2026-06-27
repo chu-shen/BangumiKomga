@@ -1,7 +1,7 @@
 import sqlite3
 from time import strftime, localtime
-from tools.log import logger
-from tools.paths import DB_PATH, ensure_directories
+import logging
+logger = logging.getLogger(__name__)
 
 
 def upsert_series_record(

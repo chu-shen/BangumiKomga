@@ -9,18 +9,56 @@ from requests.adapters import HTTPAdapter
 from api.bangumi_model import BangumiBaseType
 import logging
 logger = logging.getLogger(__name__)
-from bangumi_archive.local_archive_searcher import (
-    parse_infobox,
-    search_line,
-    search_list,
-    search_all_data,
-)
+from abc import ABC, abstractmethod
+from typing import Optional
+
 from tools.resort_search_results_list import resort_search_list
 from tools.slide_window_rate_limiter import slide_window_rate_limiter
 from zhconv import convert
-from abc import ABC, abstractmethod
 
-# TODO： 在DataSource中添加一个本地缓存目录，将从 API 获取的封面图片保存为文件（如 cache/thumbnails/{subject_id}_{image_size}.jpg），下次直接读取本地文件，避免重复请求
+# 延迟导入, 避免模块级循环依赖; 首次成功后缓存, 失败只报一次警告.
+_archive_search_subjects = None
+_archive_get_subject_metadata = None
+_archive_get_related_subjects = None
+_archive_is_ready = None
+_archive_import_warned = False
+
+
+def _ensure_archive_imported() -> bool:
+    """确保 archive 模块已导入并缓存函数引用. 返回是否成功.
+
+    首次 ImportError 后永久抑制重试: 模块查找失败是确定性的,
+    进程不重启则环境不变, 反复尝试只会产生重复日志.
+    """
+    global _archive_search_subjects, _archive_get_subject_metadata
+    global _archive_get_related_subjects, _archive_is_ready
+    global _archive_import_warned
+
+    if _archive_search_subjects is not None:
+        return True            # 已缓存
+    if _archive_import_warned:
+        return False           # 已失败过, 不重试
+
+    try:
+        from bangumi_archive.archive_service import (
+            archive_search_subjects,
+            archive_get_subject_metadata,
+            archive_get_related_subjects,
+            archive_is_ready,
+        )
+        _archive_search_subjects = archive_search_subjects
+        _archive_get_subject_metadata = archive_get_subject_metadata
+        _archive_get_related_subjects = archive_get_related_subjects
+        _archive_is_ready = archive_is_ready
+        return True
+    except ImportError as e:
+        _archive_import_warned = True
+        logger.warning(
+            "无法导入 archive_service, 离线数据源不可用: %s",
+            e, exc_info=True)
+        return False
+
+
 
 
 class DataSource(ABC):
@@ -178,42 +216,19 @@ class BangumiApiDataSource(DataSource):
 
 
 class BangumiArchiveDataSource(DataSource):
+    """离线数据源.
+
+    infobox / platform / summary 等字段由 archive 原始 JSON 直接提供
+    (标准 Bangumi 格式), 无需额外解析; 下游 process_metadata.py 直接
+    从返回 dict 中读取.
     """
-    离线数据源类
-    """
-
-    def __init__(self, local_archive_folder):
-        self.subject_relation_file = (
-            local_archive_folder + "subject-relations.jsonlines"
-        )
-        self.subject_metadata_file = local_archive_folder + "subject.jsonlines"
-
-    def _get_metadata_from_archive(self, subject_id):
-        return search_line(
-            file_path=self.subject_metadata_file,
-            subject_id=subject_id,
-            target_field="id",
-        )
-
-    def _get_relations_from_archive(self, subject_id):
-        return search_list(
-            file_path=self.subject_relation_file,
-            subject_id=subject_id,
-            target_field="subject_id",
-        )
-
-    # 将10s+的全文件扫描性能提升到1s左右
-    def _get_search_results_from_archive(self, query):
-        return search_all_data(file_path=self.subject_metadata_file, query=query)
 
     def search_subjects(self, query, threshold=80, is_novel=False):
-        """
-        离线数据源搜索条目
-        """
-        results = self._get_search_results_from_archive(query)
+        if not _ensure_archive_imported() or not _archive_is_ready():
+            return []
+        results = _archive_search_subjects(query)
         for item in results:
-            item["images"] = ""  # 忽略 images 字段
-            item["infobox"] = parse_infobox(item["infobox"])
+            item["images"] = ""
             item["rating"] = {
                 "rank": item.get("rank", 0),
                 "total": item.get("total", 0),
@@ -221,101 +236,74 @@ class BangumiArchiveDataSource(DataSource):
                 "score": item.get("score", 0.0),
             }
         return resort_search_list(
-            query=query, results=results, threshold=threshold, is_novel=is_novel
+            query=query, results=results, threshold=threshold,
+            is_novel=is_novel,
         )
 
     def get_subject_metadata(self, subject_id):
-        """
-        离线数据源获取条目元数据
-        """
-        data = self._get_metadata_from_archive(subject_id)
+        if not _ensure_archive_imported() or not _archive_is_ready():
+            return {}
+        data = _archive_get_subject_metadata(subject_id)
         if not data:
             return {}
         try:
             data["images"] = ""
-            data["tags"] = [
-                {"name": t["name"], "count": t["count"], "total_cont": 0}
-                for t in data.get("tags", [])
-            ]
-            data["infobox"] = parse_infobox(data["infobox"])
             data["rating"] = {
                 "rank": data.get("rank", 0),
                 "total": data.get("total", 0),
                 "count": data.get("score_details", {}),
                 "score": data.get("score", 0.0),
             }
+            tags = data.get("tags", [])
+            data["tags"] = [
+                {"name": t["name"], "count": t.get("count", 0),
+                 "total_cont": 0}
+                for t in tags if isinstance(t, dict)
+            ]
             data["total_episodes"] = data.get("eps", 0)
+            favorite = data.get("favorite")
+            if not isinstance(favorite, dict):
+                favorite = {}
             data["collection"] = {
-                "on_hold": data["favorite"].get("on_hold", 0),
-                "dropped": data["favorite"].get("dropped", 0),
-                "wish": data["favorite"].get("wish", 0),
-                # 假设done对应collect
-                "collect": data["favorite"].get("done", 0),
-                "doing": data["favorite"].get("doing", 0),
+                "on_hold": favorite.get("on_hold", 0),
+                "dropped": favorite.get("dropped", 0),
+                "wish": favorite.get("wish", 0),
+                "collect": favorite.get("done", 0),
+                "doing": favorite.get("doing", 0),
             }
-            data["meta_tags"] = [tag["name"] for tag in data.get("tags", [])]
-
+            data["meta_tags"] = [
+                t["name"] for t in tags
+                if isinstance(t, dict) and "name" in t
+            ]
             return data
         except Exception as e:
             logger.error(f"构建Archive元数据出错: {e}")
             return {}
 
     def get_related_subjects(self, subject_id):
-        """
-        离线数据源获取关联条目列表
-        """
-        relation_list = self._get_relations_from_archive(subject_id)
-        if not relation_list:
+        if not _ensure_archive_imported() or not _archive_is_ready():
             return []
-        result_list = []
-        for item in relation_list:
-            # 过滤ID
-            if subject_id == item.get("subject_id", 0):
-                try:
-                    metadata = self._get_metadata_from_archive(
-                        item.get("related_subject_id", 0)
-                    )
-                    result = {
-                        "name": metadata.get("name"),
-                        "name_cn": metadata.get("name_cn"),
-                        "relation": item.get("relation_type"),
-                        "type": metadata.get("type"),
-                        "id": metadata.get("id"),
-                        # 忽略 images 字段
-                        "images": "",
-                    }
-                    result_list.append(result)
-                except Exception as e:
-                    logger.error(f"构建Archive关联条目 {subject_id} 出错: {e}")
-                    continue
-        return result_list
+        return _archive_get_related_subjects(subject_id)
 
     def update_reading_progress(self, subject_id, progress):
-        """
-        离线数据源更新阅读进度
-        """
-        NotImplementedError("离线数据源不支持更新阅读进度")
+        logger.warning("离线数据源不支持更新阅读进度 (%s)", subject_id)
         return False
 
     def get_subject_thumbnail(self, subject_metadata, image_size):
-        """
-        离线数据源获取封面
-        """
-        NotImplementedError("离线数据源不支持获取封面")
+        logger.warning("离线数据源不支持获取封面 (%s)",
+                       subject_metadata.get("id", "?"))
         return {}
 
 
 class BangumiDataSourceFactory:
-    """
-    数据源工厂类
-    """
+    """数据源工厂类."""
 
     @staticmethod
     def create(config):
         online = BangumiApiDataSource(config.get("access_token"))
 
         if config.get("use_local_archive", False):
-            offline = BangumiArchiveDataSource(config.get("local_archive_folder"))
+            offline = BangumiArchiveDataSource()
             return FallbackDataSource(offline, online)
 
         return online

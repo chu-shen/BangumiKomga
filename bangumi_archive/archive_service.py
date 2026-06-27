@@ -13,6 +13,7 @@
 """
 
 import os
+import sys
 import threading
 import time
 import zipfile
@@ -43,6 +44,7 @@ RELATIONS_PATH = os.path.join(ARCHIVE_FILES_DIR, "subject-relations.jsonlines")
 
 # 全局单例
 _instance: Optional["ArchiveService"] = None
+_instance_lock = threading.Lock()
 
 # ---- 对外 API (archive_* 前缀, 供任意模块直接调用) ----------------
 
@@ -84,12 +86,14 @@ def archive_is_ready() -> bool:
 # --------------------------------------------------------------------
 
 def get_archive_service() -> Optional["ArchiveService"]:
-    return _instance
+    with _instance_lock:
+        return _instance
 
 
 def set_archive_service(service: "ArchiveService"):
     global _instance
-    _instance = service
+    with _instance_lock:
+        _instance = service
 
 
 class ArchiveService:
@@ -101,6 +105,7 @@ class ArchiveService:
         self._running = False
         self._stop_event = threading.Event()
         self._ready_event = threading.Event()
+        self._failed = False
         self._thread: Optional[threading.Thread] = None
 
     # -- 公开 API ----------------------------------------------------
@@ -127,15 +132,16 @@ class ArchiveService:
                 self._store.close()
                 self._store = None
         global _instance
-        if _instance is self:
-            _instance = None
+        with _instance_lock:
+            if _instance is self:
+                _instance = None
 
     def wait_ready(self, timeout: Optional[float] = None) -> bool:
         """等待数据首次就绪 (once 模式使用)."""
         return self._ready_event.wait(timeout=timeout)
 
     def is_ready(self) -> bool:
-        return self._ready_event.is_set()
+        return self._ready_event.is_set() and not self._failed
 
     # -- 读代理 (线程安全: 锁内抓取 _store 引用, 锁外查询) ---------
 
@@ -170,8 +176,9 @@ class ArchiveService:
             # 4. 定时检查更新
             self._poll_loop()
         except Exception:
-            logger.error("Archive 服务异常退出", exc_info=True)
-            self._ready_event.set()  # 即使失败也标记, 避免 wait_ready 永久阻塞
+            logger.error("Archive 服务初始化失败", exc_info=True)
+            self._failed = True
+            self._ready_event.set()  # 避免 wait_ready 永久阻塞, 但 is_ready() 返回 False
 
     def _ensure_store(self):
         os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
@@ -271,12 +278,33 @@ def _download_archive(url: str, dest: str, expected_size=None):
     resp = requests.get(url, stream=True, timeout=10)
     resp.raise_for_status()
     total = expected_size or int(resp.headers.get("content-length", 0))
-    with open(dest, "wb") as f, tqdm.tqdm(
-        total=total, unit="B", unit_scale=True, desc="下载中"
-    ) as pbar:
-        for chunk in resp.iter_content(chunk_size=8192):
-            f.write(chunk)
-            pbar.update(len(chunk))
+
+    if sys.stderr.isatty():
+        with open(dest, "wb") as f, tqdm.tqdm(
+            total=total, unit="B", unit_scale=True, desc="下载中"
+        ) as pbar:
+            for chunk in resp.iter_content(chunk_size=8192):
+                if not chunk:
+                    continue
+                f.write(chunk)
+                pbar.update(len(chunk))
+    else:
+        logger.info(
+            "开始下载 Archive (%.1f MB)...",
+            total / 1024 / 1024 if total else 0,
+        )
+        with open(dest, "wb") as f:
+            downloaded = 0
+            last_log = 0
+            for chunk in resp.iter_content(chunk_size=8192):
+                if not chunk:
+                    continue
+                f.write(chunk)
+                downloaded += len(chunk)
+                if total > 0 and downloaded - last_log >= 10 * 1024 * 1024:
+                    logger.info("下载进度: %.0f%%", downloaded / total * 100)
+                    last_log = downloaded
+        logger.info("Archive 下载完成")
 
     # 校验
     if expected_size and os.path.getsize(dest) != expected_size:

@@ -234,6 +234,12 @@ class BangumiArchiveDataSource(DataSource):
             return {}
         try:
             data["images"] = ""
+            data["rating"] = {
+                "rank": data.get("rank", 0),
+                "total": data.get("total", 0),
+                "count": data.get("score_details", {}),
+                "score": data.get("score", 0.0),
+            }
             tags = data.get("tags", [])
             data["tags"] = [
                 {"name": t["name"], "count": t.get("count", 0),

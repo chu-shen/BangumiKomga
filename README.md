@@ -10,6 +10,7 @@
   - [Komga 配置（必填）](#komga-配置必填)
     - [为小说添加元数据](#为小说添加元数据)
   - [Bangumi 配置（可选）](#bangumi-配置可选)
+  - [网络代理设置（可选）](#网络代理设置可选)
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
@@ -87,16 +88,20 @@
     ```shell
     # 准备环境
     pip3 install -r install/requirements.txt
+    ```
 
-    # 亦可使用 docker compose
-    version: '3'
+    或者使用 docker compose:
+
+    ```yaml
     services:
-    bangumikomga:
+      bangumikomga:
         image: chu1shen/bangumikomga:main
         container_name: bangumikomga
         volumes:
-        - /path/BangumiKomga/config.py:/app/config/config.py   # 内容更改见 step.2
-        - /path/BangumiKomga/data:/app/data
+          - /path/BangumiKomga/config.py:/app/config/config.py   # 内容更改见 step.2
+          - /path/BangumiKomga/recordsRefreshed.db:/app/recordsRefreshed.db
+          - /path/BangumiKomga/logs:/app/logs
+          - /path/BangumiKomga/archivedata:/app/archivedata # 离线元数据（可选），详见`ARCHIVE_FILES_DIR`
     ```
 
 2. 根据模板`config/config.template.py` 创建配置文件：`config/config.py`, 然后填写[必需配置](#komga-配置必填)。(_推荐优先使用[交互式配置生成](#交互式配置生成)_)
@@ -162,6 +167,39 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
   - 值越大匹配失败的可能性越大
   - 默认值`80`并不是一个经验值，有更好的评分请开 issue
 
+## 网络代理设置（可选）
+
+由于 bgm.tv 可能无法直接访问，因此需要配置网络代理。
+
+### Docker compose
+
+在 docker compose 中添加 `environment` 配置：
+
+```yaml
+environment:
+  - HTTP_PROXY=http://proxy.example.com:8080
+  - HTTPS_PROXY=http://proxy.example.com:8080
+  - NO_PROXY=localhost,127.0.0.1
+```
+
+如果 Komga 与 BangumiKomga 部署在同一主机，记得将 Komga 地址加入 `NO_PROXY`，避免内网流量经过代理。
+
+### 原生部署
+
+若直接运行 Python 脚本, 可以在终端中设置环境变量：
+
+```shell
+# Linux / macOS
+export HTTP_PROXY=http://proxy.example.com:8080
+export HTTPS_PROXY=http://proxy.example.com:8080
+export NO_PROXY=localhost,127.0.0.1
+
+# Windows (PowerShell)
+$env:HTTP_PROXY="http://proxy.example.com:8080"
+$env:HTTPS_PROXY="http://proxy.example.com:8080"
+$env:NO_PROXY="localhost,127.0.0.1"
+```
+
 ## 消息通知（可选）
 
 消息通知支持[Gotify](https://github.com/gotify/server)、Webhook（如：[飞书](https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot)）、[Healthchecks](https://github.com/healthchecks/healthchecks)（定时任务监控）
@@ -199,6 +237,8 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
   - ~~意义不明的参数~~，建议设置为`False`，可缩短程序运行时间
   - 如果刷新书时，bangumi 数据不完整，则可以在数据补充后使用此参数修正此书元数据
 
+- `ADD_LOCAL_VERSION`：设置为`True`时，会根据文件夹名在`类型`中添加书籍版本信息，如：`东立`。同一漫画拥有多个发行版本时非常有用。(v0.19.0 新增)
+
 - `SORT_TITLE`：设置为`True`时，在刷新元数据后会在系列元数据-排序标题前添加一个首字母用于导航
   - 此为临时方案，详细讨论见：
     - <https://github.com/gotson/komga/discussions/1883>
@@ -215,8 +255,8 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
 
 1. 将 `config/config.template.py` 重命名为 `config/config.py`，手动修改配置项
 2. 用户可手动启动命令行交互式配置生成器：
-   - 以名为 BangumiKomga 的容器为例，通过 `docker exec` 命令启动: `sudo docker exec -it BangumiKomga python conifg/configuration_generator.py`。
-   - 原生部署的实例，可直接启动： `python conifg/configuration_generator.py`。
+   - 以名为 BangumiKomga 的容器为例，通过 `docker exec` 命令启动: `sudo docker exec -it BangumiKomga python config/configuration_generator.py`。
+   - 原生部署的实例，可直接启动： `python config/configuration_generator.py`。
 
     > [!TIP]
     >

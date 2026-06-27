@@ -20,6 +20,7 @@ from zhconv import convert
 _archive_search_subjects = None
 _archive_get_subject_metadata = None
 _archive_get_related_subjects = None
+_archive_is_ready = None
 _archive_import_warned = False
 
 
@@ -30,7 +31,8 @@ def _ensure_archive_imported() -> bool:
     进程不重启则环境不变, 反复尝试只会产生重复日志.
     """
     global _archive_search_subjects, _archive_get_subject_metadata
-    global _archive_get_related_subjects, _archive_import_warned
+    global _archive_get_related_subjects, _archive_is_ready
+    global _archive_import_warned
 
     if _archive_search_subjects is not None:
         return True            # 已缓存
@@ -42,10 +44,12 @@ def _ensure_archive_imported() -> bool:
             archive_search_subjects,
             archive_get_subject_metadata,
             archive_get_related_subjects,
+            archive_is_ready,
         )
         _archive_search_subjects = archive_search_subjects
         _archive_get_subject_metadata = archive_get_subject_metadata
         _archive_get_related_subjects = archive_get_related_subjects
+        _archive_is_ready = archive_is_ready
         return True
     except ImportError as e:
         _archive_import_warned = True
@@ -220,7 +224,7 @@ class BangumiArchiveDataSource(DataSource):
     """
 
     def search_subjects(self, query, threshold=80, is_novel=False):
-        if not _ensure_archive_imported():
+        if not _ensure_archive_imported() or not _archive_is_ready():
             return []
         results = _archive_search_subjects(query)
         for item in results:
@@ -237,7 +241,7 @@ class BangumiArchiveDataSource(DataSource):
         )
 
     def get_subject_metadata(self, subject_id):
-        if not _ensure_archive_imported():
+        if not _ensure_archive_imported() or not _archive_is_ready():
             return {}
         data = _archive_get_subject_metadata(subject_id)
         if not data:
@@ -257,7 +261,9 @@ class BangumiArchiveDataSource(DataSource):
                 for t in tags if isinstance(t, dict)
             ]
             data["total_episodes"] = data.get("eps", 0)
-            favorite = data.get("favorite", {})
+            favorite = data.get("favorite")
+            if not isinstance(favorite, dict):
+                favorite = {}
             data["collection"] = {
                 "on_hold": favorite.get("on_hold", 0),
                 "dropped": favorite.get("dropped", 0),
@@ -275,7 +281,7 @@ class BangumiArchiveDataSource(DataSource):
             return {}
 
     def get_related_subjects(self, subject_id):
-        if not _ensure_archive_imported():
+        if not _ensure_archive_imported() or not _archive_is_ready():
             return []
         return _archive_get_related_subjects(subject_id)
 

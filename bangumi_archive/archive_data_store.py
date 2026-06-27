@@ -282,7 +282,9 @@ class ArchiveDataStore:
                     count += 1
                     if len(batch) >= 10000:
                         c.executemany(
-                            "INSERT INTO subjects_idx VALUES (?,?,?,?,?)",
+                            "INSERT INTO subjects_idx"
+                            " (id, type, name, name_cn, row_offset)"
+                            " VALUES (?,?,?,?,?)",
                             batch,
                         )
                         batch.clear()
@@ -292,7 +294,9 @@ class ArchiveDataStore:
                     offset += len(line)
             if batch:
                 c.executemany(
-                    "INSERT INTO subjects_idx VALUES (?,?,?,?,?)",
+                    "INSERT INTO subjects_idx"
+                    " (id, type, name, name_cn, row_offset)"
+                    " VALUES (?,?,?,?,?)",
                     batch,
                 )
         c.commit()
@@ -314,7 +318,9 @@ class ArchiveDataStore:
                     count += 1
                     if len(batch) >= 10000:
                         c.executemany(
-                            "INSERT INTO relations_idx VALUES (?,?,?)",
+                            "INSERT INTO relations_idx"
+                            " (subject_id, relation_type, related_subject_id)"
+                            " VALUES (?,?,?)",
                             batch,
                         )
                         batch.clear()
@@ -323,7 +329,9 @@ class ArchiveDataStore:
                     continue
             if batch:
                 c.executemany(
-                    "INSERT INTO relations_idx VALUES (?,?,?)",
+                    "INSERT INTO relations_idx"
+                    " (subject_id, relation_type, related_subject_id)"
+                    " VALUES (?,?,?)",
                     batch,
                 )
         c.commit()

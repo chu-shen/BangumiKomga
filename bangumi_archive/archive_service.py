@@ -222,18 +222,21 @@ class ArchiveService:
             if os.path.exists(zip_path):
                 os.remove(zip_path)
 
-        # 构建到新 store (隔离于并发读者)
+        # 构建到新 store (隔离于并发读者).
+        # 先关闭旧 store, 避免两个 ArchiveDataStore 实例同时打开同一 DB
+        # 文件 (Windows 上 SQLite 文件锁可能冲突).
+        with self._store_lock:
+            if self._store is not None:
+                self._store.close()
+                self._store = None
+
         new_store = ArchiveDataStore(DB_PATH, SUBJECTS_PATH)
         new_store.open()
         new_store.build(SUBJECTS_PATH, RELATIONS_PATH)
         new_store.set_meta("last_updated", remote_time or "")
 
-        # 原子替换 — 读操作在锁内拿到新 _store, 旧 store 延迟关闭
         with self._store_lock:
-            old = self._store
             self._store = new_store
-        if old is not None:
-            old.close()
         logger.info("Archive 重建完成")
 
     def _is_up_to_date(self, remote_time: str) -> bool:

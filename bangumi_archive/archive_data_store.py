@@ -206,16 +206,20 @@ class ArchiveDataStore:
                 ids,
             ).fetchall()
         }
-        return [_read_line_at_offset(self._mm, offsets[i])
-                for i in ids if i in offsets]
+        items = [_read_line_at_offset(self._mm, offsets[i])
+                  for i in ids if i in offsets]
+        return [item for item in items if item is not None]
 
     def search_all(self, query: str) -> list[dict]:
-        """带子串回退的搜索: FTS 无结果时 fallback 到 LIKE."""
+        """带子串回退的搜索: FTS 无结果时 fallback 到 LIKE.
+
+        仅返回书籍 (type=1) 条目, 与 Bangumi API 的 filter={type:[1]} 保持一致.
+        """
         if self._mm is None:
             return []
         results = self.search(query)
         if results:
-            return [r for r in results if r.get("type") == 1]
+            return [r for r in results if r is not None and r.get("type") == 1]
         # FTS 无结果 — 回退 LIKE
         c = self._conn
         like = f"%{query}%"
@@ -236,8 +240,9 @@ class ArchiveDataStore:
                 ids,
             ).fetchall()
         }
-        return [_read_line_at_offset(self._mm, offsets[i])
-                for i in ids if i in offsets]
+        items = [_read_line_at_offset(self._mm, offsets[i])
+                  for i in ids if i in offsets]
+        return [item for item in items if item is not None]
 
     def get_related(self, subject_id: int) -> list[dict]:
         """获取关联条目列表 (含 name/name_cn/type/id)."""

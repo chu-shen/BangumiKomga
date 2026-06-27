@@ -43,10 +43,11 @@ def _ensure_archive_imported() -> bool:
         _archive_get_subject_metadata = archive_get_subject_metadata
         _archive_get_related_subjects = archive_get_related_subjects
         return True
-    except Exception as e:
+    except ImportError as e:
         _archive_import_warned = True
         logger.warning(
-            "无法导入 archive_service, 离线数据源不可用: %s", e)
+            "无法导入 archive_service, 离线数据源不可用: %s",
+            e, exc_info=True)
         return False
 
 

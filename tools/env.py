@@ -2,10 +2,10 @@ from api.bangumi_api import BangumiDataSourceFactory
 import api.komga_api as komga_api
 from config.config import *
 import os
-import sqlite3
 import logging
-from tools.paths import PROJECT_ROOT, DB_PATH, ensure_directories
+from tools.paths import PROJECT_ROOT
 logger = logging.getLogger(__name__)
+from tools.db import ensure_db_path
 from config.configuration_generator import start_config_generate
 
 
@@ -32,11 +32,7 @@ class InitEnv:
         generated_config_file = os.path.join(
             PROJECT_ROOT, "config", "config.generated.py")
         try:
-            # 统一创建所有运行时目录
-            ensure_directories()
-            # 自动创建db文件（确保 bind-mount 场景下是文件而非目录）
-            with sqlite3.connect(DB_PATH) as conn:
-                pass
+            ensure_db_path()
             if not os.path.exists(config_file) or os.path.getsize(config_file) == 0:
                     start_config_generate()
                     if os.path.exists(generated_config_file):

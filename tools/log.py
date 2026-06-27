@@ -2,14 +2,14 @@ import os
 import sys
 import logging
 from logging.handlers import RotatingFileHandler
-from tools.paths import LOG_PATH
+from tools.paths import LOG_DIR, LOG_FILENAME
 
 
 def is_in_debug():
     """检测是否在调试模式下运行"""
     return bool(sys.gettrace())
 
-def init_logger(debug_mode=None, log_dir='logs', log_file_name='refreshMetadata.log'):
+def init_logger(debug_mode=None, log_dir=LOG_DIR, log_file_name=LOG_FILENAME):
     """初始化日志记录器"""
     if debug_mode is None:
         debug_mode = is_in_debug()

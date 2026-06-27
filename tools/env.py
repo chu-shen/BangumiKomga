@@ -4,6 +4,7 @@ from config.config import *
 import os
 import sqlite3
 import logging
+from tools.paths import PROJECT_ROOT, DB_PATH, ensure_directories
 logger = logging.getLogger(__name__)
 from config.configuration_generator import start_config_generate
 

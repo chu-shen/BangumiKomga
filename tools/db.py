@@ -1,6 +1,7 @@
 import sqlite3
 from time import strftime, localtime
 import logging
+from tools.paths import DB_PATH, ensure_directories
 logger = logging.getLogger(__name__)
 
 

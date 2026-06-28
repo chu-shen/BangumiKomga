@@ -248,6 +248,7 @@ class KomgaApi:
         """
         Updates the metadata of a specified comic.
         """
+        response = None
         try:
             # make a PATCH request to the URL to update the metadata for a given series
             response = self.r.patch(
@@ -257,7 +258,7 @@ class KomgaApi:
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
         # return True if the status code indicates success, False otherwise
-        return response.status_code == 204
+        return response is not None and response.status_code == 204
     
     def update_series_metadata(self, series_id, metadata):
         """
@@ -277,6 +278,7 @@ class KomgaApi:
         """
         Updates the thumbnail of a specified comic.
         """
+        response = None
         try:
             response = self.r.post(
                 f"{self.base_url}/{thumbnail_type}/{id}/thumbnails?selected=true",
@@ -284,12 +286,12 @@ class KomgaApi:
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            if response.status_code == 413:
+            if response is not None and response.status_code == 413:
                 logger.error("缩略图过大，无法上传")
             else:
                 logger.error(f"出现错误: {e}")
         # return True if the status code indicates success, False otherwise
-        return response.status_code == 200
+        return response is not None and response.status_code == 200
     
     def update_series_thumbnail(self, series_id, thumbnail):
         """

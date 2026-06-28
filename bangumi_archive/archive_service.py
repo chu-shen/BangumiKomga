@@ -56,7 +56,7 @@ def archive_search_subjects(query: str) -> list[dict]:
     """离线搜索 Bangumi 条目, 返回 name/name_cn 匹配的完整 dict 列表."""
     if not _is_archive_enabled():
         return []
-    srv = _instance
+    srv = get_archive_service()
     return srv.search(query) if srv else []
 
 
@@ -64,7 +64,7 @@ def archive_get_subject_metadata(subject_id: int) -> Optional[dict]:
     """通过 subject_id 获取完整元数据 (mmap 直接读取)."""
     if not _is_archive_enabled():
         return None
-    srv = _instance
+    srv = get_archive_service()
     return srv.get_by_id(subject_id) if srv else None
 
 
@@ -72,7 +72,7 @@ def archive_get_related_subjects(subject_id: int) -> list[dict]:
     """获取关联条目列表 [{id, name, name_cn, type, relation}, ...]."""
     if not _is_archive_enabled():
         return []
-    srv = _instance
+    srv = get_archive_service()
     return srv.get_related(subject_id) if srv else []
 
 
@@ -80,7 +80,8 @@ def archive_is_ready() -> bool:
     """Archive 数据是否已就绪."""
     if not _is_archive_enabled():
         return False
-    return _instance is not None and _instance.is_ready()
+    srv = get_archive_service()
+    return srv is not None and srv.is_ready()
 
 # --------------------------------------------------------------------
 
@@ -165,14 +166,11 @@ class ArchiveService:
     def _run(self):
         """后台主循环."""
         try:
-            # 1. 确保数据库存在
             self._ensure_store()
-            # 2. 如果数据无效或需要更新, 执行首次下载
-            if not self._store.validate():
+            store = self._get_store()
+            if store is None or not store.validate():
                 self._download_and_rebuild()
-            # 3. 标记就绪
             self._ready_event.set()
-            # 4. 定时检查更新
             self._poll_loop()
         except Exception:
             logger.error("Archive 服务初始化失败", exc_info=True)
@@ -181,9 +179,11 @@ class ArchiveService:
 
     def _ensure_store(self):
         os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
-        self._store = ArchiveDataStore(DB_PATH, SUBJECTS_PATH)
-        self._store.open()
-        self._store.init_schema()
+        store = ArchiveDataStore(DB_PATH, SUBJECTS_PATH)
+        store.open()
+        store.init_schema()
+        with self._store_lock:
+            self._store = store
 
     def _download_and_rebuild(self):
         """下载 Archive → 解压 → 全量重建 SQLite 索引.
@@ -222,21 +222,24 @@ class ArchiveService:
             if os.path.exists(zip_path):
                 os.remove(zip_path)
 
-        # 构建到新 store (隔离于并发读者).
-        # 先关闭旧 store, 避免两个 ArchiveDataStore 实例同时打开同一 DB
-        # 文件 (Windows 上 SQLite 文件锁可能冲突).
-        with self._store_lock:
-            if self._store is not None:
-                self._store.close()
-                self._store = None
-
+        # 解压完成后, 旧 mmap 仍有效 (mmap 不实时反映文件变更).
+        # 以下构建新 store 并原子替换, 读者始终有有效 store.
         new_store = ArchiveDataStore(DB_PATH, SUBJECTS_PATH)
-        new_store.open()
-        new_store.build(SUBJECTS_PATH, RELATIONS_PATH)
-        new_store.set_meta("last_updated", remote_time or "")
+        try:
+            new_store.open()
+            new_store.build(SUBJECTS_PATH, RELATIONS_PATH)
+            new_store.set_meta("last_updated", remote_time or "")
+        except Exception:
+            new_store.close()
+            logger.error("索引构建失败, 保留旧数据")
+            return
 
+        # 原子替换
         with self._store_lock:
+            old = self._store
             self._store = new_store
+        if old is not None:
+            old.close()
         logger.info("Archive 重建完成")
 
     def _is_up_to_date(self, remote_time: str) -> bool:

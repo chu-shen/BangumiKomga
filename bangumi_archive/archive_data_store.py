@@ -40,7 +40,8 @@ CREATE VIRTUAL TABLE IF NOT EXISTS subjects_fts USING fts5(
     name,
     name_cn,
     content='subjects_idx',
-    content_rowid='id'
+    content_rowid='id',
+    tokenize='trigram'
 )
 """
 
@@ -105,53 +106,98 @@ class ArchiveDataStore:
         if self._conn:
             self._conn.close()
             self._conn = None
+        # 清理 WAL 残留文件 (-wal, -shm)
+        for suffix in ("-wal", "-shm"):
+            p = self._db_path + suffix
+            if os.path.exists(p):
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
+
+    _SCHEMA_VERSION = 2
 
     def init_schema(self):
         c = self._conn
+        version = c.execute("PRAGMA user_version").fetchone()[0]
+        if version >= self._SCHEMA_VERSION:
+            return
+
+        needs_fts_rebuild = False
+
+        # v0→v2: 无 FTS5 或旧默认 tokenizer (porter), 重建
+        if version <= 1:
+            c.execute("DROP TABLE IF EXISTS subjects_fts")
+            needs_fts_rebuild = True
+
         for ddl in ALL_DDL:
             c.execute(ddl)
+        c.execute(f"PRAGMA user_version = {self._SCHEMA_VERSION}")
         c.commit()
+
+        if needs_fts_rebuild:
+            count = c.execute(
+                "SELECT COUNT(*) FROM subjects_idx").fetchone()[0]
+            if count > 0:
+                logger.info(
+                    "迁移 FTS5 至 trigram tokenizer, 重建全文索引 (%d 条)...",
+                    count,
+                )
+                c.execute(
+                    "INSERT INTO subjects_fts(rowid, name, name_cn) "
+                    "SELECT id, name, name_cn FROM subjects_idx"
+                )
+                c.commit()
+                logger.info("FTS5 迁移完成")
 
     # --- 构建 ------------------------------------------------------
 
     def build(self, subjects_path: str, relations_path: str):
-        """导入 jsonlines → SQLite 索引.
+        """导入 jsonlines → SQLite 索引 (单事务).
 
         只提取 id, type, name, name_cn + byte 偏移.
         """
         c = self._conn
         self.init_schema()
 
-        logger.info("清空旧索引...")
-        c.execute("DELETE FROM subjects_idx")
-        c.execute("DELETE FROM subjects_fts")
-        c.execute("DELETE FROM relations_idx")
-        c.commit()
+        logger.info("清空旧索引并开始事务构建...")
+        c.execute("BEGIN")
+        try:
+            c.execute("DELETE FROM subjects_idx")
+            c.execute("DELETE FROM subjects_fts")
+            c.execute("DELETE FROM relations_idx")
 
-        # 1. 导入 subjects 索引字段 + 偏移
-        logger.info("构建 subjects 索引 (仅元信息 + 偏移)...")
-        total = self._import_subjects_idx(subjects_path)
-        logger.info(f"subjects 索引: {total} 条")
+            # 1. 导入 subjects 索引字段 + 偏移
+            logger.info("构建 subjects 索引 (仅元信息 + 偏移)...")
+            total = self._import_subjects_idx(subjects_path)
+            logger.info(f"subjects 索引: {total} 条")
 
-        # 2. 导入 relations
-        logger.info("构建 relations 索引...")
-        rel_total = self._import_relations_idx(relations_path)
-        logger.info(f"relations 索引: {rel_total} 条")
+            # 2. 导入 relations
+            logger.info("构建 relations 索引...")
+            rel_total = self._import_relations_idx(relations_path)
+            logger.info(f"relations 索引: {rel_total} 条")
 
-        # 3. 重建 FTS5
-        logger.info("重建 FTS5 全文索引...")
-        c.execute(
-            "INSERT INTO subjects_fts(rowid, name, name_cn) "
-            "SELECT id, name, name_cn FROM subjects_idx"
-        )
-        c.commit()
-        logger.info("索引构建完成")
+            # 3. 重建 FTS5
+            logger.info("重建 FTS5 全文索引...")
+            c.execute(
+                "INSERT INTO subjects_fts(rowid, name, name_cn) "
+                "SELECT id, name, name_cn FROM subjects_idx"
+            )
+            c.execute("COMMIT")
+            logger.info("索引构建完成")
+        except Exception:
+            c.execute("ROLLBACK")
+            raise
 
     def validate(self) -> bool:
         if self._conn is None:
             return False
-        return self._conn.execute(
-            "SELECT COUNT(*) FROM subjects_idx").fetchone()[0] > 0
+        return (
+            self._conn.execute(
+                "SELECT COUNT(*) FROM subjects_idx").fetchone()[0] > 0
+            and self._conn.execute(
+                "SELECT COUNT(*) FROM relations_idx").fetchone()[0] > 0
+        )
 
     def get_meta(self, key: str) -> Optional[str]:
         """读取元信息 (如 last_updated 时间戳)."""
@@ -299,7 +345,6 @@ class ArchiveDataStore:
                     " VALUES (?,?,?,?,?)",
                     batch,
                 )
-        c.commit()
         return count
 
     def _import_relations_idx(self, path: str) -> int:
@@ -334,7 +379,6 @@ class ArchiveDataStore:
                     " VALUES (?,?,?)",
                     batch,
                 )
-        c.commit()
         return count
 
 
@@ -351,13 +395,18 @@ def _read_line_at_offset(mm: mmap.mmap, offset: int) -> Optional[dict]:
 
 
 def _fts_query(user_input: str) -> str:
-    """将用户输入转换为 FTS5 查询.
+    """将用户输入转换为 FTS5 查询 (trigram tokenizer).
 
-    中文查询追加 * 通配符做前缀匹配.
+    trigram 分词器对 CJK 和 Latin 均按 3-gram 切分, 无需区分语言.
+    每个空白分隔的 term 追加 * 做前缀匹配, term 之间为 OR 语义.
+
+    示例:
+      魔法少女      → '"魔法少女"*'
+      attack on titan → '"attack"* OR "on"* OR "titan"*'
+      早乙女        → '"早乙女"*'
     """
     query = user_input.strip().replace('"', '""')
     if not query:
         return '""'
-    if any('\u4e00' <= c <= '\u9fff' for c in query):
-        return f'"{query}"*'
-    return f'"{query}"'
+    terms = [f'"{t}"*' for t in query.split() if t]
+    return ' OR '.join(terms) if terms else '""'

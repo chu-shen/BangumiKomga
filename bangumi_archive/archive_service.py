@@ -37,6 +37,10 @@ logger = logging.getLogger(__name__)
 ARCHIVE_LATEST_URL = (
     "https://raw.githubusercontent.com/bangumi/Archive/master/aux/latest.json"
 )
+
+# -- Archive 磁盘路径 (均基于可配置的 ARCHIVE_FILES_DIR) ---------------
+# 修改 ARCHIVE_FILES_DIR 即可重定向全部 archive 产出:
+#   jsonlines 数据源 + SQLite 索引 (archive_index.db) + 临时下载文件
 DB_PATH = os.path.join(ARCHIVE_FILES_DIR, "archive_index.db")
 SUBJECTS_PATH = os.path.join(ARCHIVE_FILES_DIR, "subject.jsonlines")
 RELATIONS_PATH = os.path.join(ARCHIVE_FILES_DIR, "subject-relations.jsonlines")

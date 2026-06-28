@@ -11,6 +11,9 @@ from tools.notification import send_notification
 from tools.db import init_sqlite3, record_series_status, record_book_status
 from tools.cache_time import TimeCacheManager
 
+# Komga 增量轮询缓存 — 存放于 data/ 根下, 非 ARCHIVE_FILES_DIR
+_KOMGA_MODIFIED_CACHE = os.path.join("data", "komga_last_modified_time.json")
+
 
 env = InitEnv()
 bgm = env.bgm
@@ -317,13 +320,10 @@ def _filter_new_modified_series(library_id=None):
     """
     过滤出新更改系列元数据
     """
-    os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
+    os.makedirs(os.path.dirname(_KOMGA_MODIFIED_CACHE), exist_ok=True)
     # 读取上次修改时间
-    LastModifiedCacheFilePath = os.path.join(
-        ARCHIVE_FILES_DIR, "komga_last_modified_time.json"
-    )
     local_last_modified = TimeCacheManager.convert_to_datetime(
-        TimeCacheManager.read_time(LastModifiedCacheFilePath)
+        TimeCacheManager.read_time(_KOMGA_MODIFIED_CACHE)
     )
     page_index = 0
     new_series = []
@@ -332,10 +332,13 @@ def _filter_new_modified_series(library_id=None):
         temp_series = komga.get_latest_series(
             library_id=library_id, page=page_index)
 
-        if not temp_series:
+        # get_latest_series 错误时返回 {"content": []};
+        # 用 .get("content") 安全处理空结果和错误返回
+        content = temp_series.get("content")
+        if not content:
             break
 
-        for item in temp_series["content"]:
+        for item in content:
             komga_modified_time = TimeCacheManager.convert_to_datetime(
                 item["lastModified"]
             )
@@ -348,7 +351,7 @@ def _filter_new_modified_series(library_id=None):
                 stop_paging_flag = True
                 break
 
-        if not stop_paging_flag and (page_index + 1) < temp_series["totalPages"]:
+        if not stop_paging_flag and (page_index + 1) < temp_series.get("totalPages", 1):
             page_index += 1
         else:
             break
@@ -381,11 +384,8 @@ def refresh_partial_metadata():
     if recent_modified_series:
         refresh_metadata(recent_modified_series)
         # 取第一个系列的 lastModified 时间作为新的更新时间
-        LastModifiedCacheFilePath = os.path.join(
-            ARCHIVE_FILES_DIR, "komga_last_modified_time.json"
-        )
         TimeCacheManager.save_time(
-            LastModifiedCacheFilePath,
+            _KOMGA_MODIFIED_CACHE,
             recent_modified_series[0]["lastModified"],
         )
     else:

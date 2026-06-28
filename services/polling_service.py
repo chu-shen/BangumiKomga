@@ -16,12 +16,14 @@ from datetime import datetime, timezone
 from config.config import (
     BANGUMI_KOMGA_SERVICE_POLL_INTERVAL,
     BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL,
-    ARCHIVE_FILES_DIR,
 )
 from core.refresh_metadata import refresh_metadata, refresh_partial_metadata
 from tools.cache_time import TimeCacheManager
 
 logger = logging.getLogger(__name__)
+
+# 轮询全量刷新时间戳缓存 — 存放于 data/ 根下, 不混入 ARCHIVE_FILES_DIR
+POLL_FULL_REFRESH_CACHE = os.path.join("data", "poll_last_full_refresh.json")
 
 
 class PollService:
@@ -29,14 +31,11 @@ class PollService:
 
     def __init__(self):
         self._interval = BANGUMI_KOMGA_SERVICE_POLL_INTERVAL
-        # 向后兼容: 将轮询周期计数转换为秒
         self._full_refresh_seconds = (
             BANGUMI_KOMGA_SERVICE_POLL_INTERVAL
             * BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL
         )
-        self._full_refresh_cache = os.path.join(
-            ARCHIVE_FILES_DIR, "poll_last_full_refresh.json"
-        )
+        self._full_refresh_cache = POLL_FULL_REFRESH_CACHE
 
         self._running = False
         self._stop_event = threading.Event()
@@ -101,7 +100,7 @@ class PollService:
         return elapsed >= self._full_refresh_seconds
 
     def _save_full_refresh_time(self):
-        os.makedirs(ARCHIVE_FILES_DIR, exist_ok=True)
+        os.makedirs(os.path.dirname(self._full_refresh_cache), exist_ok=True)
         TimeCacheManager.save_time(
             self._full_refresh_cache,
             datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 import logging
 logger = logging.getLogger(__name__)
@@ -32,18 +32,6 @@ class TimeCacheManager:
         """
         with open(file_path, "w") as f:
             json.dump({"last_updated": last_updated}, f)
-
-    @staticmethod
-    def convert_to_timedelta(seconds: int) -> Optional[timedelta]:
-        """
-        将秒数转换为 timedelta 对象
-        """
-        try:
-            result = timedelta(seconds=seconds)
-        except Exception as e:
-            logger.warning(f"时间值 {seconds} 转换失败: {str(e)}")
-            return None
-        return result
 
     @staticmethod
     def convert_to_datetime(time_str: str) -> Optional[datetime]:

@@ -3,7 +3,6 @@ import sys
 import unittest
 from datetime import datetime
 import xml.etree.ElementTree as ET
-from bangumi_archive.archive_autoupdater import check_archive
 # coverage 不应纳入 requirements.txt, 仅在GithubAction中使用
 import coverage
 

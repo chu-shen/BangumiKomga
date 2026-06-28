@@ -1,47 +1,40 @@
-import threading
-import time
+"""Archive 服务入口 — 一行启动, 一行查询.
+
+启动:
+  service = start_archive_service()
+  service.wait_ready(timeout=600)   # 等待首次数据就绪
+
+查询 (任意模块):
+  from bangumi_archive.archive_service import (
+      archive_search_subjects,
+      archive_get_subject_metadata,
+      archive_get_related_subjects,
+  )
+  results = archive_search_subjects("早乙女")
+  meta    = archive_get_subject_metadata(325236)
+  related = archive_get_related_subjects(325236)
+
+关闭:
+  service.stop()
+"""
+
 import logging
+from config.config import USE_BANGUMI_ARCHIVE
+from bangumi_archive.archive_service import (
+    ArchiveService,
+    set_archive_service,
+)
+
 logger = logging.getLogger(__name__)
-from config.config import USE_BANGUMI_ARCHIVE, ARCHIVE_UPDATE_INTERVAL
-from bangumi_archive.archive_autoupdater import check_archive
 
 
-def periodical_archive_check_service():
-    """守护线程执行定时检查"""
+def start_archive_service() -> ArchiveService | None:
+    """创建并启动 ArchiveService, 注入全局单例."""
     if not USE_BANGUMI_ARCHIVE:
-        logger.debug("Bangumi Archive 未启用，跳过 Archive 检查服务")
+        logger.debug("Bangumi Archive 未启用")
         return None
 
-    if ARCHIVE_UPDATE_INTERVAL == 0:
-        logger.debug("ARCHIVE_UPDATE_INTERVAL 为 0，跳过定时检查线程创建")
-        return None
-
-    def periodic_check():
-        interval_seconds = parse_interval(hours=ARCHIVE_UPDATE_INTERVAL)
-
-        while True:
-            try:
-                check_archive()
-                logger.info(
-                    f"下次更新检查将在 {ARCHIVE_UPDATE_INTERVAL} 小时后执行"
-                )
-            except Exception as e:
-                logger.error(f"定时检查异常: {e}")
-
-            time.sleep(interval_seconds)
-
-    thread = threading.Thread(
-        target=periodic_check, daemon=True, name="ArchiveUpdateChecker"
-    )
-    thread.start()
-    return thread
-
-
-def parse_interval(
-    days: int = 0, hours: int = 0, minutes: int = 0, seconds: int = 0
-) -> int:
-    """解析时间间隔配置，返回总秒数"""
-    if any(val < 0 for val in (days, hours, minutes, seconds)):
-        raise ValueError("时间间隔参数不能为负数")
-
-    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+    service = ArchiveService()
+    service.start()
+    set_archive_service(service)
+    return service

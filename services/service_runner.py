@@ -13,15 +13,15 @@ def run_service():
     """
     service_type = BANGUMI_KOMGA_SERVICE_TYPE.lower()
 
-    # 启动Archive检查服务
-    archive_thread = periodical_archive_check_service()
+    # 启动Archive检查服务 (daemon 线程, 随主进程退出)
+    periodical_archive_check_service()
 
     refresh_metadata()
 
     if service_type == "poll":
-        run_poll_service(archive_thread)
+        run_poll_service()
     elif service_type == "sse":
-        run_sse_service(archive_thread)
+        run_sse_service()
     elif service_type == "once":
         run_once_service()
     else:
@@ -32,15 +32,13 @@ def run_service():
         exit(1)
 
 
-def run_poll_service(archive_thread):
+def run_poll_service():
     """运行轮询服务 — poll_service() 内部阻塞主线程."""
-    del archive_thread  # daemon thread, will die with main process
     poll_service()
 
 
-def run_sse_service(archive_thread):
+def run_sse_service():
     """运行SSE服务 — sse_service() 内部阻塞主线程."""
-    del archive_thread  # daemon thread, will die with main process
     sse_service()
 
 

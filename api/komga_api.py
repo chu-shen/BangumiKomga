@@ -244,14 +244,14 @@ class KomgaApi:
         # return the response as a JSON object
         return response.json()
 
-    def update_metadata(self, id, metadata, metadata_type):
+    def update_metadata(self, resource_id, metadata, metadata_type):
         """
         Updates the metadata of a specified comic.
         """
         try:
             # make a PATCH request to the URL to update the metadata for a given series
             response = self.r.patch(
-                f"{self.base_url}/{metadata_type}/{id}/metadata", json=metadata
+                f"{self.base_url}/{metadata_type}/{resource_id}/metadata", json=metadata
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
@@ -273,13 +273,13 @@ class KomgaApi:
         """
         return self.update_metadata(book_id, metadata, "books")
     
-    def update_thumbnail(self, id, thumbnail, thumbnail_type):
+    def update_thumbnail(self, resource_id, thumbnail, thumbnail_type):
         """
         Updates the thumbnail of a specified comic.
         """
         try:
             response = self.r.post(
-                f"{self.base_url}/{thumbnail_type}/{id}/thumbnails?selected=true",
+                f"{self.base_url}/{thumbnail_type}/{resource_id}/thumbnails?selected=true",
                 files=thumbnail,
             )
             response.raise_for_status()

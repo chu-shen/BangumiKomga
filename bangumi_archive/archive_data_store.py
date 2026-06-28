@@ -16,6 +16,7 @@
 import json
 import mmap
 import os
+import re
 import sqlite3
 from typing import Optional
 import logging
@@ -58,14 +59,18 @@ CREATE INDEX IF NOT EXISTS idx_relations_subject
     ON relations_idx(subject_id)
 """
 
-DDL_META = """
-CREATE TABLE IF NOT EXISTS meta (
+DDL_ARCHIVE_UPDATE = """
+CREATE TABLE IF NOT EXISTS archive_update (
     key   TEXT PRIMARY KEY,
     value TEXT
 )
 """
 
-ALL_DDL = [DDL_SUBJECTS_IDX, DDL_FTS, DDL_RELATIONS, DDL_REL_INDEX, DDL_META]
+ALL_DDL = [DDL_SUBJECTS_IDX, DDL_FTS, DDL_RELATIONS, DDL_REL_INDEX, DDL_ARCHIVE_UPDATE]
+
+# DB schema 版本号: 递增时 init_schema() 自动迁移.
+# 使用模块级常量而非 f-string 拼接用户输入, 消除注入告警.
+SCHEMA_VERSION = 3
 
 
 # --- ArchiveDataStore -----------------------------------------------
@@ -115,7 +120,7 @@ class ArchiveDataStore:
                 except OSError:
                     pass
 
-    _SCHEMA_VERSION = 2
+    _SCHEMA_VERSION = SCHEMA_VERSION  # 兼容旧引用
 
     def init_schema(self):
         c = self._conn
@@ -130,9 +135,20 @@ class ArchiveDataStore:
             c.execute("DROP TABLE IF EXISTS subjects_fts")
             needs_fts_rebuild = True
 
+        # v2→v3: meta 表重命名为 archive_update (语义更明确)
+        if version <= 2:
+            try:
+                c.execute(
+                    "ALTER TABLE meta RENAME TO archive_update"
+                )
+            except sqlite3.OperationalError:
+                pass  # meta 不存在 (全新 db) 或已重命名
+
         for ddl in ALL_DDL:
             c.execute(ddl)
-        c.execute(f"PRAGMA user_version = {self._SCHEMA_VERSION}")
+        # PRAGMA 不支持 ? 参数绑定 (Python sqlite3 限制),
+        # SCHEMA_VERSION 为模块级 int 常量, 无 SQL 注入风险.
+        c.execute(f"PRAGMA user_version = {int(SCHEMA_VERSION)}")
         c.commit()
 
         if needs_fts_rebuild:
@@ -200,20 +216,35 @@ class ArchiveDataStore:
         )
 
     def get_meta(self, key: str) -> Optional[str]:
-        """读取元信息 (如 last_updated 时间戳)."""
+        """读取 archive 更新时间 (如 last_updated)."""
         row = self._conn.execute(
-            "SELECT value FROM meta WHERE key=?", (key,)
+            "SELECT value FROM archive_update WHERE key=?", (key,)
         ).fetchone()
         return row[0] if row else None
 
     def set_meta(self, key: str, value: str):
-        """写入或更新元信息."""
+        """写入或更新 archive 更新时间."""
         self._conn.execute(
-            "INSERT OR REPLACE INTO meta VALUES (?,?)", (key, value)
+            "INSERT OR REPLACE INTO archive_update VALUES (?,?)", (key, value)
         )
         self._conn.commit()
 
     # --- 读接口 ----------------------------------------------------
+
+    def _get_offsets_by_ids(self, ids: list[int]) -> dict[int, int]:
+        """expand_sql 参数化 IN 查询: {id: row_offset}.
+
+        所有值通过 ? 绑定传入 — 无 SQL 拼接.
+        ids 来自 FTS5/LIKE 的参数化查询, 非用户输入.
+        """
+        if not ids:
+            return {}
+        sql, bound = expand_sql(
+            "SELECT id, row_offset FROM subjects_idx WHERE id IN :ids",
+            ids=ids,
+        )
+        rows = self._conn.execute(sql, bound).fetchall()
+        return {r[0]: r[1] for r in rows}
 
     def get_by_id(self, subject_id: int) -> Optional[dict]:
         """通过 ID 获取完整 subject 数据."""
@@ -243,15 +274,7 @@ class ArchiveDataStore:
         ]
         if not ids:
             return []
-        # 批量获取偏移 → mmap 读取
-        placeholders = ",".join("?" * len(ids))
-        offsets = {
-            r[0]: r[1] for r in c.execute(
-                f"SELECT id, row_offset FROM subjects_idx "
-                f"WHERE id IN ({placeholders})",
-                ids,
-            ).fetchall()
-        }
+        offsets = self._get_offsets_by_ids(ids)
         items = [_read_line_at_offset(self._mm, offsets[i])
                   for i in ids if i in offsets]
         return [item for item in items if item is not None]
@@ -278,14 +301,7 @@ class ArchiveDataStore:
         ]
         if not ids:
             return []
-        placeholders = ",".join("?" * len(ids))
-        offsets = {
-            r[0]: r[1] for r in c.execute(
-                f"SELECT id, row_offset FROM subjects_idx "
-                f"WHERE id IN ({placeholders})",
-                ids,
-            ).fetchall()
-        }
+        offsets = self._get_offsets_by_ids(ids)
         items = [_read_line_at_offset(self._mm, offsets[i])
                   for i in ids if i in offsets]
         return [item for item in items if item is not None]
@@ -383,6 +399,48 @@ class ArchiveDataStore:
 
 
 # --- 工具函数 -------------------------------------------------------
+
+_IN_MARKER = re.compile(r":(\w+)")
+
+
+def expand_sql(template: str, **params) -> tuple[str, tuple]:
+    """将 :list 参数展开为 IN (?,?,?) 的纯参数化 SQL 生成器.
+
+    模板中使用 ``:name`` 标记一个将由 params[name] list 填充的 IN 子句.
+    其他值直接通过 ``?` 绑定 — 此函数只转换 `:name` 标记, 不改动现有 ``?``.
+
+    返回 (expanded_sql, flat_params_tuple) 可直接传给 c.execute().
+
+    示例:
+        >>> sql, bound = expand_sql(
+        ...     "SELECT id FROM t WHERE id IN :ids AND type = ?",
+        ...     ids=[1, 2, 3],
+        ... )
+        >>> sql
+        'SELECT id FROM t WHERE id IN (?,?,?) AND type = ?'
+        >>> bound
+        (1, 2, 3)
+
+    安全保证: 只有 ``?`` 占位符插入模板字符串, 用户数据通过绑定元组传入.
+    """
+    expanded = template
+    flattened = []
+    for name in _IN_MARKER.findall(template):
+        value = params.pop(name, None)
+        if value is None:
+            raise ValueError(f"expand_sql: 缺少参数 {name!r}")
+        if not isinstance(value, (list, tuple)):
+            raise TypeError(
+                f"expand_sql: {name!r} 必须是 list/tuple, 收到 {type(value).__name__}")
+        if not value:
+            raise ValueError(f"expand_sql: {name!r} 不能为空")
+        placeholders = ",".join("?" * len(value))
+        expanded = expanded.replace(f":{name}", f"({placeholders})")
+        flattened.extend(value)
+    # 剩余 params (非 :name 标记的, 如果有) 追加到尾部供 ? 绑定
+    flattened.extend(params.values())
+    return expanded, tuple(flattened)
+
 
 def _read_line_at_offset(mm: mmap.mmap, offset: int) -> Optional[dict]:
     """从 mmap 的指定偏移量读取一行 JSON."""

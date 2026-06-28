@@ -66,9 +66,9 @@ USE_BANGUMI_ARCHIVE = False
 # @@type: string
 # @@required: False
 # @@validator:
-# @@info: 可以指定自建目录
+# @@info: 指定本地目录用于存放 jsonlines 及 SQLite 索引（archive_index.db）。docker 部署需挂载此目录以持久化索引
 # @@version: 0.13.0
-ARCHIVE_FILES_DIR = "./archivedata/"
+ARCHIVE_FILES_DIR = "./data/archivedata/"
 
 # @@name: ARCHIVE_UPDATE_INTERVAL
 # @@prompt: 离线元数据的更新间隔

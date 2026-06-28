@@ -8,7 +8,7 @@ def is_in_debug():
     """检测是否在调试模式下运行"""
     return bool(sys.gettrace())
 
-def init_logger(debug_mode=None, log_dir='logs', log_file_name='refreshMetadata.log'):
+def init_logger(debug_mode=None, log_dir='data/logs', log_file_name='refreshMetadata.log'):
     """初始化日志记录器"""
     if debug_mode is None:
         debug_mode = is_in_debug()

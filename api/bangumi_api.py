@@ -22,6 +22,7 @@ _archive_get_subject_metadata = None
 _archive_get_related_subjects = None
 _archive_is_ready = None
 _archive_import_warned = False
+_archive_disabled = False
 
 
 def _ensure_archive_imported() -> bool:
@@ -29,15 +30,26 @@ def _ensure_archive_imported() -> bool:
 
     首次 ImportError 后永久抑制重试: 模块查找失败是确定性的,
     进程不重启则环境不变, 反复尝试只会产生重复日志.
+    USE_BANGUMI_ARCHIVE=False 时直接短路, 不触发 import 和日志.
     """
     global _archive_search_subjects, _archive_get_subject_metadata
     global _archive_get_related_subjects, _archive_is_ready
-    global _archive_import_warned
+    global _archive_import_warned, _archive_disabled
 
     if _archive_search_subjects is not None:
         return True            # 已缓存
     if _archive_import_warned:
         return False           # 已失败过, 不重试
+    if _archive_disabled:
+        return False           # 配置明确禁用
+
+    try:
+        from config.config import USE_BANGUMI_ARCHIVE
+        if not USE_BANGUMI_ARCHIVE:
+            _archive_disabled = True
+            return False
+    except ImportError:
+        pass  # config 不可用 (测试环境), 继续尝试导入 archive
 
     try:
         from bangumi_archive.archive_service import (

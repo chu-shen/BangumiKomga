@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 ARCHIVE_LATEST_URL = (
     "https://raw.githubusercontent.com/bangumi/Archive/master/aux/latest.json"
 )
-DB_PATH = os.path.join(ARCHIVE_FILES_DIR, "subjects.db")
+DB_PATH = os.path.join(ARCHIVE_FILES_DIR, "archive_index.db")
 SUBJECTS_PATH = os.path.join(ARCHIVE_FILES_DIR, "subject.jsonlines")
 RELATIONS_PATH = os.path.join(ARCHIVE_FILES_DIR, "subject-relations.jsonlines")
 

@@ -101,11 +101,13 @@
         image: chu1shen/bangumikomga:main
         container_name: bangumikomga
         volumes:
-          - /path/BangumiKomga/config.py:/app/config/config.py   # 内容更改见 step.2
-          - /path/BangumiKomga/recordsRefreshed.db:/app/recordsRefreshed.db
-          - /path/BangumiKomga/logs:/app/logs
-          - /path/BangumiKomga/archivedata:/app/archivedata # 离线元数据（可选），详见`ARCHIVE_FILES_DIR`
+          - /path/BangumiKomga/config.py:/app/config/config.py      # 内容更改见 step.2
+          - /path/BangumiKomga/data:/app/data                       # 统一数据目录：archivedata（离线元数据 + archive_index.db）、logs、recordsRefreshed.db
     ```
+
+    > [!NOTE]
+    > 运行时产物统一落在 `data/` 下，挂载整个目录即可持久化全部数据。
+    > 切勿将 `.db` 文件作为单文件 volume 挂载 — 若宿主机该文件不存在，Docker 会创建一个**同名空目录**，导致 `sqlite3.connect()` 失败。
 
 2. 根据模板`config/config.template.py` 创建配置文件：`config/config.py`, 然后填写[必需配置](#komga-配置必填)。(_推荐优先使用[交互式配置生成](#交互式配置生成)_)
 
@@ -153,8 +155,8 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
   - 不含图像数据因此无法离线刷新封面。如果开启 `USE_BANGUMI_THUMBNAIL`，则仍需调用 BGM API 才能替换海报
   - 可选值为 `True` 和 `False`
 
-- `ARCHIVE_FILES_DIR`: 指定储存 [bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./archivedata/`
-  - 启用 `USE_BANGUMI_ARCHIVE` 后，程序会自动从 GitHub 下载并解压元数据(可能较慢)
+- `ARCHIVE_FILES_DIR`: 指定储存 [bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./data/archivedata/`
+  - 启用 `USE_BANGUMI_ARCHIVE` 后，程序会自动下载 jsonlines 并构建 SQLite 索引（`archive_index.db`），均存放于此目录
   - 离线元数据亦可提前手动解压至该目录中
 
 - `ARCHIVE_UPDATE_INTERVAL`: 指定 [bangumi/Archive](https://github.com/bangumi/Archive) 离线元数据的更新间隔, 单位为小时。置为`0`表示不检查更新，其余值则会在启动时立即执行一次检查

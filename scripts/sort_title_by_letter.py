@@ -2,7 +2,8 @@ import sys, os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from tools.env import *
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 from pypinyin import slug, Style
 
 env = InitEnv()

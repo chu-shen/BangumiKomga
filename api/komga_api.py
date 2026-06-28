@@ -5,7 +5,8 @@
 
 
 import requests
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 from requests.adapters import HTTPAdapter
 
 
@@ -243,29 +244,42 @@ class KomgaApi:
         # return the response as a JSON object
         return response.json()
 
-    def update_series_metadata(self, series_id, metadata):
+    def update_metadata(self, id, metadata, metadata_type):
         """
-        Updates the metadata of a specified comic series.
+        Updates the metadata of a specified comic.
         """
         try:
             # make a PATCH request to the URL to update the metadata for a given series
             response = self.r.patch(
-                f"{self.base_url}/series/{series_id}/metadata", json=metadata
+                f"{self.base_url}/{metadata_type}/{id}/metadata", json=metadata
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             logger.error(f"出现错误: {e}")
         # return True if the status code indicates success, False otherwise
         return response.status_code == 204
-
-    def update_series_thumbnail(self, series_id, thumbnail):
+    
+    def update_series_metadata(self, series_id, metadata):
         """
-        Updates the thumbnail of a specified comic series.
+        Updates the metadata of a specified comic series.
+        """
+        return self.update_metadata(series_id, metadata, "series")
+
+    def update_book_metadata(self, book_id, metadata):
+        """
+        Updates the metadata of a specified comic book.
+
+        https://github.com/gotson/komga/blob/master/komga/docs/openapi.json#L2935
+        """
+        return self.update_metadata(book_id, metadata, "books")
+    
+    def update_thumbnail(self, id, thumbnail, thumbnail_type):
+        """
+        Updates the thumbnail of a specified comic.
         """
         try:
-            # make a POST request to the URL to update the thumbnail for a given series
             response = self.r.post(
-                f"{self.base_url}/series/{series_id}/thumbnails?selected=true",
+                f"{self.base_url}/{thumbnail_type}/{id}/thumbnails?selected=true",
                 files=thumbnail,
             )
             response.raise_for_status()
@@ -276,39 +290,18 @@ class KomgaApi:
                 logger.error(f"出现错误: {e}")
         # return True if the status code indicates success, False otherwise
         return response.status_code == 200
-
-    def update_book_metadata(self, book_id, metadata):
+    
+    def update_series_thumbnail(self, series_id, thumbnail):
         """
-        Updates the metadata of a specified comic book.
-
-        https://github.com/gotson/komga/blob/master/komga/docs/openapi.json#L2935
+        Updates the thumbnail of a specified comic series.
         """
-        try:
-            # make a PATCH request to the URL to update the metadata for a given book
-            response = self.r.patch(
-                f"{self.base_url}/books/{book_id}/metadata", json=metadata
-            )
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"出现错误: {e}")
-        # return True if the status code indicates success, False otherwise
-        return response.status_code == 204
+        return self.update_thumbnail(series_id, thumbnail, "series")
 
     def update_book_thumbnail(self, book_id, thumbnail):
         """
         Updates the thumbnail of a specified comic book.
         """
-        try:
-            # make a POST request to the URL to update the thumbnail for a given series
-            response = self.r.post(
-                f"{self.base_url}/books/{book_id}/thumbnails?selected=true",
-                files=thumbnail,
-            )
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"出现错误: {e}")
-        # return True if the status code indicates success, False otherwise
-        return response.status_code == 200
+        return self.update_thumbnail(book_id, thumbnail, "books")
 
     def add_collection(self, name, ordered, seriesIds):
         """

@@ -1,6 +1,7 @@
 from config.config import *
 from tools.env import *
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 from warnings import deprecated
 
 

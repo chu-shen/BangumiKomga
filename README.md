@@ -9,8 +9,11 @@
   - [快速开始](#快速开始)
   - [Komga 配置（必填）](#komga-配置必填)
     - [为小说添加元数据](#为小说添加元数据)
+    - [支持 One-Shots](#支持-one-shots)
   - [Bangumi 配置（可选）](#bangumi-配置可选)
   - [网络代理设置（可选）](#网络代理设置可选)
+    - [Docker compose](#docker-compose)
+    - [原生部署](#原生部署)
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
@@ -133,6 +136,10 @@
 Komga 并没有区分漫画与小说，建议不同类型使用不同库
 
 `IS_NOVEL_ONLY`：设置为`True`时，将只匹配小说数据；默认设置为`False`，匹配漫画数据
+
+### 支持 One-Shots
+
+按照[官方文档](https://komga.org/docs/guides/oneshots/)编辑库设置，添加 One-Shots 单行本目录后可正常刮削
 
 ## Bangumi 配置（可选）
 

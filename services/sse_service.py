@@ -1,5 +1,6 @@
 import threading
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 
 from config.config import KOMGA_LIBRARY_LIST
 from core.refresh_metadata import refresh_metadata, get_series_metadata

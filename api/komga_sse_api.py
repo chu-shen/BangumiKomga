@@ -17,7 +17,8 @@ from requests.adapters import HTTPAdapter
 from threading import Thread, Lock
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 from config.config import KOMGA_BASE_URL, KOMGA_EMAIL, KOMGA_EMAIL_PASSWORD, KOMGA_LIBRARY_LIST
 
 # 可配置的订阅事件类型

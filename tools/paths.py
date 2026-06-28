@@ -39,9 +39,13 @@ def ensure_runtime_layout():
     os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
     if os.path.isdir(DB_PATH):
+        entries = os.listdir(DB_PATH)
         _log.warning(
-            "数据库路径为目录（可能由 Docker bind-mount 导致），正在删除: %s", DB_PATH
+            "数据库路径为目录（可能由 Docker bind-mount 导致），正在删除: %s（内含 %d 项文件/目录）",
+            DB_PATH, len(entries)
         )
+        if entries:
+            _log.info("目录内容预览: %s", entries[:10])
         try:
             shutil.rmtree(DB_PATH)
         except OSError as e:

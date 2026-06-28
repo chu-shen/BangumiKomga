@@ -1,6 +1,7 @@
 import sqlite3
 from time import strftime, localtime
 import logging
+from tools.paths import DB_PATH, ensure_runtime_layout
 logger = logging.getLogger(__name__)
 
 
@@ -36,7 +37,6 @@ def upsert_series_record(
 
 def upsert_book_record(conn, book_id, subject_id, update_success, book_name):
     c = conn.cursor()
-    # 0 (false) and 1 (true)
     c.execute(
         "INSERT OR REPLACE INTO refreshed_books (book_id,subject_id,update_success,book_name,refresh_time) VALUES (?,?,?,?,?)",
         (
@@ -51,8 +51,10 @@ def upsert_book_record(conn, book_id, subject_id, update_success, book_name):
 
 
 def init_sqlite3():
-    # Create a connection to the sqlite database
-    conn = sqlite3.connect("recordsRefreshed.db", check_same_thread=False)
+    # 确保运行时环境就绪（幂等，可被多次调用）
+    ensure_runtime_layout()
+    # 打开连接并创建表结构
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS refreshed_series (series_id text primary key,subject_id text ,update_success BOOLEAN,series_name text,bangumi_name text,refresh_time text )"""

@@ -102,9 +102,7 @@
         container_name: bangumikomga
         volumes:
           - /path/BangumiKomga/config.py:/app/config/config.py   # 内容更改见 step.2
-          - /path/BangumiKomga/recordsRefreshed.db:/app/recordsRefreshed.db
-          - /path/BangumiKomga/logs:/app/logs
-          - /path/BangumiKomga/archivedata:/app/archivedata # 离线元数据（可选），详见`ARCHIVE_FILES_DIR`
+          - /path/BangumiKomga/data:/app/data                     # 日志、数据库、离线元数据
     ```
 
 2. 根据模板`config/config.template.py` 创建配置文件：`config/config.py`, 然后填写[必需配置](#komga-配置必填)。(_推荐优先使用[交互式配置生成](#交互式配置生成)_)
@@ -153,7 +151,7 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
   - 不含图像数据因此无法离线刷新封面。如果开启 `USE_BANGUMI_THUMBNAIL`，则仍需调用 BGM API 才能替换海报
   - 可选值为 `True` 和 `False`
 
-- `ARCHIVE_FILES_DIR`: 指定储存 [bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./archivedata/`
+- `ARCHIVE_FILES_DIR`: 指定储存 [bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./data/archivedata/`
   - 启用 `USE_BANGUMI_ARCHIVE` 后，程序会自动从Github下载并解压元数据(可能较慢)
   - 离线元数据亦可提前手动解压至该目录中, 另外最好同时创建 `archive_update_time.json` 并添加日期，内容示例：`{"last_updated": "2025-04-22T21:03:01Z"}`
 

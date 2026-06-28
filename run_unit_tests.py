@@ -61,8 +61,8 @@ def run_unit_tests():
             "*__pycache__*",
             "*tests*",
             "*test_results*",
-            "*archivedata*",
-            "*logs*",
+            "*data/archivedata*",
+            "*data/logs*",
             # 排除标准库和第三方库
             "*/lib/*",
         ],

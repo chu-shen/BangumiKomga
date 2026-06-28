@@ -68,7 +68,7 @@ USE_BANGUMI_ARCHIVE = False
 # @@validator:
 # @@info: 可以指定自建目录
 # @@version: 0.13.0
-ARCHIVE_FILES_DIR = "./archivedata/"
+ARCHIVE_FILES_DIR = "./data/archivedata/"
 
 # @@name: ARCHIVE_UPDATE_INTERVAL
 # @@prompt: 离线元数据的更新间隔

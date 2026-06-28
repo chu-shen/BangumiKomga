@@ -10,4 +10,6 @@ ARG PYTHON_VERSION
 WORKDIR /app
 COPY --from=builder /usr/local/lib/python${PYTHON_VERSION}/site-packages /usr/local/lib/python${PYTHON_VERSION}/site-packages
 COPY . .
+
+RUN mkdir -p data/logs data/archivedata && touch data/recordsRefreshed.db
 CMD [ "python3", "main.py"]

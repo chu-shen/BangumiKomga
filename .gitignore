@@ -1,10 +1,11 @@
 config.py
 recordsRefreshed.db
-refreshMetadata.log
+logs/
 __pycache__/
 .vscode
 *.json*
 *.jsonlines*
 .coverage
 test_results/
+benchmark_results/
 *.generated.py

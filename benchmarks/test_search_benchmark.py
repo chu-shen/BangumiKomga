@@ -1,7 +1,6 @@
 import json
 import mmap
 import random
-import sys
 import os
 import time
 from datetime import datetime
@@ -10,17 +9,14 @@ from bangumi_archive.archive_autoupdater import check_archive, ARCHIVE_FILES_DIR
 from api.bangumi_api import BangumiApiDataSource, BangumiArchiveDataSource
 from config.config import BANGUMI_ACCESS_TOKEN as ACCESS_TOKEN
 
-# 添加项目根目录到 sys.path，确保可以导入模块
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-# 评估阈值. 暂置为较低值以便通过测试, 观察评估报告
+# Assessment thresholds. Set low initially to pass tests while observing reports.
 RECALL_THRESHOLD = 0.50
 TOP1_ACCURACY_THRESHOLD = 0.50
 
-# 配置
+# Config
 file_path = os.path.join(ARCHIVE_FILES_DIR, "subject.jsonlines")
 samples_size = 100
-# 是否输出测试报告文件
+# Whether to output test report files
 is_save_report = True
 show_sample_size = 5
 use_token = False
@@ -33,15 +29,15 @@ archive_api = BangumiArchiveDataSource(ARCHIVE_FILES_DIR)
 
 def sample_jsonlines(input_file, sample_size: int, output_file=None):
     if sample_size <= 0:
-        raise ValueError("sample_size 必须大于 0")
+        raise ValueError("sample_size must be > 0")
 
     file_size = os.path.getsize(input_file)
     if file_size == 0:
-        raise ValueError("文件为空")
+        raise ValueError("File is empty")
 
-    # 存储符合条件的行的偏移量和原始行号
-    valid_offsets = []       # 每个有效行的起始字节偏移
-    valid_line_indices = []  # 对应在原始文件中的行号(从0开始)
+    # Store offsets and line indices of valid lines
+    valid_offsets = []       # byte offset of each valid line
+    valid_line_indices = []  # line index in the original file (0-based)
 
     with open(input_file, 'rb') as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
@@ -50,80 +46,78 @@ def sample_jsonlines(input_file, sample_size: int, output_file=None):
             while pos < len(mm):
                 next_pos = mm.find(b'\n', pos)
                 if next_pos == -1:
-                    # 最后一行可能没有换行符
+                    # Last line may not have a newline
                     line_bytes = mm[pos:]
                     try:
                         line_str = line_bytes.rstrip(b'\n\r').decode('utf-8')
                         data = json.loads(line_str)
-                        # 条件筛选最后一行
-                        # 当前条件: type=1且series=True
+                        # Condition: type=1 and series=True
                         if isinstance(data, dict) and data.get('type') == 1 and data.get('series') is True:
                             valid_offsets.append(pos)
                             valid_line_indices.append(line_idx)
                     except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
-                        pass  # 跳过非法行
+                        pass  # Skip invalid lines
                     break
 
                 line_bytes = mm[pos:next_pos]
                 try:
                     line_str = line_bytes.rstrip(b'\n\r').decode('utf-8')
                     data = json.loads(line_str)
-                    # 条件筛选
-                    # 当前条件: type=1且series=True
+                    # Condition: type=1 and series=True
                     if data.get('type') == 1 and data.get('series') is True:
                         valid_offsets.append(pos)
                         valid_line_indices.append(line_idx)
                 except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
-                    pass  # 跳过非法行
+                    pass  # Skip invalid lines
 
                 pos = next_pos + 1
                 line_idx += 1
 
     total_valid_lines = len(valid_offsets)
-    print(f"共找到 {line_idx} 行，其中满足筛选条件的行有 {total_valid_lines} 行")
+    print(f"Found {line_idx} lines, {total_valid_lines} match filter criteria")
 
     if total_valid_lines == 0:
-        raise ValueError("文件中没有满足筛选条件的的行，采样中止")
+        raise ValueError("No lines match filter criteria, sampling aborted")
 
     if sample_size > total_valid_lines:
         print(
-            f"请求采样 {sample_size} 行，但只有 {total_valid_lines} 行满足筛选条件, 将采样全部行")
+            f"Requested {sample_size} samples, but only {total_valid_lines} match; sampling all")
         sample_size = total_valid_lines
 
-    # 从符合条件的索引 valid_offsets 中随机采样
+    # Randomly sample from valid offsets
     sampled_valid_indices = random.sample(
         range(total_valid_lines), sample_size)
-    print(f"已按规则从 Archive 数据中随机采样 {sample_size} 行索引")
+    print(f"Randomly sampled {sample_size} indices from Archive data")
 
     samples = []
-    print("正在根据索引读取采样行...")
+    print("Reading sampled lines by index...")
     with open(input_file, 'rb') as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
             for idx in sampled_valid_indices:
                 start = valid_offsets[idx]
-                # 从当前行起始位置，找下一个 \n，作为结束位置
+                # Find next \n from start position as end
                 end = mm.find(b'\n', start)
                 if end == -1:
                     end = len(mm)
                 line_bytes = mm[start:end]
                 line_str = line_bytes.rstrip(b'\n\r').decode(
-                    'utf-8', errors='replace')  # 容错解码
+                    'utf-8', errors='replace')  # Tolerate decode errors
                 try:
                     data = json.loads(line_str)
                     samples.append(data)
                 except json.JSONDecodeError as e:
                     print(
-                        f"⚠️ 解析失败，跳过行（偏移 {start}）: {e.msg} - 内容: {line_str[:100]}...")
+                        f"\u26a0\ufe0f Parse failed, skipping line (offset {start}): {e.msg} - content: {line_str[:100]}...")
                     continue
                 except UnicodeDecodeError as e:
-                    print(f"⚠️ 编码错误，跳过行（偏移 {start}）: {e}")
+                    print(f"\u26a0\ufe0f Encoding error, skipping line (offset {start}): {e}")
                     continue
 
     if output_file:
         with open(output_file, 'w', encoding='utf-8') as out_f:
             for item in samples:
                 out_f.write(json.dumps(item, ensure_ascii=False) + '\n')
-        print(f"采样结果已写入 {output_file}")
+        print(f"Sampling results written to {output_file}")
         return None
     else:
         return samples
@@ -136,21 +130,21 @@ def evaluate_search_function(
     is_save_report: bool = False
 ):
     """
-    评估任意搜索函数的检索效果, 并统计检索耗时。
-    :param data_samples: 采样数据
-    :param search_func: 要测试的搜索函数，必须接受 (file_path, query) 两个参数
-    :param is_save_report: 是否保存评估结果到 JSON
+    Evaluate retrieval effectiveness of an arbitrary search function, and measure search latency.
+    :param data_samples: Sampled data
+    :param search_func: The search function to test, must accept (query) as a single argument
+    :param is_save_report: Whether to save evaluation results as JSON
     """
 
-    start_total = time.time()  # 开始计时
+    start_total = time.time()  # Start timing
 
-    # 构建 query-ground truth 对
+    # Build query-ground truth pairs
     query_gt_pairs = []
     for item in data_samples:
         name_cn = item.get("name_cn", "").strip()
         name = item.get("name", "").strip()
         item_id = item.get("id")
-        # 用作品名构建查询
+        # Use Chinese name if available, otherwise original name
         query = name_cn if name_cn else name
         if not query:
             continue
@@ -158,27 +152,27 @@ def evaluate_search_function(
             "query": query,
             "ground_truth_id": item_id,
         })
-    print(f"成功构建 {len(query_gt_pairs)} 个 query-ground truth 对")
+    print(f"Built {len(query_gt_pairs)} query-ground truth pairs")
     if query_gt_pairs:
         print(
-            f"示例 query: '{query_gt_pairs[0]['query']}' (ID: {query_gt_pairs[0]['ground_truth_id']})\n")
+            f"Example query: '{query_gt_pairs[0]['query']}' (ID: {query_gt_pairs[0]['ground_truth_id']})\n")
 
-    # 执行搜索评估
+    # Execute search evaluation
     results_per_query = []
-    tp_query_count = 0  # query-level recall 计数
-    tp_total = 0        # result-level precision 计数
+    tp_query_count = 0  # query-level recall count
+    tp_total = 0        # result-level precision count
     fp_total = 0
     total_queries = len(query_gt_pairs)
 
-    # 搜索耗时
+    # Search latency
     total_search_time = 0.0
 
-    print(f"🔍 开始对每个 query 执行检索（使用函数: {search_func.__name__}）...")
+    print(f"\U0001f50d Starting per-query retrieval (using function: {search_func.__name__})...")
     for i, pair in enumerate(query_gt_pairs, 1):
         query = pair["query"]
         gt_id = pair["ground_truth_id"]
 
-        # 对每次搜索计时
+        # Time each search
         start_search = time.time()
         search_results = search_func(query)
         search_duration = time.time() - start_search
@@ -197,14 +191,14 @@ def evaluate_search_function(
             "found": found_in_results,
             "search_results_count": len(returned_ids),
             "search_results_ids": returned_ids,
-            "search_time": search_duration  # 保留单次搜索耗时
+            "search_time": search_duration  # Keep per-query latency
         })
 
         if i % 50 == 0:
             print(
-                f"  已处理 {i}/{total_queries}，已召回 {tp_query_count} 条，当前搜索已耗时: {total_search_time:.4f}s")
+                f"  Processed {i}/{total_queries}, recalled {tp_query_count}, search time so far: {total_search_time:.4f}s")
 
-    # 计算指标
+    # Compute metrics
     recall = tp_query_count / total_queries if total_queries > 0 else 0.0
     precision = tp_total / \
         (tp_total + fp_total) if (tp_total + fp_total) > 0 else 0.0
@@ -216,54 +210,54 @@ def evaluate_search_function(
         1 for r in results_per_query if r["search_results_ids"] and r["search_results_ids"][0] == r["gt_id"])
     top1_accuracy = top1_correct / total_queries if total_queries > 0 else 0.0
 
-    # 计时, 总流程结束
+    # Timing: total process ends
     end_total = time.time()
     total_time = end_total - start_total
     if is_show_summery:
         print("\n" + "="*70)
-        print("评估报告")
+        print("Evaluation Report")
         print("="*70)
-        print(f"搜索函数: {search_func.__module__}.{search_func.__name__}")
-        print(f"总查询数: {total_queries}")
-        print(f"成功召回 (TP): {tp_query_count}")
-        print(f"未召回 (FN): {total_queries - tp_query_count}")
+        print(f"Search function: {search_func.__module__}.{search_func.__name__}")
+        print(f"Total queries: {total_queries}")
+        print(f"Successful recalls (TP): {tp_query_count}")
+        print(f"Missed (FN): {total_queries - tp_query_count}")
         print(
-            f"平均检索结果数: {sum(r['search_results_count'] for r in results_per_query) / total_queries:.2f}")
-        print(f"召回率 (Recall): {recall:.4f} ({tp_query_count}/{total_queries})")
-        print(f"精确率 (Precision): {precision:.4f}")
-        print(f"Top-1 准确率: {top1_accuracy:.4f}")
+            f"Average result count: {sum(r['search_results_count'] for r in results_per_query) / total_queries:.2f}")
+        print(f"Recall: {recall:.4f} ({tp_query_count}/{total_queries})")
+        print(f"Precision: {precision:.4f}")
+        print(f"Top-1 Accuracy: {top1_accuracy:.4f}")
         print(f"F1-score: {f1:.4f}")
-        print(f"总耗时: {total_time:.4f} 秒")
-        print(f"搜索总耗时: {total_search_time:.4f} 秒")
-        print(f"平均每次搜索耗时: {total_search_time / total_queries:.4f} 秒")
+        print(f"Total time: {total_time:.4f} seconds")
+        print(f"Total search time: {total_search_time:.4f} seconds")
+        print(f"Average search time: {total_search_time / total_queries:.4f} seconds")
         print("="*70)
 
-        # 错误样例
+        # Failed examples
         failed_queries = [
             r for r in results_per_query if not r["found"]][:show_sample_size]
-        print(f"\n 前 {show_sample_size} 个未召回的查询(FN):")
+        print(f"\n Top {show_sample_size} unrecalled queries (FN):")
         for i, r in enumerate(failed_queries, 1):
             print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
-            print(f"     检索结果数: {r['search_results_count']}")
+            print(f"     Result count: {r['search_results_count']}")
             if r['search_results_ids']:
                 ids_str = r['search_results_ids'][:3]
                 suffix = "..." if len(r['search_results_ids']) > 3 else ""
-                print(f"     返回的 ID: {ids_str}{suffix}")
+                print(f"     Returned IDs: {ids_str}{suffix}")
 
-        # 展示最慢的 5 次搜索
-        print(f"\n 最慢的 {show_sample_size} 次查询:")
+        # Show slowest 5 searches
+        print(f"\n Slowest {show_sample_size} queries:")
         slowest_queries = sorted(
             results_per_query, key=lambda x: x["search_time"], reverse=True)[:show_sample_size]
         for i, r in enumerate(slowest_queries, 1):
             print(f"  {i}. Query: '{r['query']}' (ID: {r['gt_id']})")
-            print(f"     检索耗时: {r['search_time']:.4f} 秒")
-            print(f"     检索结果数: {r['search_results_count']}")
+            print(f"     Search latency: {r['search_time']:.4f} seconds")
+            print(f"     Result count: {r['search_results_count']}")
             if r['search_results_ids']:
                 ids_str = r['search_results_ids'][:3]
                 suffix = "..." if len(r['search_results_ids']) > 3 else ""
-                print(f"     返回的 ID: {ids_str}{suffix}")
+                print(f"     Returned IDs: {ids_str}{suffix}")
 
-    # 保存报告
+    # Save report
     if is_save_report:
         output_eval = {
             "total_queries": total_queries,
@@ -298,12 +292,12 @@ def evaluate_search_function(
             ]
         }
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # 确保目录存在
-        os.makedirs("test_results", exist_ok=True)
-        eval_file = f"test_results/search_func_eval_results_{timestamp}.json"
+        # Ensure directory exists
+        os.makedirs("benchmark_results", exist_ok=True)
+        eval_file = f"benchmark_results/search_func_eval_results_{timestamp}.json"
         with open(eval_file, 'w', encoding='utf-8') as f:
             json.dump(output_eval, f, ensure_ascii=False, indent=2)
-        print(f"\n 检索函数评估结果已保存至: {eval_file}")
+        print(f"\n Search function evaluation results saved to: {eval_file}")
 
     return {
         "recall": recall,
@@ -322,28 +316,28 @@ def evaluate_search_function(
 class TestSearchFunctionEvaluation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        print("\n 正在准备 Bangumi Archive 数据文件...")
-        # 使采样结果可复现
+        print("\n Preparing Bangumi Archive data files...")
+        # Set seed for reproducible sampling
         # random.seed(42)
         try:
             check_archive()
-            # 验证文件是否存在且非空
+            # Verify file exists and is non-empty
             if not os.path.exists(file_path):
-                raise FileNotFoundError(f"Archive 文件不存在: {file_path}")
+                raise FileNotFoundError(f"Archive file not found: {file_path}")
             if os.path.getsize(file_path) == 0:
-                raise ValueError(f"Archive 文件为空: {file_path}")
-            print(f" Archive 文件准备完成: {file_path}")
+                raise ValueError(f"Archive file is empty: {file_path}")
+            print(f" Archive file ready: {file_path}")
 
-            # 采样放到setUpClass以便测试共享同一份采样数据
+            # Sample in setUpClass so all tests share the same sampled data
             cls.sampled_data = sample_jsonlines(file_path, samples_size)
             if not cls.sampled_data:
-                raise ValueError("采样结果为空")
-            print(f"采样完成，共 {len(cls.sampled_data)} 个样本")
+                raise ValueError("Sampling result is empty")
+            print(f"Sampling complete, {len(cls.sampled_data)} samples")
         except Exception as e:
-            raise unittest.SkipTest(f" Archive 准备失败，跳过测试: {str(e)}")
+            raise unittest.SkipTest(f" Archive preparation failed, skipping test: {str(e)}")
 
     def test_offline_search_function(self):
-        """测试检索函数的召回率和Top-1准确率是否达标"""
+        """Test recall and Top-1 accuracy of the offline search function"""
 
         def search_func_offline(
             query): return archive_api.search_subjects(query)
@@ -355,27 +349,27 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
                 is_save_report=is_save_report
             )
         except Exception as e:
-            self.fail(f"评估过程出错: {str(e)}")
+            self.fail(f"Evaluation error: {str(e)}")
 
-        # 输出指标到 stdout，供 CI 捕获
+        # Output metrics to stdout for CI capture
         print(json.dumps(metrics, ensure_ascii=False, indent=None))
 
-        # 断言阈值
+        # Assert thresholds
         self.assertGreaterEqual(
             metrics["recall"],
             RECALL_THRESHOLD,
-            f"召回率 {metrics['recall']:.4f} 低于阈值 {RECALL_THRESHOLD}"
+            f"Recall {metrics['recall']:.4f} below threshold {RECALL_THRESHOLD}"
         )
         self.assertGreaterEqual(
             metrics["top1_accuracy"],
             TOP1_ACCURACY_THRESHOLD,
-            f"Top-1 准确率 {metrics['top1_accuracy']:.4f} 低于阈值 {TOP1_ACCURACY_THRESHOLD}"
+            f"Top-1 Accuracy {metrics['top1_accuracy']:.4f} below threshold {TOP1_ACCURACY_THRESHOLD}"
         )
 
     def test_online_search_function(self):
-        """测试检索函数的召回率和Top-1准确率是否达标"""
+        """Test recall and Top-1 accuracy of the online search function"""
         def search_func_online(query):
-            # 1 RPS,使测试的请求速率低于限流器要求
+            # 1 RPS, keep request rate below rate limiter threshold
             time.sleep(1)
             return bgm_api.search_subjects(query, threshold=80)
         try:
@@ -386,38 +380,38 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
                 is_save_report=is_save_report
             )
         except Exception as e:
-            self.fail(f"评估过程出错: {str(e)}")
+            self.fail(f"Evaluation error: {str(e)}")
 
-        # 输出指标到 stdout，供 CI 捕获
+        # Output metrics to stdout for CI capture
         print(json.dumps(metrics, ensure_ascii=False, indent=None))
 
-        # 断言阈值
+        # Assert thresholds
         self.assertGreaterEqual(
             metrics["recall"],
             RECALL_THRESHOLD,
-            f"召回率 {metrics['recall']:.4f} 低于阈值 {RECALL_THRESHOLD}"
+            f"Recall {metrics['recall']:.4f} below threshold {RECALL_THRESHOLD}"
         )
         self.assertGreaterEqual(
             metrics["top1_accuracy"],
             TOP1_ACCURACY_THRESHOLD,
-            f"Top-1 准确率 {metrics['top1_accuracy']:.4f} 低于阈值 {TOP1_ACCURACY_THRESHOLD}"
+            f"Top-1 Accuracy {metrics['top1_accuracy']:.4f} below threshold {TOP1_ACCURACY_THRESHOLD}"
         )
 
     def test_optimaize_threshold_archive_search(self):
-        """自动推断 search_subjects 的最优 threshold 值"""
-        # 搜索范围和步长
+        """Automatically infer the optimal threshold value for search_subjects"""
+        # Search range and step
         threshold_range = list(range(60, 101, 5))  # [60, 65, ..., 100]
-        print(f"\n 开始搜索最优 threshold 值：{threshold_range}")
+        print(f"\n Starting optimal threshold search: {threshold_range}")
 
-        # 存储每个 threshold 的评估结果
+        # Store evaluation results for each threshold
         results = []
 
         def search_func_with_threshold(query, th):
             return archive_api.search_subjects(query, threshold=th)
 
-        # 遍历所有 threshold 值
+        # Iterate over all threshold values
         for th in threshold_range:
-            print(f"  评估 threshold={th} ...")
+            print(f"  Evaluating threshold={th} ...")
 
             def wrapped_search(query):
                 return search_func_with_threshold(query, th)
@@ -426,8 +420,8 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
                 metrics = evaluate_search_function(
                     data_samples=self.__class__.sampled_data,
                     search_func=wrapped_search,
-                    is_show_summery=False,  # 不显示评测概览
-                    is_save_report=False  # 不保存中间报告
+                    is_show_summery=False,  # Don't show summary
+                    is_save_report=False  # Don't save intermediate reports
                 )
                 results.append({
                     "threshold": th,
@@ -438,10 +432,10 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
                 print(
                     f"    Recall: {metrics['recall']:.4f}, Top-1: {metrics['top1_accuracy']:.4f}, F1: {metrics['f1']:.4f}")
             except Exception as e:
-                print(f"    ❌ threshold={th} 评估失败: {e}")
+                print(f"    \u274c threshold={th} evaluation failed: {e}")
                 continue
 
-        # 过滤出满足最低要求的候选
+        # Filter candidates meeting minimum requirements
         min_recall = RECALL_THRESHOLD
         min_top1 = TOP1_ACCURACY_THRESHOLD
         valid_results = [
@@ -451,48 +445,49 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
 
         if not valid_results:
             self.fail(
-                f"❌ 所有 threshold 值均未达到最低要求(Recall≥{min_recall}, Top-1≥{min_top1})"
+                f"\u274c No threshold values met minimum requirements (Recall\u2265{min_recall}, Top-1\u2265{min_top1})"
             )
 
-        # 按f1值排序，取最优
+        # Sort by F1, pick the best
         best_result = max(valid_results, key=lambda x: x["f1"])
         best_threshold = best_result["threshold"]
 
-        # 获取默认 threshold=80 的结果
+        # Get default threshold=80 result
         default_result = next(
             (r for r in results if r["threshold"] == 80), None)
         if not default_result:
-            self.fail("默认 threshold=80 未评估，无法比较")
+            self.fail("Default threshold=80 was not evaluated, cannot compare")
 
         print("\n" + "="*70)
-        print("最优 threshold 推断结果")
+        print("Optimal Threshold Inference Result")
         print("="*70)
-        print(f"✅ 最优 threshold: {best_threshold}")
+        print(f"\u2705 Optimal threshold: {best_threshold}")
         print(f"  Recall: {best_result['recall']:.4f}")
         print(f"  Top-1 Accuracy: {best_result['top1_accuracy']:.4f}")
         print(f"  F1: {best_result['f1']:.4f}")
-        print(f"  默认 threshold=80 的表现:")
+        print(f"  Default threshold=80 performance:")
         print(f"    Recall: {default_result['recall']:.4f}")
         print(f"    Top-1 Accuracy: {default_result['top1_accuracy']:.4f}")
         print(f"    F1: {default_result['f1']:.4f}")
 
-        # 判断是否优于默认值
+        # Determine if better than default
         is_better_than_default = (
             best_result["f1"] > default_result["f1"]
         )
 
-        # 断言：最优值F1必须至少不低于默认值
+        # Assert: optimal F1 must not be worse than default
         self.assertGreaterEqual(
             best_result["f1"],
             default_result["f1"],
-            f"❌ 推断出的最优 threshold={best_threshold} 的F1值 ({best_result['f1']:.4f}) "
-            f"高于默认值的F1 ({default_result['f1']:.4f})，默认值可能不合理。"
+            f"\u274c Inferred optimal threshold={best_threshold} F1 ({best_result['f1']:.4f}) "
+            f"is LOWER than default threshold=80 F1 ({default_result['f1']:.4f}), "
+            f"meaning the optimal threshold search did not find a better value."
         )
 
-        # 保存最终推断结果
+        # Save final inference result
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        os.makedirs("test_results", exist_ok=True)
-        report_path = f"test_results/optimal_threshold_report_{timestamp}.json"
+        os.makedirs("benchmark_results", exist_ok=True)
+        report_path = f"benchmark_results/optimal_threshold_report_{timestamp}.json"
         report = {
             "threshold_range": threshold_range,
             "all_results": results,
@@ -507,4 +502,4 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
         }
         with open(report_path, 'w', encoding='utf-8') as f:
             json.dump(report, f, ensure_ascii=False, indent=2)
-        print(f"\n📊 最优阈值评估报告已保存至: {report_path}")
+        print(f"\n\U0001f4ca Optimal threshold evaluation report saved to: {report_path}")

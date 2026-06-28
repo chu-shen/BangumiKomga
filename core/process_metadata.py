@@ -337,22 +337,23 @@ def set_komga_book_metadata(subject_id, number, name, bgm):
     # authors
     authors = []
     for info in bangumi_metadata["infobox"]:
-        if info["key"] == "作者":
-            """
-            基础格式：{'name':'值','role':'角色类型'}
-            角色类型有：
-                writer:作者
-                inker:画图者
-                translator:翻译者
-                editor:主编
-                cover:封面
-                letterer:嵌字者
-                colorist:上色者
-                penciller:铅稿
-                自定义的角色类型值
-            """
-            author = {"name": info["value"], "role": "writer"}
-            authors.append(author)
+        """
+        基础格式：{'name':'值','role':'角色类型'}
+        角色类型有：
+            writer:作者
+            inker:画图者
+            translator:翻译者
+            editor:主编
+            cover:封面
+            letterer:嵌字者
+            colorist:上色者
+            penciller:铅稿
+            自定义的角色类型值
+        """
+        if info["key"] in ["作者", "原作"] and info.get("value"):
+            authors.append({"name": info["value"].replace(" ", ""), "role": "writer"})
+        if info["key"] in ["作画"] and info.get("value"):
+            authors.append({"name": info["value"].replace(" ", ""), "role": "penciller"})
     komga_book_metadata.authors = authors
     # releaseDate
     komga_book_metadata.releaseDate = bangumi_metadata["date"]

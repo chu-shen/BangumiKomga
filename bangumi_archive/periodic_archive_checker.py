@@ -1,6 +1,7 @@
 import threading
 import time
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 from config.config import USE_BANGUMI_ARCHIVE, ARCHIVE_UPDATE_INTERVAL
 from bangumi_archive.archive_autoupdater import check_archive
 

@@ -8,7 +8,8 @@ from threading import Lock
 from datetime import datetime, timezone
 from threading import Lock
 from typing import Dict, List, Union
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 
 
 class IndexedDataReader:

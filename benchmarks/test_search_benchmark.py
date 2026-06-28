@@ -1,7 +1,6 @@
 import json
 import mmap
 import random
-import sys
 import os
 import time
 from datetime import datetime
@@ -9,9 +8,6 @@ import unittest
 from bangumi_archive.archive_autoupdater import check_archive, ARCHIVE_FILES_DIR
 from api.bangumi_api import BangumiApiDataSource, BangumiArchiveDataSource
 from config.config import BANGUMI_ACCESS_TOKEN as ACCESS_TOKEN
-
-# Add project root to sys.path for module imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Assessment thresholds. Set low initially to pass tests while observing reports.
 RECALL_THRESHOLD = 0.50
@@ -484,7 +480,8 @@ class TestSearchFunctionEvaluation(unittest.TestCase):
             best_result["f1"],
             default_result["f1"],
             f"\u274c Inferred optimal threshold={best_threshold} F1 ({best_result['f1']:.4f}) "
-            f"is higher than default F1 ({default_result['f1']:.4f}), default may be unreasonable."
+            f"is LOWER than default threshold=80 F1 ({default_result['f1']:.4f}), "
+            f"meaning the optimal threshold search did not find a better value."
         )
 
         # Save final inference result

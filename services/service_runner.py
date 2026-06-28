@@ -2,14 +2,20 @@ from services.polling_service import poll_service
 from services.sse_service import sse_service
 import logging
 logger = logging.getLogger(__name__)
-import threading
 from config.config import BANGUMI_KOMGA_SERVICE_TYPE
 from core.refresh_metadata import refresh_metadata
 from bangumi_archive.periodic_archive_checker import start_archive_service
 
 
 def run_service():
-    """启动 Bangumi Komga 服务."""
+    """启动 Bangumi Komga 服务.
+
+    三种模式下 archive 服务均在 refresh_metadata 前启动:
+      once: archive 后台下载 → refresh_metadata → wait_ready → 退出
+      poll: archive 后台下载 → refresh_metadata → 阻塞轮询
+      sse:  archive 后台下载 → refresh_metadata → 阻塞 SSE
+    所有模式通过 try/finally 保证 archive_service.stop() 在退出时执行.
+    """
     service_type = BANGUMI_KOMGA_SERVICE_TYPE.lower()
 
     # 启动 Archive 服务 (后台下载 + 定时更新)
@@ -19,9 +25,9 @@ def run_service():
 
     try:
         if service_type == "poll":
-            run_poll_service()
+            poll_service()           # 内部阻塞主线程, 自行处理 Ctrl+C/stop
         elif service_type == "sse":
-            run_sse_service()
+            sse_service()            # 内部阻塞主线程, 自行处理 Ctrl+C/stop
         elif service_type == "once":
             run_once_service(archive_service)
         else:
@@ -35,24 +41,6 @@ def run_service():
             archive_service.stop()
 
 
-def run_poll_service():
-    """运行轮询服务."""
-    service_thread = threading.Thread(
-        target=poll_service, daemon=True, name="PollService"
-    )
-    service_thread.start()
-    _wait_service(service_thread)
-
-
-def run_sse_service():
-    """运行SSE服务."""
-    service_thread = threading.Thread(
-        target=sse_service, daemon=True, name="SSEService"
-    )
-    service_thread.start()
-    _wait_service(service_thread)
-
-
 def run_once_service(archive_service):
     """运行一次性服务 — 等 archive 就绪后退出."""
     if archive_service is not None:
@@ -62,10 +50,3 @@ def run_once_service(archive_service):
             logger.warning("Archive 数据未在规定时间内准备就绪")
         else:
             logger.info("Archive 数据已就绪")
-
-
-def _wait_service(service_thread):
-    try:
-        service_thread.join()
-    except KeyboardInterrupt:
-        logger.warning("服务手动终止: 退出 BangumiKomga 服务")

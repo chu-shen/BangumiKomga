@@ -101,11 +101,13 @@ class PollService:
 
 
 def poll_service():
-    """轮询模式入口 — 阻塞主线程, Ctrl+C 退出."""
+    """轮询模式入口 — 阻塞主线程, Ctrl+C / SIGTERM 退出."""
     service = PollService()
     service.start()
     try:
-        threading.Event().wait()
+        # 用超时轮询替代永久阻塞, 确保 SIGTERM 能被及时处理
+        while service._running:
+            service._stop_event.wait(timeout=5)
     except KeyboardInterrupt:
         pass
     finally:

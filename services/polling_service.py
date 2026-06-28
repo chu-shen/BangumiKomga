@@ -60,6 +60,14 @@ class PollService:
         if self._thread is not None:
             self._thread.join(timeout=30)
 
+    def is_running(self) -> bool:
+        """返回轮询是否正在运行."""
+        return self._running
+
+    def wait_for_stop(self, timeout=None) -> bool:
+        """阻塞等待停止信号, 返回是否被 set."""
+        return self._stop_event.wait(timeout=timeout)
+
     # -- 内部实现 ----------------------------------------------------
 
     def _run(self):
@@ -106,8 +114,8 @@ def poll_service():
     service.start()
     try:
         # 用超时轮询替代永久阻塞, 确保 SIGTERM 能被及时处理
-        while service._running:
-            service._stop_event.wait(timeout=5)
+        while service.is_running():
+            service.wait_for_stop(timeout=5)
     except KeyboardInterrupt:
         pass
     finally:

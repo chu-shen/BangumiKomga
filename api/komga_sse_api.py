@@ -12,7 +12,6 @@ import requests
 import base64
 from urllib3.util import Retry
 from requests.adapters import HTTPAdapter
-from threading import Thread, Lock
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 import logging

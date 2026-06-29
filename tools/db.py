@@ -1,6 +1,7 @@
 import sqlite3
 from time import strftime, localtime
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 
 
 def upsert_series_record(
@@ -51,7 +52,7 @@ def upsert_book_record(conn, book_id, subject_id, update_success, book_name):
 
 def init_sqlite3():
     # Create a connection to the sqlite database
-    conn = sqlite3.connect("recordsRefreshed.db", check_same_thread=False)
+    conn = sqlite3.connect("data/recordsRefreshed.db", check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS refreshed_series (series_id text primary key,subject_id text ,update_success BOOLEAN,series_name text,bangumi_name text,refresh_time text )"""

@@ -9,8 +9,11 @@
   - [快速开始](#快速开始)
   - [Komga 配置（必填）](#komga-配置必填)
     - [为小说添加元数据](#为小说添加元数据)
+    - [支持 One-Shots](#支持-one-shots)
   - [Bangumi 配置（可选）](#bangumi-配置可选)
   - [网络代理设置（可选）](#网络代理设置可选)
+    - [Docker compose](#docker-compose)
+    - [原生部署](#原生部署)
   - [消息通知（可选）](#消息通知可选)
   - [创建失败收藏（可选）](#创建失败收藏可选)
   - [其他配置说明](#其他配置说明)
@@ -98,11 +101,13 @@
         image: chu1shen/bangumikomga:main
         container_name: bangumikomga
         volumes:
-          - /path/BangumiKomga/config.py:/app/config/config.py   # 内容更改见 step.2
-          - /path/BangumiKomga/recordsRefreshed.db:/app/recordsRefreshed.db
-          - /path/BangumiKomga/logs:/app/logs
-          - /path/BangumiKomga/archivedata:/app/archivedata # 离线元数据（可选），详见`ARCHIVE_FILES_DIR`
+          - /path/BangumiKomga/config.py:/app/config/config.py      # 内容更改见 step.2
+          - /path/BangumiKomga/data:/app/data                       # 统一数据目录：archivedata（离线元数据 + archive_index.db）、logs、recordsRefreshed.db
     ```
+
+    > [!NOTE]
+    > 运行时产物统一落在 `data/` 下，挂载整个目录即可持久化全部数据。
+    > 切勿将 `.db` 文件作为单文件 volume 挂载 — 若宿主机该文件不存在，Docker 会创建一个**同名空目录**，导致 `sqlite3.connect()` 失败。
 
 2. 根据模板`config/config.template.py` 创建配置文件：`config/config.py`, 然后填写[必需配置](#komga-配置必填)。(_推荐优先使用[交互式配置生成](#交互式配置生成)_)
 
@@ -134,6 +139,10 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
 
 `IS_NOVEL_ONLY`：设置为`True`时，将只匹配小说数据；默认设置为`False`，匹配漫画数据
 
+### 支持 One-Shots
+
+按照[官方文档](https://komga.org/docs/guides/oneshots/)编辑库设置，添加 One-Shots 单行本目录后可正常刮削
+
 ## Bangumi 配置（可选）
 
 - `BANGUMI_ACCESS_TOKEN`: 用于读取 NSFW 条目
@@ -146,15 +155,9 @@ Komga 并没有区分漫画与小说，建议不同类型使用不同库
   - 不含图像数据因此无法离线刷新封面。如果开启 `USE_BANGUMI_THUMBNAIL`，则仍需调用 BGM API 才能替换海报
   - 可选值为 `True` 和 `False`
 
-- `ARCHIVE_FILES_DIR`: 指定储存 [bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./archivedata/`
-  - 启用 `USE_BANGUMI_ARCHIVE` 后，程序会自动从Github下载并解压元数据(可能较慢)
-  - 离线元数据亦可提前手动解压至该目录中, 另外最好同时创建 `archive_update_time.json` 并添加日期，内容示例：`{"last_updated": "2025-04-22T21:03:01Z"}`
-
-> [!TIP] 已过时
->
-> - ~~如果将`archive_update_time.json`中时间修改为`2099`等较大值，可在很长时间内禁用自动更新~~
->  
-> 请使用`ARCHIVE_UPDATE_INTERVAL`↓↓↓
+- `ARCHIVE_FILES_DIR`: 指定储存 [bangumi/Archive](https://github.com/bangumi/Archive)的本地目录，形如：`./data/archivedata/`
+  - 启用 `USE_BANGUMI_ARCHIVE` 后，程序会自动下载 jsonlines 并构建 SQLite 索引（`archive_index.db`），均存放于此目录
+  - 离线元数据亦可提前手动解压至该目录中
 
 - `ARCHIVE_UPDATE_INTERVAL`: 指定 [bangumi/Archive](https://github.com/bangumi/Archive) 离线元数据的更新间隔, 单位为小时。置为`0`表示不检查更新，其余值则会在启动时立即执行一次检查
 

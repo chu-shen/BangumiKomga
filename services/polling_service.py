@@ -1,90 +1,122 @@
-import threading
-import time
+"""基于轮询的元数据刷新服务.
+
+在增量刷新与全量刷新之间交替:
+  增量: 通过 Komga /series/latest 获取最近修改的系列.
+  全量: 刷新 KOMGA_LIBRARY_LIST / KOMGA_COLLECTION_LIST 中的所有系列.
+
+全量刷新间隔基于墙钟时间, 从现有配置计算:
+  POLL_INTERVAL × POLL_REFRESH_ALL_METADATA_INTERVAL.
+"""
+
 import os
-import sqlite3
-from tools.log import logger
+import threading
+import logging
+from datetime import datetime, timezone
+
 from config.config import (
     BANGUMI_KOMGA_SERVICE_POLL_INTERVAL,
     BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL,
 )
 from core.refresh_metadata import refresh_metadata, refresh_partial_metadata
+from tools.cache_time import TimeCacheManager
+
+logger = logging.getLogger(__name__)
+
+# 轮询全量刷新时间戳缓存 — 存放于 data/ 根下, 不混入 ARCHIVE_FILES_DIR
+POLL_FULL_REFRESH_CACHE = os.path.join("data", "poll_last_full_refresh.json")
 
 
-class PollingCaller:
+class PollService:
+    """定时轮询元数据刷新服务."""
+
     def __init__(self):
-        self.is_refreshing = False
-        self.interval = BANGUMI_KOMGA_SERVICE_POLL_INTERVAL
-        # 多少次轮询后执行一次全量刷新
-        self.refresh_all_metadata_interval = (
-            BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL
+        self._interval = BANGUMI_KOMGA_SERVICE_POLL_INTERVAL
+        self._full_refresh_seconds = (
+            BANGUMI_KOMGA_SERVICE_POLL_INTERVAL
+            * BANGUMI_KOMGA_SERVICE_POLL_REFRESH_ALL_METADATA_INTERVAL
         )
-        self.refresh_counter = 0
-        # 添加锁对象
-        self.lock = threading.Lock()
+        self._full_refresh_cache = POLL_FULL_REFRESH_CACHE
 
-    def _safe_refresh(self, refresh_func):
-        """
-        封装安全刷新操作
-        """
-        with self.lock:
-            if self.is_refreshing:
-                logger.warning("已有元数据刷新任务在运行")
-                return False
-            self.is_refreshing = True
+        self._running = False
+        self._stop_event = threading.Event()
+        self._thread = None
 
-        try:
-            refresh_func()
+    # -- 公开 API ----------------------------------------------------
+
+    def start(self):
+        """在非守护线程中启动轮询."""
+        if self._running:
+            return
+        self._running = True
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._run, daemon=False)
+        self._thread.start()
+
+    def stop(self):
+        """停止轮询并等待当前周期结束."""
+        self._running = False
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join(timeout=30)
+
+    def is_running(self) -> bool:
+        """返回轮询是否正在运行."""
+        return self._running
+
+    def wait_for_stop(self, timeout=None) -> bool:
+        """阻塞等待停止信号, 返回是否被 set."""
+        return self._stop_event.wait(timeout=timeout)
+
+    # -- 内部实现 ----------------------------------------------------
+
+    def _run(self):
+        """轮询主循环."""
+        while self._running:
+            try:
+                self._tick()
+            except Exception:
+                logger.error("轮询周期失败", exc_info=True)
+
+            # 可中断的 sleep — stop() 会 set 事件
+            if self._stop_event.wait(timeout=self._interval):
+                break
+
+    def _tick(self):
+        """单次轮询周期: 判断全量/增量, 执行刷新."""
+        if self._should_full_refresh():
+            logger.info("开始全量元数据刷新")
+            refresh_metadata()
+            self._save_full_refresh_time()
+        else:
+            refresh_partial_metadata()
+
+    def _should_full_refresh(self) -> bool:
+        """距上次全量刷新是否已过足够时间."""
+        last = TimeCacheManager.read_time(self._full_refresh_cache)
+        last_dt = TimeCacheManager.convert_to_datetime(last)
+        if last_dt is None:
             return True
-        except Exception as e:
-            logger.error(f"刷新失败: {str(e)}", exc_info=True)
-            return False
-        finally:
-            with self.lock:
-                self.is_refreshing = False
+        elapsed = (datetime.now(timezone.utc) - last_dt).total_seconds()
+        return elapsed >= self._full_refresh_seconds
 
-    def start_polling(self):
-        """
-        启动服务
-        """
-
-        def poll():
-            # 执行定时轮询
-            while True:
-                try:
-                    # 定时全量刷新
-                    if self.refresh_counter >= self.refresh_all_metadata_interval:
-                        success = self._safe_refresh(refresh_metadata)
-                        self.refresh_counter = 0
-                    else:
-                        success = self._safe_refresh(refresh_partial_metadata)
-                    # 更新计数器和间隔
-                    if not success:
-                        retry_delay = min(2**self.interval, 60)
-                        time.sleep(retry_delay)
-
-                    self.refresh_counter += 1
-                    # 等待一个预设时间间隔
-                    time.sleep(self.interval)
-
-                except Exception as e:
-                    logger.error(f"轮询失败: {str(e)}", exc_info=True)
-                    # 指数退避重试
-                    retry_delay = min(2**self.interval, 60)
-                    # 固定值重试
-                    # retry_delay = self.interval
-                    logger.warning(f"{retry_delay}秒后重试...")
-                    time.sleep(retry_delay)
-                    continue
-
-        # 使用守护线程启动轮询
-        threading.Thread(target=poll, daemon=True).start()
+    def _save_full_refresh_time(self):
+        os.makedirs(os.path.dirname(self._full_refresh_cache), exist_ok=True)
+        TimeCacheManager.save_time(
+            self._full_refresh_cache,
+            datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
 
 
 def poll_service():
-    PollingCaller().start_polling()
-
-    # 防止服务主线程退出
+    """轮询模式入口 — 阻塞主线程, Ctrl+C / SIGTERM 退出."""
+    service = PollService()
+    service.start()
     try:
-        threading.Event().wait()
+        # 用超时轮询替代永久阻塞, 确保 SIGTERM 能被及时处理
+        while service.is_running():
+            service.wait_for_stop(timeout=5)
     except KeyboardInterrupt:
-        logger.warning("服务手动终止: 退出 BangumiKomga 服务")
+        pass
+    finally:
+        service.stop()
+        logger.info("轮询服务已停止")

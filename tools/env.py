@@ -3,7 +3,8 @@ import api.komga_api as komga_api
 from config.config import *
 import os
 import sqlite3
-from tools.log import logger
+import logging
+logger = logging.getLogger(__name__)
 from config.configuration_generator import start_config_generate
 
 
@@ -15,7 +16,6 @@ class InitEnv:
         BANGUMI_DATA_SOURCE_CONFIG = {
             "access_token": BANGUMI_ACCESS_TOKEN,
             "use_local_archive": USE_BANGUMI_ARCHIVE,
-            "local_archive_folder": ARCHIVE_FILES_DIR,
         }
         # 初始化 bangumi API
         self.bgm = BangumiDataSourceFactory.create(BANGUMI_DATA_SOURCE_CONFIG)
@@ -31,12 +31,13 @@ class InitEnv:
         config_file = os.path.join(PROJECT_ROOT, "config", "config.py")
         generated_config_file = os.path.join(
             PROJECT_ROOT, "config", "config.generated.py")
-        log_directory = os.path.join(PROJECT_ROOT, "logs")
+        data_dir = os.path.join(PROJECT_ROOT, "data")
+        log_directory = os.path.join(data_dir, "logs")
         try:
             # 准备日志目录
             os.makedirs(log_directory, exist_ok=True)
             # 自动创建db文件
-            with sqlite3.connect(os.path.join(PROJECT_ROOT, "recordsRefreshed.db")) as conn:
+            with sqlite3.connect(os.path.join(data_dir, "recordsRefreshed.db")) as conn:
                 pass
             if not os.path.exists(config_file) or os.path.getsize(config_file) == 0:
                     start_config_generate()

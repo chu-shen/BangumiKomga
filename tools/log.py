@@ -9,7 +9,11 @@ def is_in_debug():
     return bool(sys.gettrace())
 
 def init_logger(debug_mode=None, log_dir='data/logs', log_file_name='refreshMetadata.log'):
-    """初始化日志记录器"""
+    """初始化日志记录器.
+
+    幂等: 若 logger 已有 handlers 则直接返回, 避免重复注册.
+    应在进程启动时调用一次 (main.py), 不应在运行时动态改变配置.
+    """
     if debug_mode is None:
         debug_mode = is_in_debug()
     logger = logging.getLogger()

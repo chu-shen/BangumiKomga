@@ -423,9 +423,9 @@ def update_book_metadata(book_id, related_subject, book_name, number, is_oneshot
 
         # 使用 Bangumi 图片替换原封面
         # 确保没有上传过海报，避免重复上传，排除 komga 生成的封面
-        if ((
-            USE_BANGUMI_THUMBNAIL_FOR_BOOK
-        ) or (is_oneshot and USE_BANGUMI_THUMBNAIL)) and len(komga.get_book_thumbnails(book_id)) == 1:
+        want_book_cover = USE_BANGUMI_THUMBNAIL_FOR_BOOK
+        want_oneshot_cover = is_oneshot and USE_BANGUMI_THUMBNAIL
+        if (want_book_cover or want_oneshot_cover) and len(komga.get_book_thumbnails(book_id)) == 1:
             # 尝试多尺寸海报上传
             for thumbnail_size in ['large', 'common', 'medium']:
                 # 获取当前尺寸的封面

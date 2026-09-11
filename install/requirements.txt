@@ -2,5 +2,5 @@ pypinyin==0.55.0
 Requests==2.34.2
 thefuzz==0.22.1
 zhconv==1.4.3
-tqdm==4.68.3
+tqdm==4.70.1
 colorama==0.4.6
